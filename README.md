@@ -4,10 +4,33 @@ AnimeLens is a Chrome extension that analyzes your MyAnimeList activity and prov
 
 This release contains only the compiled extension. You do not need the project source code or Node.js to install it.
 
+## Showcase
+<table>
+  <tr>
+    <td align="center">
+      <img src="https://github.com/user-attachments/assets/4bd55706-385b-4d0c-9f70-d96126362151" width="400" alt="AnimeLens recommendations">
+      <br>
+      <sub><b>Personalized Recommendations</b></sub>
+    </td>
+    <td align="center">
+      <img src="https://github.com/user-attachments/assets/84a472d4-74a0-44ad-9218-71d084b7ea8d" width="400" alt="AnimeLens interface">
+      <br>
+      <sub><b>Profile analysis</b></sub>
+    </td>
+  </tr>
+  <tr>
+    <td align="center" colspan="2">
+      <img src="https://github.com/user-attachments/assets/f5706000-66b9-404c-9f6c-103a79df00e9" width="500" alt="AnimeLens settings">
+      <br>
+      <sub><b>Configuration & Settings</b></sub>
+    </td>
+  </tr>
+</table>
+
 ## Install AnimeLens
 
 1. Download the latest `AnimeLens.7z` file from the [GitHub Releases page](https://github.com/Kikubay/AnimeLens/releases).
-2. Extract the ZIP file to a folder on your computer.
+2. Extract the 7z file to a folder on your computer.
 3. Open Google Chrome.
 4. Go to:
    ```text
@@ -17,7 +40,7 @@ This release contains only the compiled extension. You do not need the project s
 6. Click **Load unpacked**.
 7. Select the extracted extension folder containing `manifest.json`.
 
-Do not select the ZIP file itself. Select the folder containing `manifest.json`.
+Do not select the 7z file itself. Select the folder containing `manifest.json`.
 
 If AnimeLens is already installed, replace the old extension files with the new release files and click **Reload** on the AnimeLens card in `chrome://extensions`.
 
@@ -54,7 +77,7 @@ AnimeLens checks GitHub for new releases whenever the popup opens. Checks are li
 When a newer version is available:
 
 1. Click **Mettre à jour** in the AnimeLens update banner.
-2. Download the latest release ZIP.
+2. Download the latest release 7z.
 3. Extract it to a new folder, or replace the existing extension files.
 4. Open `chrome://extensions`.
 5. Click **Reload** on AnimeLens.
@@ -65,7 +88,7 @@ Chrome does not automatically update extensions installed with **Load unpacked**
 
 ### The extension does not load
 
-- Confirm that you selected the extracted folder, not the ZIP file.
+- Confirm that you selected the extracted folder, not the 7z file.
 - Confirm that the selected folder contains `manifest.json`.
 - Download the latest release again if files are missing.
 - Open `chrome://extensions` and check the error details on the AnimeLens card.
@@ -98,6 +121,10 @@ Chrome does not automatically update extensions installed with **Load unpacked**
 
 This is expected for unpacked extensions. The other computer may have a different extension ID. Open AnimeLens Settings on that computer and register its displayed redirect URI in the corresponding MAL OAuth application.
 
+## Issues & Feedback
+
+- Found a bug or have an idea ? Open an [issue](https://github.com/Kikubay/AnimeLens/issues/new).
+
 ## Privacy and security
 
 - AnimeLens does not request or store your MAL password.
@@ -111,3 +138,13 @@ This is expected for unpacked extensions. The other computer may have a differen
 - Extension type: Chrome Manifest V3
 - Installation method: Load unpacked
 - Release downloads: [GitHub Releases](https://github.com/Kikubay/AnimeLens/releases)
+
+## License
+
+- The compiled releases are provided for viewing and evaluation only. No permission is granted to use, copy, modify, distribute, sublicense, or create derivative works from the software without prior written permission from the copyright holder.
+- See [LICENSE](https://github.com/Kikubay/AnimeLens/blob/main/LICENSE.md) for the complete terms.
+
+## Support
+
+- If AnimeLens is useful to you, consider giving the repository a ⭐.
+- It helps other developers discover the project.
