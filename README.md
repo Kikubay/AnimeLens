@@ -57,7 +57,7 @@ Each computer receives its own extension ID when the extension is loaded unpacke
 7. Register the redirect URI copied from AnimeLens exactly as shown.
 8. Copy the MAL **Client ID**.
 9. Paste the Client ID into AnimeLens under **Client ID MAL**.
-10. Click **Enregistrer le Client ID**.
+10. Click **Save the Client ID**.
 11. Click **Connect MAL** from the dashboard or Settings.
 
 The redirect URI normally looks like this:
