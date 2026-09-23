@@ -1,8 +1,8 @@
 # AnimeLens Beta
 [![Version](https://img.shields.io/github/v/release/Kikubay/AnimeLens?label=Version&color=blue)](https://github.com/Kikubay/AnimeLens/releases/latest)
-[![Chrome](https://img.shields.io/badge/Chrome-Extension-4285F4?logo=googlechrome&logoColor=white)](http://chromewebstore.google.com/)
+![Chrome](https://img.shields.io/badge/Chrome-Extension-4285F4?logo=googlechrome&logoColor=white)
 
-![Stars](https://img.shields.io/github/stars/Kikubay/AnimeLens?style=social)
+[![Stars](https://img.shields.io/github/stars/Kikubay/AnimeLens?style=social)](https://github.com/Kikubay/AnimeLens/stargazers)
 [![Issues](https://img.shields.io/github/issues/Kikubay/AnimeLens?label=Open%20Issues)](https://github.com/Kikubay/AnimeLens/issues/new)
 
 [![License](https://img.shields.io/badge/License-All%20Rights%20Reserved-red)](https://github.com/Kikubay/AnimeLens/blob/main/LICENSE.md)
@@ -10,26 +10,41 @@
 AnimeLens is a Chrome extension that analyzes your MyAnimeList activity and provides personalized anime recommendations with explanations.
 
 This release contains only the compiled extension. You do not need the project source code or Node.js to install it.
+___
+
+## 📑 Table of Contents
+- [Showcase](#showcase)
+- [Install](#install)
+- [Configure](#configure-myanimelist)
+- [Update](#update)
+- [Troubleshooting](#troubleshooting)
+- [Privacy and security](#privacy-and-security)
+- [License](#license)
 
 ___
 
 ## Showcase
+
+<p align="center">
+  <img src="https://github.com/user-attachments/assets/7ea21f73-e67f-43e1-a69b-71a9f1de4695" width="100%" alt="AnimeLens Banner" style="border-radius: 12px; max-width: 1000px;" />
+</p>
+
 <table>
   <tr>
     <td align="center">
-      <img src="https://github.com/user-attachments/assets/4bd55706-385b-4d0c-9f70-d96126362151" width="400" alt="AnimeLens recommendations">
+      <img src="https://github.com/user-attachments/assets/4bd55706-385b-4d0c-9f70-d96126362151" width="500" style="max-width: 100%; height: auto;" alt="AnimeLens recommendations">
       <br>
       <sub><b>Personalized Recommendations</b></sub>
     </td>
     <td align="center">
-      <img src="https://github.com/user-attachments/assets/84a472d4-74a0-44ad-9218-71d084b7ea8d" width="400" alt="AnimeLens interface">
+      <img src="https://github.com/user-attachments/assets/84a472d4-74a0-44ad-9218-71d084b7ea8d" width="500" style="max-width: 100%; height: auto;" alt="AnimeLens interface">
       <br>
       <sub><b>Profile analysis</b></sub>
     </td>
   </tr>
   <tr>
     <td align="center" colspan="2">
-      <img src="https://github.com/user-attachments/assets/f5706000-66b9-404c-9f6c-103a79df00e9" width="500" alt="AnimeLens settings">
+      <img src="https://github.com/user-attachments/assets/f5706000-66b9-404c-9f6c-103a79df00e9" width="500" style="max-width: 100%; height: auto;" alt="AnimeLens settings">
       <br>
       <sub><b>Configuration & Settings</b></sub>
     </td>
@@ -50,7 +65,7 @@ ___
   6. Click **Load unpacked**.
   7. Select the extracted extension folder containing `manifest.json`.
   
-Do not select the <b>7z</b> file itself. Select the folder containing `manifest.json`.
+Do not select the `7z` file itself. Select the folder containing `manifest.json`.
 
 If AnimeLens is already installed, replace the old extension files with the new release files and click **Reload** on the AnimeLens card in `chrome://extensions`.
 ___
@@ -154,7 +169,8 @@ ___
 
 ## Issues & Feedback
 
-- Found a bug or have an idea ? Open an [issue](https://github.com/Kikubay/AnimeLens/issues/new).
+- 🐛 Found a bug ? [Open an issue](https://github.com/Kikubay/AnimeLens/issues/new?template=bug_report.md)
+- 💡 Have a feature idea ? [Open a feature request](https://github.com/Kikubay/AnimeLens/issues/new?template=feature_request.md)
 
 ___
 
@@ -170,8 +186,13 @@ ___
 
 ## License
 
-The compiled releases are provided for viewing and evaluation only. No permission is granted to use, copy, modify, distribute, sublicense, or create derivative works from the software without prior written permission from the copyright holder.
-See [LICENSE](https://github.com/Kikubay/AnimeLens/blob/main/LICENSE.md) for the complete terms.
+**All Rights Reserved.** 
+
+The compiled releases of AnimeLens are provided for personal evaluation only. You may not use, copy, modify, distribute, or create derivative works from this software without explicit written permission from the copyright holder. 
+
+See the [LICENSE](https://github.com/Kikubay/AnimeLens/blob/main/LICENSE.md) file for full details.
+
+*Note: AnimeLens is an independent project and is not affiliated with or endorsed by MyAnimeList.*
 
 ___
 
@@ -179,5 +200,3 @@ ___
 
 If AnimeLens is useful to you, consider giving the repository a ⭐.
 It helps other developers discover the project.
-
-</details>
