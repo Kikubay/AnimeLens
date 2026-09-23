@@ -1,11 +1,11 @@
 # AnimeLens Beta
 [![Version](https://img.shields.io/github/v/release/Kikubay/AnimeLens?label=Version&color=blue)](https://github.com/Kikubay/AnimeLens/releases/latest)
-![Chrome](https://img.shields.io/badge/Chrome-Extension-4285F4?logo=googlechrome&logoColor=white)
+[![Chrome](https://img.shields.io/badge/Chrome-Extension-4285F4?logo=googlechrome&logoColor=white)](http://chromewebstore.google.com/)
 
 ![Stars](https://img.shields.io/github/stars/Kikubay/AnimeLens?style=social)
-![Issues](https://img.shields.io/github/issues/Kikubay/AnimeLens?label=Open%20Issues)
+[![Issues](https://img.shields.io/github/issues/Kikubay/AnimeLens?label=Open%20Issues)](https://github.com/Kikubay/AnimeLens/issues/new)
 
-![License](https://img.shields.io/badge/License-All%20Rights%20Reserved-red)
+[![License](https://img.shields.io/badge/License-All%20Rights%20Reserved-red)](https://github.com/Kikubay/AnimeLens/blob/main/LICENSE.md)
 
 AnimeLens is a Chrome extension that analyzes your MyAnimeList activity and provides personalized anime recommendations with explanations.
 
