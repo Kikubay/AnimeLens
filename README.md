@@ -10,6 +10,10 @@
 AnimeLens is a Chrome extension that analyzes your MyAnimeList activity and provides personalized anime recommendations with explanations.
 
 This release contains only the compiled extension. You do not need the project source code or Node.js to install it.
+
+> Note: *For now, I'm focused on the stability of the expansion and wanted to save beta testers from having to install Node.js and compile the project themselves.
+> As soon as the stable version is ready, I'll make all the source code public on the repo !*
+
 ___
 
 ## 📑 Table of Contents
