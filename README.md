@@ -5,7 +5,7 @@
 [![Stars](https://img.shields.io/github/stars/Kikubay/AnimeLens?style=social)](https://github.com/Kikubay/AnimeLens/stargazers)
 [![Issues](https://img.shields.io/github/issues/Kikubay/AnimeLens?label=Open%20Issues)](https://github.com/Kikubay/AnimeLens/issues/new)
 
-[![License](https://img.shields.io/badge/License-All%20Rights%20Reserved-red)](https://github.com/Kikubay/AnimeLens/blob/main/LICENSE.md)
+[![License](https://img.shields.io/badge/License-All%20Rights%20Reserved-red)](https://github.com/Kikubay/AnimeLens?tab=License-1-ov-file)
 
 AnimeLens is a Chrome extension that analyzes your MyAnimeList activity and provides personalized anime recommendations with explanations.
 
@@ -194,7 +194,7 @@ ___
 
 The compiled releases of AnimeLens are provided for personal evaluation only. You may not use, copy, modify, distribute, or create derivative works from this software without explicit written permission from the copyright holder. 
 
-See the [LICENSE](https://github.com/Kikubay/AnimeLens/blob/main/LICENSE.md) file for full details.
+See the [LICENSE](https://github.com/Kikubay/AnimeLens?tab=License-1-ov-file) file for full details.
 
 *Note: AnimeLens is an independent project and is not affiliated with or endorsed by MyAnimeList.*
 
