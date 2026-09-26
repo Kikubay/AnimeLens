@@ -36,19 +36,19 @@ ___
 <table>
   <tr>
     <td align="center">
-      <img src="https://github.com/user-attachments/assets/4bd55706-385b-4d0c-9f70-d96126362151" width="500" style="max-width: 100%; height: auto;" alt="AnimeLens recommendations">
+      <img src="https://github.com/user-attachments/assets/9eb42caf-6775-4b42-aa10-c4a551d4a6b3" width="500" style="max-width: 100%; height: auto;" alt="AnimeLens recommendations">
       <br>
       <sub><b>Personalized Recommendations</b></sub>
     </td>
     <td align="center">
-      <img src="https://github.com/user-attachments/assets/84a472d4-74a0-44ad-9218-71d084b7ea8d" width="500" style="max-width: 100%; height: auto;" alt="AnimeLens interface">
+      <img src="https://github.com/user-attachments/assets/65619f49-990b-406c-9d78-ff66efeb757f" width="500" style="max-width: 100%; height: auto;" alt="AnimeLens interface">
       <br>
       <sub><b>Profile analysis</b></sub>
     </td>
   </tr>
   <tr>
     <td align="center" colspan="2">
-      <img src="https://github.com/user-attachments/assets/f5706000-66b9-404c-9f6c-103a79df00e9" width="500" style="max-width: 100%; height: auto;" alt="AnimeLens settings">
+      <img src="https://github.com/user-attachments/assets/434dc9b2-d3ac-4f0e-90bc-1fc84b14abb1" width="500" style="max-width: 100%; height: auto;" alt="AnimeLens settings">
       <br>
       <sub><b>Configuration & Settings</b></sub>
     </td>
