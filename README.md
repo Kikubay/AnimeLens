@@ -7,7 +7,9 @@
 
 [![License](https://img.shields.io/badge/License-All%20Rights%20Reserved-red)](https://github.com/Kikubay/AnimeLens?tab=License-1-ov-file)
 
-AnimeLens is a Chrome extension that analyzes your MyAnimeList activity and provides personalized anime recommendations with explanations.
+AnimeLens is a Chrome extension that analyzes your **MyAnimeList** or **AniList** activity and provides personalized anime recommendations with explanations.
+
+You can connect both accounts and switch the active one at any time — recommendations, synchronization, and add-to-list always target the active provider.
 
 This release contains only the compiled extension. You do not need the project source code or Node.js to install it.
 
@@ -19,7 +21,8 @@ ___
 ## 📑 Table of Contents
 - [Showcase](#showcase)
 - [Install](#install)
-- [Configure](#configure-myanimelist)
+- [Config](#configure)
+- [Switching accounts](#switching-accounts)
 - [Update](#update)
 - [Troubleshooting](#troubleshooting)
 - [Privacy and security](#privacy-and-security)
@@ -48,7 +51,7 @@ ___
   </tr>
   <tr>
     <td align="center" colspan="2">
-      <img src="https://github.com/user-attachments/assets/434dc9b2-d3ac-4f0e-90bc-1fc84b14abb1" width="500" style="max-width: 100%; height: auto;" alt="AnimeLens settings">
+      <img src="https://github.com/user-attachments/assets/6622eed5-0616-4275-b878-85caec58e1ca" width="500" style="max-width: 100%; height: auto;" alt="AnimeLens settings">
       <br>
       <sub><b>Configuration & Settings</b></sub>
     </td>
@@ -74,31 +77,73 @@ Do not select the `7z` file itself. Select the folder containing `manifest.json`
 If AnimeLens is already installed, replace the old extension files with the new release files and click **Reload** on the AnimeLens card in `chrome://extensions`.
 ___
 
-## Configure MyAnimeList
+## Configure
 
-Each computer receives its own extension ID when the extension is loaded unpacked. Therefore, each installation must use a MAL OAuth application configured for that installation.
+<details>
+<summary>MyAnimeList</summary>
+
+- Each computer receives its own extension ID when the extension is loaded unpacked. Therefore, each installation must use a MAL OAuth application configured for that installation.
 
   1. Open the AnimeLens popup.
   2. Open **Settings**.
-  3. Open **Configuration MAL**.
+  3. Open the **MAL configuration** panel (OAuth section).
   4. Copy the displayed **redirect URI**.
   5. Open the [MyAnimeList API applications page](https://myanimelist.net/apiconfig).
   6. Create a new OAuth application, or open an existing one.
   7. Register the redirect URI copied from AnimeLens exactly as shown.
   8. Copy the MAL **Client ID**.
-  9. Paste the Client ID into AnimeLens under **Client ID MAL**.
-  10. Click **Save the Client ID**.
-  11. Click **Connect MAL** from the dashboard or Settings.
+  9. Paste the Client ID into AnimeLens under **MAL Client ID**.
+  10. Click **Save Client ID**.
+  11. Click **Connect** next to MyAnimeList in the **Providers** section (or **Connect MAL** from the dashboard).
 
-The redirect URI normally looks like this:
+- The redirect URI normally looks like this:
 
 ```text
 https://<your-extension-id>.chromiumapp.org/
 ```
 
-The redirect URI must match exactly, including the trailing slash. Do not add a path, query string, or extra spaces.
+- The redirect URI must match exactly, including the trailing slash. Do not add a path, query string, or extra spaces.
+- A MAL Client Secret is not required by AnimeLens. Never enter your MAL password or Client Secret into the extension.
+</details>
 
-A MAL Client Secret is not required by AnimeLens. Never enter your MAL password or Client Secret into the extension.
+<details>
+<summary>AniList</summary>
+
+- AniList uses a **copy/paste authorization flow** (Auth Pin). Chrome cannot complete AniList's token redirect inside the extension's auth window, so AniList displays the access token on its own site and the extension picks it up from the open tab — no manual copying needed.
+
+  1. Open the AnimeLens popup.
+  2. Open **Settings**.
+  3. Open the **AniList Client ID** panel (OAuth section).
+  4. Note the redirect URL shown there:
+     ```text
+     https://anilist.co/api/v2/oauth/pin
+     ```
+  5. Open the [AniList developer settings](https://anilist.co/settings/developer).
+  6. Click **Create New Application** (or edit an existing one).
+  7. Set the **Redirect URL** to the pin URL above, exactly.
+  8. Copy the AniList **Client ID**.
+  9. Paste the Client ID into AnimeLens under **AniList Client ID**.
+  10. Click **Save Client ID**.
+  11. Click **Connect** next to AniList in the **Providers** section.
+  12. AniList opens in a new tab — sign in and click **Authorize**.
+  13. Return to the AnimeLens popup: a panel appears under AniList saying the authorization was detected. Click **Finish connecting**.
+
+> An AniList Client Secret is never required. If AniList shows you a "Copy & Paste the following text" page, that is expected — leave the tab open and click **Finish connecting** in AnimeLens; the token is read automatically.
+
+- AniList access tokens are long-lived (about one year). When it expires, AniList shows as disconnected and you simply authorize again.
+</details>
+
+> Note: Don’t worry—this is just a one-time setup for the beta! Once AnimeLens launches on the Chrome Web Store, you won't have to do this manually; everything will be handled automatically in the background.
+
+___
+
+## Switching accounts
+
+Both MyAnimeList and AniList can stay connected at the same time. In **Settings → Providers**:
+
+- Each provider card shows its status (**Active** or **Connect** / **Make active** / **Disconnect**).
+- The **active** provider receives synchronization, recommendations, and add-to-list actions.
+- Switching is instant: each provider keeps its own cached list, so switching back works even offline, then a fresh sync runs in the background.
 
 ___
 
@@ -154,10 +199,37 @@ ___
 <summary>Authentication does not finish</summary>
 
   - Confirm that the Client ID was saved.
-  - Confirm that the Client ID belongs to the MAL application containing the registered redirect URI.
+  - Confirm that the Client ID belongs to the provider application containing the registered redirect URL.
   - Confirm that Chrome is connected to the internet.
   - Check the AnimeLens service worker errors in `chrome://extensions`.
-  - If Chrome extension storage was cleared, configure the Client ID and connect MAL again.
+  - If Chrome extension storage was cleared, configure the Client ID and connect again.
+
+</details>
+
+<details>
+<summary>AniList shows an error page after authorizing</summary>
+
+  - <code>unsupported_grant_type</code>: Update AnimeLens and reload it.
+  - <code>DNS address not found / chromiumapp.org</code>: the AniList application's <strong>Redirect URL</strong> is still the extension URL. Change it to <code>https://anilist.co/api/v2/oauth/pin</code> in the <a href="https://anilist.co/settings/developer">AniList developer settings</a>.
+  - After changing the redirect URL, reload the extension and connect again.
+
+</details>
+
+<details>
+<summary>The AniList “Finish connecting” panel does not appear</summary>
+
+  - Keep the AniList tab open after authorizing — the panel only shows while that tab is open.
+  - Make sure AniList is not already shown as connected in the Providers section.
+  - Reload the extension and reopen Settings; the detection polls once per second while Settings is open.
+  - If it still fails, disconnect AniList, click Connect again, and authorize once more.
+
+</details>
+
+<details>
+<summary>AniList shows as disconnected</summary>
+
+  - AniList access tokens last about one year; after expiry you must authorize again (the Connect button reappears automatically).
+  - If you changed the AniList Client ID in Settings, the saved AniList session is cleared — connect again.
 
 </details>
 
@@ -180,11 +252,12 @@ ___
 
 ## Privacy and security
 
-- AnimeLens does not request or store your MAL password.
-- AnimeLens does not require a MAL Client Secret.
-- The MAL Client ID is public OAuth configuration.
+- AnimeLens does not request or store your MAL or AniList password.
+- AnimeLens does not require a Client Secret for either provider.
+- Client IDs are public OAuth configuration.
+- AniList authorization is read from the pin-page tab URL and stored locally; it is never sent anywhere except to AniList's own API.
 - OAuth sessions, preferences, synchronized anime data, and recommendation feedback are stored locally in Chrome extension storage.
-- Requests are made directly from the extension to MyAnimeList and GitHub.
+- Requests are made directly from the extension to MyAnimeList, AniList, and GitHub.
 
 ___
 
@@ -196,7 +269,7 @@ The compiled releases of AnimeLens are provided for personal evaluation only. Yo
 
 See the [LICENSE](https://github.com/Kikubay/AnimeLens?tab=License-1-ov-file) file for full details.
 
-*Note: AnimeLens is an independent project and is not affiliated with or endorsed by MyAnimeList.*
+*Note: AnimeLens is an independent project and is not affiliated with or endorsed by MyAnimeList or AniList.*
 
 ___
 
