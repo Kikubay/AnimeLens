@@ -19,6 +19,7 @@ This release contains only the compiled extension. You do not need the project s
 ___
 
 ## 📑 Table of Contents
+- [Features](#features)
 - [Showcase](#showcase)
 - [Install](#install)
 - [Config](#configure)
@@ -27,6 +28,17 @@ ___
 - [Troubleshooting](#troubleshooting)
 - [Privacy and security](#privacy-and-security)
 - [License](#license)
+
+___
+
+## Features
+
+- 🎯 **Personalized Recommendations**: Get tailored anime suggestions based on your viewing history, complete with clear explanations of *why* they were recommended.
+- 🔄 **Dual-Provider Support**: Connect both **MyAnimeList** and **AniList** accounts simultaneously. 
+- ⚡ **Instant Account Switching**: Seamlessly switch your active provider in seconds. Your cached list remains available offline while a fresh sync runs quietly in the background.
+- 📊 **Profile Analysis & Taste Cards**: Visualize your anime journey! Generate beautiful, shareable "Taste Cards" showcasing your top genres, completion stats, and highest-rated anime (with smart tie-breaking for your absolute favorites).
+- 🎬 **Unified "Add-to-List"**: Whether you are browsing recommendations or using quick-add features, all actions automatically target your currently active provider.
+- 🔒 **Privacy-First Architecture**: AnimeLens never asks for your passwords or Client Secrets. All OAuth sessions, preferences, and synchronized data are stored securely and locally in your Chrome extension storage.
 
 ___
 
