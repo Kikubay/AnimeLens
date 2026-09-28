@@ -1,32 +1,55 @@
-# AnimeLens Beta
-[![Version](https://img.shields.io/github/v/release/Kikubay/AnimeLens?label=Version&color=blue)](https://github.com/Kikubay/AnimeLens/releases/latest)
-![Chrome](https://img.shields.io/badge/Chrome-Extension-4285F4?logo=googlechrome&logoColor=white)
+<p align="center">
+  <a href="https://github.com/Kikubay/AnimeLens">
+    <img alt="AnimeLens" src="https://raw.githubusercontent.com/Kikubay/AnimeLens/refs/heads/main/.github/img/icon128.png" width="120" />
+  </a>
+</p>
+<h1 align="center">
+  AnimeLens
+</h1>
+<h3 align="center">
+  Because choosing an anime shouldn't take longer than watching it.
+</h3>
+<p align="center">
+  AnimeLens is a privacy-first Chrome extension that saves anime fans hours of searching by delivering personalized, clearly explained recommendations and beautiful profile insights, securely synced across MyAnimeList and AniList.
+</p>
+<br>
 
-[![Stars](https://img.shields.io/github/stars/Kikubay/AnimeLens?style=social)](https://github.com/Kikubay/AnimeLens/stargazers)
-[![Issues](https://img.shields.io/github/issues/Kikubay/AnimeLens?label=Open%20Issues)](https://github.com/Kikubay/AnimeLens/issues/new)
+<p align="center">
+  <img alt="Animelens banner" src="https://github.com/user-attachments/assets/7ea21f73-e67f-43e1-a69b-71a9f1de4695">
+</p>
 
-[![License](https://img.shields.io/badge/License-All%20Rights%20Reserved-red)](https://github.com/Kikubay/AnimeLens?tab=License-1-ov-file)
+<p align="center">
+  <a href="https://github.com/Kikubay/AnimeLens/releases">
+    <img alt="Downloads count" src="https://img.shields.io/github/downloads/Kikubay/AnimeLens/total?color=green">
+  </a>
+  <a href="https://github.com/Kikubay/AnimeLens/releases/latest">
+    <img alt="GitHub release (latest)" src="https://img.shields.io/github/v/release/Kikubay/AnimeLens?label=Version&color=blue">
+  </a>
+  <a href="https://chromewebstore.google.com/">
+    <img alt="Soon" src="https://img.shields.io/badge/Chrome-Extension-4285F4?logo=googlechrome&logoColor=white">
+  </a>
+  <a href="https://github.com/Kikubay/AnimeLens?tab=License-1-ov-file">
+    <img alt="License" src="https://img.shields.io/badge/License-All%20Rights%20Reserved-red">
+  </a>
+</p>
+<br />
 
-AnimeLens is a Chrome extension that analyzes your **MyAnimeList** or **AniList** activity and provides personalized anime recommendations with explanations.
-
-You can connect both accounts and switch the active one at any time — recommendations, synchronization, and add-to-list always target the active provider.
-
-This release contains only the compiled extension. You do not need the project source code or Node.js to install it.
-
-> Note: *For now, I'm focused on the stability of the expansion and wanted to save beta testers from having to install Node.js and compile the project themselves.
-> As soon as the stable version is ready, I'll make all the source code public on the repo !*
+> Note: *For now, I'm focused on the stability of the extension and wanted to save beta testers from having to install Node.js and compile the project themselves.*
+>
+> *As soon as the stable version is ready, I'll make all the source code public on the repo !*
 
 ___
 
-## 📑 Table of Contents
+## 📑 Summary
+
 - [Features](#features)
 - [Showcase](#showcase)
 - [Install](#install)
-- [Config](#configure)
-- [Switching accounts](#switching-accounts)
+- [Configure](#configure)
 - [Update](#update)
 - [Troubleshooting](#troubleshooting)
 - [Privacy and security](#privacy-and-security)
+- [Issues and feedbacks](#issues--feedback)
 - [License](#license)
 
 ___
@@ -43,10 +66,6 @@ ___
 ___
 
 ## Showcase
-
-<p align="center">
-  <img src="https://github.com/user-attachments/assets/7ea21f73-e67f-43e1-a69b-71a9f1de4695" width="100%" alt="AnimeLens Banner" style="border-radius: 12px; max-width: 1000px;" />
-</p>
 
 <table>
   <tr>
@@ -287,5 +306,4 @@ ___
 
 ## Support
 
-If AnimeLens is useful to you, consider giving the repository a ⭐.
-It helps other developers discover the project.
+If AnimeLens is useful to you, consider giving the repository a ⭐. It helps other developers discover the project.
