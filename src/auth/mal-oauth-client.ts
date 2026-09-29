@@ -39,36 +39,23 @@ export class FetchMalOAuthClient implements MalOAuthClient {
   }
 
   private async requestToken(body: URLSearchParams): Promise<OAuthTokenResponse> {
-    try {
-      const response = await this.httpClient.post<unknown>(this.tokenUrl, {
-        headers: {
-          'Content-Type': 'application/x-www-form-urlencoded',
-        },
-        body: body.toString(),
+    const response = await this.httpClient.post<unknown>(this.tokenUrl, {
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded',
+      },
+      body: body.toString(),
+    });
+    if (!isTokenResponse(response.data)) {
+      throw new ApiError('MAL returned an invalid OAuth token response.', {
+        code: 'invalid_response',
+        status: response.status,
       });
-      if (!isTokenResponse(response.data)) {
-        throw new ApiError('MAL returned an invalid OAuth token response.', {
-          code: 'invalid_response',
-          status: response.status,
-        });
-      }
-      return {
-        accessToken: response.data.access_token,
-        refreshToken: response.data.refresh_token,
-        expiresIn: response.data.expires_in,
-      };
-    } catch (error) {
-      if (error instanceof ApiError && error.code === 'network_error') {
-        const cause = error.cause as Error | undefined;
-        console.error('[MAL OAuth] Token exchange network error:', {
-          url: this.tokenUrl,
-          message: cause?.message,
-          cause: cause?.cause,
-          stack: cause?.stack,
-        });
-      }
-      throw error;
     }
+    return {
+      accessToken: response.data.access_token,
+      refreshToken: response.data.refresh_token,
+      expiresIn: response.data.expires_in,
+    };
   }
 }
 
