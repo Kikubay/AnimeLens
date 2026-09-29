@@ -32,15 +32,6 @@ export class FetchHttpClient implements HttpClient {
     try {
       response = await this.fetcher(url, options);
     } catch (error) {
-      const err = error as Error | undefined;
-      console.error('[HttpClient] Fetch failed:', {
-        url,
-        method: options.method ?? 'GET',
-        message: err?.message,
-        name: err?.name,
-        stack: err?.stack,
-        cause: err?.cause,
-      });
       throw new ApiError('The API request could not be completed.', {
         code: 'network_error',
         cause: error,
