@@ -1,191 +1,90 @@
-# AnimeLens Beta — Proprietary License
+# AnimeLens License
 
-**Copyright © 2026 Kikubay. All rights reserved.**
+**Copyright © 2026 Kikubay. All Rights Reserved.**
 
-This license applies to the **AnimeLens Beta** software, including its source code, compiled releases, documentation, assets, configuration, and other materials distributed with the Beta release, unless a file explicitly states otherwise.
+By accessing, using, or contributing to the AnimeLens source code or compiled releases, you agree to be bound by the terms of this License. If you do not agree to these terms, you must not use, copy, modify, or distribute this software.
 
-AnimeLens is proprietary software. It is **not open-source software**.
+---
 
-## 1. Ownership
+## 1. Definitions
 
-AnimeLens and all associated intellectual property rights are owned by **Kikubay** ("Copyright Holder").
+- **"AnimeLens"** refers to the software source code, build scripts, extension manifests, assets, documentation, and compiled releases contained within this repository.
+- **"Source Code"** refers to the human-readable code and configuration files in this repository.
+- **"Compiled Release"** refers to the packaged, build-ready, or distributed binary versions of AnimeLens (e.g., `.7z`, `.zip`, or Chrome Extension packages).
+- **"You"** refers to the individual or legal entity exercising permissions granted by this License.
+- **"Non-Commercial Use"** means use that is not intended to, and does not, directly or indirectly generate revenue, monetary compensation, advertising income, or any other commercial benefit.
+- **"Derivative Work"** means any modified or unmodified copy, port, fork, repackaging, translation, or other work based on or derived from AnimeLens.
+- **"Trademarks"** means the AnimeLens name, logo, icon assets, and any other marks or branding used by the project.
 
-This license does not transfer ownership, copyright, or any other intellectual property rights to you.
+---
 
-## 2. Limited License to Use the Beta
+## 2. Grant of License
 
-Subject to the terms of this license, the Copyright Holder grants you a **limited, non-exclusive, non-transferable, revocable, royalty-free license** to download, install, and use the official AnimeLens Beta release for **personal, non-commercial purposes**.
+Subject to the conditions and restrictions below, permission is hereby granted, free of charge, to any person obtaining a copy of the **Source Code**, to use, copy, modify, merge, publish, and create Derivative Works of the Source Code, **solely for Non-Commercial Use**.
 
-This permission applies only to the official AnimeLens Beta releases distributed by the Copyright Holder.
+Regarding **Compiled Releases**: The compiled releases of AnimeLens are provided for **personal evaluation and testing only**. You may not use, copy, modify, distribute, or create derivative works from the Compiled Releases without explicit, prior written permission from the copyright holder.
 
-You may use the Beta software for the purposes of:
-
-* personal use;
-* testing and evaluation;
-* providing feedback;
-* participating in the AnimeLens Beta program.
-
-No other rights are granted.
+---
 
 ## 3. Restrictions
 
-Except where expressly permitted by this license or by prior written permission from the Copyright Holder, you may **not**:
+### 3.1. Prohibition of Commercial Use
+You may not use AnimeLens or any Derivative Work for Commercial purposes. This includes, without limitation:
+- Selling, licensing, or offering for sale AnimeLens or a Derivative Work, whether as a browser extension, desktop app, mobile app, website, or as source/compiled code.
+- Placing AnimeLens behind any paywall, subscription, "pro" tier, or monetization scheme (including ad-supported models).
+- Using AnimeLens in a product or service that is sold, licensed, or otherwise offered for compensation.
+- Accepting sponsorship, paid work, or compensation contingent on the use or promotion of AnimeLens or a Derivative Work.
 
-* copy or reproduce AnimeLens or any substantial portion of it;
-* modify, alter, adapt, translate, or create derivative works from AnimeLens;
-* reverse engineer, decompile, disassemble, or otherwise attempt to derive the source code from compiled versions, except to the extent such activity cannot legally be prohibited under applicable law;
-* redistribute or republish AnimeLens;
-* upload AnimeLens or any portion of it to another website, repository, file-sharing service, package registry, or distribution platform;
-* sell, rent, lease, sublicense, or otherwise transfer AnimeLens;
-* charge money for access to AnimeLens;
-* use AnimeLens for commercial purposes;
-* include AnimeLens in a commercial product or service;
-* provide AnimeLens as part of a hosted, cloud, SaaS, or other service;
-* create or distribute modified or repackaged versions of AnimeLens;
-* remove or alter copyright, license, attribution, or proprietary notices;
-* represent AnimeLens as your own software;
-* use the AnimeLens name, branding, logos, or other trademarks in a way that implies ownership, endorsement, or affiliation without permission.
+*For clarity: Hosting AnimeLens free of charge for personal use, accepting voluntary, unconditional donations, and contributing to the project are permitted and do not constitute Commercial Use.*
 
-## 4. Personal and Non-Commercial Use
+### 3.2. Attribution Requirements
+You must retain this License and the copyright notice in all copies or substantial portions of the Source Code. Additionally, any publicly released Derivative Work must visibly credit the original project by:
+1. Retaining the notice `"Based on AnimeLens by Kikubay"` in the source code headers, the extension's About/Settings screen, or the application's start screen.
+2. Linking that notice to `https://github.com/Kikubay/AnimeLens` wherever it appears.
+3. Naming "Kikubay" as the original author in the extension manifest's `author` field or its equivalent.
 
-The Beta license is intended for individual, personal, non-commercial use.
+*Removing or obscuring this attribution automatically terminates your license.*
 
-Examples of permitted use include:
+### 3.3. Trademarks and Impersonation
+No rights are granted to the Trademarks of the project. You may not use the AnimeLens name, logo, or icons in any way that suggests an official relationship, endorsement, or affiliation. 
+- A Derivative Work **may not** be published on the Chrome Web Store, Edge Add-ons, or any other extension marketplace under the name "AnimeLens" or any confusingly similar name. 
+- Official releases of AnimeLens are exclusively distributed at `https://github.com/Kikubay/AnimeLens/releases` and the official Chrome Web Store listing (upon release).
 
-* installing AnimeLens on your own computer;
-* using AnimeLens to analyze your own MyAnimeList activity;
-* testing Beta features;
-* providing feedback or reporting bugs;
-* demonstrating the official, unmodified Beta to others.
+### 3.4. Patent Claims
+No patent license is granted to make, have made, use, sell, offer for sale, or import AnimeLens, except for patent claims necessarily infringed by the unmodified AnimeLens as distributed by the copyright holder.
 
-Examples of prohibited use include:
+---
 
-* selling access to AnimeLens;
-* bundling AnimeLens with a paid product or service;
-* using AnimeLens as part of a commercial service;
-* distributing modified copies;
-* hosting AnimeLens for other users;
-* charging users to access or use AnimeLens.
+## 4. Termination
 
-## 5. Source Code
+This License terminates automatically for any party that breaches its terms. Reinstatement is possible only with the prior written agreement of the copyright holder. Upon termination, you must immediately cease all use and distribution of AnimeLens and destroy all copies, including modified copies and Derivative Works.
 
-If source code for AnimeLens is made publicly available through GitHub, such access is provided for **inspection and reference purposes only**.
+---
 
-Public availability of source code does not grant permission to:
+## 5. Disclaimer of Warranty
 
-* copy the source code;
-* modify the source code;
-* redistribute the source code;
-* incorporate the source code into another project;
-* publish forks or modified versions;
-* use the source code in commercial or non-commercial software.
+ANIMELENS IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE, AND NONINFRINGEMENT. THE ENTIRE RISK AS TO THE QUALITY AND PERFORMANCE OF ANIMELENS IS WITH YOU. SHOULD THE SOFTWARE PROVE DEFECTIVE, YOU ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR, OR CORRECTION.
 
-The source code remains the property of the Copyright Holder.
+---
 
-## 6. Beta Status
+## 6. Limitation of Liability
 
-AnimeLens Beta is experimental software.
+IN NO EVENT AND UNDER NO LEGAL THEORY SHALL THE COPYRIGHT HOLDER BE LIABLE TO YOU FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF OR INABILITY TO USE ANIMELENS, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-The Copyright Holder may:
+---
 
-* change or remove features;
-* release new versions under different terms;
-* discontinue the Beta;
-* restrict or terminate distribution of the Beta;
-* modify this license for future releases.
+## 7. Third-Party Components & Intellectual Property
 
-Nothing in this license guarantees continued access to AnimeLens Beta.
+- AnimeLens depends on third-party packages distributed under their own respective licenses. Those licenses apply to those specific packages and are unaffected by this License.
+- **MyAnimeList**, **AniList**, and **GitHub** are trademarks of their respective owners. AnimeLens is an independent project and is not affiliated with, sponsored by, or endorsed by any of them.
+- Anime titles, artwork, and media referenced or displayed by the extension belong to their respective copyright holders and are used solely for the purpose of identifying and recommending media to the user.
 
-Unless explicitly stated otherwise, a future version of AnimeLens may be distributed under different license terms.
+---
 
-## 7. Contributions and Feedback
+## 8. License Classification Notice
 
-If you voluntarily provide feedback, suggestions, bug reports, or other information regarding AnimeLens, you grant the Copyright Holder permission to use that feedback to improve, modify, or develop AnimeLens without compensation or obligation to you.
+This is a custom, source-available, non-commercial license. It is deliberately **not** OSI-approved. 
 
-This does not transfer ownership of your independently created intellectual property unless separately agreed in writing.
+If you require a standard, OSI-approved open-source license, please note that licenses such as MIT, BSD, Apache-2.0, and the GPL family inherently permit commercial use and redistribution by anyone. The AGPL-3.0 is the closest OSI-approved option to a "no resell" outcome (as it requires source disclosure of hosted/modified versions), but it still does not prohibit commercial use. 
 
-## 8. Third-Party Software and Services
-
-AnimeLens may interact with or depend upon third-party software, APIs, services, libraries, or other materials.
-
-Those components may be subject to their own terms and licenses.
-
-This license does not grant any rights to third-party software, services, trademarks, content, or intellectual property.
-
-You are responsible for complying with applicable third-party terms.
-
-## 9. MyAnimeList
-
-AnimeLens interacts with MyAnimeList services and APIs.
-
-This license does not grant any rights to MyAnimeList trademarks, services, APIs, content, or other intellectual property belonging to MyAnimeList or its respective owners.
-
-Use of MyAnimeList services remains subject to the applicable MyAnimeList terms, policies, and requirements.
-
-## 10. No Warranty
-
-AnimeLens Beta is provided **"AS IS"** and **"AS AVAILABLE"**, to the maximum extent permitted by applicable law.
-
-The Copyright Holder makes no warranties, express or implied, regarding the software, including its reliability, availability, accuracy, security, compatibility, or fitness for a particular purpose.
-
-The Copyright Holder does not guarantee that AnimeLens will:
-
-* operate without errors;
-* remain available;
-* remain compatible with Chrome;
-* remain compatible with MyAnimeList;
-* produce accurate recommendations;
-* preserve data or settings;
-* remain unchanged during the Beta period.
-
-## 11. Limitation of Liability
-
-To the maximum extent permitted by applicable law, the Copyright Holder shall not be liable for any direct, indirect, incidental, special, consequential, or other damages arising from or related to the use of, inability to use, or misuse of AnimeLens Beta.
-
-Nothing in this license excludes or limits liability that cannot legally be excluded or limited under applicable law.
-
-## 12. Termination
-
-The license granted to you automatically terminates if you violate the terms of this license.
-
-Upon termination, you must cease all use of AnimeLens and, where legally required, delete copies of AnimeLens in your possession or control.
-
-The Copyright Holder may also terminate your permission to use the Beta software by written notice where permitted by applicable law.
-
-Termination does not affect any rights or remedies available to the Copyright Holder.
-
-## 13. Permission for Additional Uses
-
-If you would like permission to:
-
-* modify AnimeLens;
-* redistribute AnimeLens;
-* use AnimeLens commercially;
-* integrate AnimeLens into another product;
-* create a derivative work;
-* redistribute the source code;
-* provide AnimeLens as a service;
-
-you must obtain prior written permission from the Copyright Holder.
-
-Permission may be granted on a case-by-case basis and may be subject to additional terms or a separate commercial license agreement.
-
-### Contact
-
-**Kikubay**
-
-GitHub: https://github.com/Kikubay
-
-## 14. No Open-Source License
-
-AnimeLens is **proprietary source-available software**.
-
-This license does not grant the rights required for AnimeLens to qualify as open-source software under the Open Source Definition published by the Open Source Initiative (OSI).
-
-No rights are granted except those expressly stated in this license.
-
-## 15. Copyright
-
-Copyright © 2026 Kikubay.
-
-**All rights reserved.**
+By using this repository, you acknowledge and accept the specific Non-Commercial and Attribution restrictions outlined above. For commercial licensing inquiries, please contact the copyright holder.
