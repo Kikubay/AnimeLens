@@ -1,0 +1,38 @@
+{
+  "manifest_version": 3,
+  "name": "AnimeLens",
+  "version": "0.1.6",
+  "default_locale": "en",
+  "description": "__MSG_extensionDescription__",
+  "action": {
+    "default_title": "__MSG_actionTitle__",
+    "default_popup": "index.html",
+    "default_icon": {
+      "16": "icons/icon16.png",
+      "32": "icons/icon32.png"
+    }
+  },
+  "background": {
+    "service_worker": "assets/background.js",
+    "type": "module"
+  },
+  "content_security_policy": {
+    "extension_pages": "script-src 'self'; object-src 'self'"
+  },
+  "icons": {
+    "16": "icons/icon16.png",
+    "32": "icons/icon32.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
+  },
+  "permissions": ["storage", "identity", "alarms", "notifications", "clipboardWrite"],
+  "host_permissions": [
+    "https://api.myanimelist.net/*",
+    "https://myanimelist.net/*",
+    "https://cdn.myanimelist.net/*",
+    "https://graphql.anilist.co/*",
+    "https://anilist.co/*",
+    "https://s4.anilist.co/*",
+    "https://api.github.com/*"
+  ]
+}

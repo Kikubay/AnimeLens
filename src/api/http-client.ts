@@ -1,0 +1,106 @@
+import { ApiError } from './api-errors';
+
+export interface HttpResponse<T> {
+  readonly status: number;
+  readonly headers: Headers;
+  readonly data: T;
+}
+
+export interface HttpClient {
+  get<T>(url: string, options?: RequestInit): Promise<HttpResponse<T>>;
+  post<T>(url: string, options?: RequestInit): Promise<HttpResponse<T>>;
+  patch<T>(url: string, options?: RequestInit): Promise<HttpResponse<T>>;
+}
+
+export class FetchHttpClient implements HttpClient {
+  constructor(private readonly fetcher: typeof fetch = globalThis.fetch.bind(globalThis)) {}
+
+  get<T>(url: string, options: RequestInit = {}): Promise<HttpResponse<T>> {
+    return this.request<T>(url, { ...options, method: 'GET' });
+  }
+
+  post<T>(url: string, options: RequestInit = {}): Promise<HttpResponse<T>> {
+    return this.request<T>(url, { ...options, method: 'POST' });
+  }
+
+  patch<T>(url: string, options: RequestInit = {}): Promise<HttpResponse<T>> {
+    return this.request<T>(url, { ...options, method: 'PATCH' });
+  }
+
+  private async request<T>(url: string, options: RequestInit): Promise<HttpResponse<T>> {
+    let response: Response;
+    try {
+      response = await this.fetcher(url, options);
+    } catch (error) {
+      const err = error as Error | undefined;
+      console.error('[HttpClient] Fetch failed:', {
+        url,
+        method: options.method ?? 'GET',
+        message: err?.message,
+        name: err?.name,
+        stack: err?.stack,
+        cause: err?.cause,
+      });
+      throw new ApiError('The API request could not be completed.', {
+        code: 'network_error',
+        cause: error,
+      });
+    }
+
+    if (!response.ok) throw await toApiError(response);
+
+    let data: T;
+    try {
+      data = (await response.json()) as T;
+    } catch (error) {
+      throw new ApiError('The API returned an invalid JSON response.', {
+        code: 'invalid_response',
+        status: response.status,
+        cause: error,
+      });
+    }
+
+    return { status: response.status, headers: response.headers, data };
+  }
+}
+
+async function toApiError(response: Response): Promise<ApiError> {
+  const payload = await readErrorPayload(response);
+  const message = payload?.message ?? `The API request failed with status ${response.status}.`;
+  const retryAfter = response.headers.get('Retry-After');
+  const retryAfterSeconds =
+    retryAfter !== null && /^\d+$/.test(retryAfter) ? Number(retryAfter) : null;
+
+  const code =
+    response.status === 400
+      ? 'bad_request'
+      : response.status === 401
+        ? 'unauthorized'
+        : response.status === 403
+          ? 'forbidden'
+          : response.status === 404
+            ? 'not_found'
+            : response.status === 429
+              ? 'rate_limited'
+              : 'unknown';
+
+  return new ApiError(message, {
+    code,
+    status: response.status,
+    retryAfterSeconds,
+    cause: payload,
+  });
+}
+
+async function readErrorPayload(response: Response): Promise<{ readonly message?: string } | null> {
+  try {
+    const value: unknown = await response.json();
+    if (typeof value === 'object' && value !== null && 'message' in value) {
+      const message = value.message;
+      return typeof message === 'string' ? { message } : null;
+    }
+  } catch {
+    // The response body is optional for an HTTP error.
+  }
+  return null;
+}
