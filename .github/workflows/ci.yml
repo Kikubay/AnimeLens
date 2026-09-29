@@ -1,0 +1,52 @@
+name: CI
+
+# Trigger the workflow on pushes to main and on all pull requests
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+# Allow only one concurrent deployment per workflow, skipping intermediate runs
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-and-test:
+    name: Build, Lint, and Test
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      # Set up Node.js with npm caching for faster installs
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Type check
+        run: npm run typecheck
+
+      - name: Lint code
+        run: npm run lint
+
+      # - name: Run tests
+        # run: npm run test
+
+      - name: Build extension
+        run: npm run build
+
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v4
+        if: success()
+        with:
+          name: animelens-build
+          path: dist/
+          retention-days: 7
