@@ -34,9 +34,10 @@
 </p>
 <br />
 
-> Note: *For now, I'm focused on the stability of the extension and wanted to save beta testers from having to install Node.js and compile the project themselves.*
->
-> *As soon as the stable version is ready, I'll make all the source code public on the repo !*
+> 🎉 **The source code is now public!** 
+> You can now explore, build, and contribute to the project directly from this repository. 
+> 
+> *Note: Once AnimeLens launches on the Chrome Web Store, installation will be a single click, and the manual OAuth setup will be handled automatically in the background.*
 
 ___
 
@@ -46,10 +47,11 @@ ___
 - [Showcase](#showcase)
 - [Install](#install)
 - [Configure](#configure)
+- [Switching accounts](#switching-accounts)
 - [Update](#update)
 - [Troubleshooting](#troubleshooting)
 - [Privacy and security](#privacy-and-security)
-- [Issues and feedbacks](#issues--feedback)
+- [Issues and feedback](#issues--feedback)
 - [License](#license)
 
 ___
@@ -92,20 +94,39 @@ ___
 ___
 
 ## Install
-  1. Download the latest `AnimeLens.7z` file from the [GitHub Releases page](https://github.com/Kikubay/AnimeLens/releases).
-  2. Extract the 7z file to a folder on your computer.
-  3. Open Google Chrome.
-  4. Go to:
-     ```text
-     chrome://extensions
-     ```
-  5. Enable **Developer mode**.
-  6. Click **Load unpacked**.
-  7. Select the extracted extension folder containing `manifest.json`.
-  
-Do not select the `7z` file itself. Select the folder containing `manifest.json`.
+
+### Option 1: Pre-compiled Release (Recommended)
+1. Download the latest `AnimeLens.7z` file from the [GitHub Releases page](https://github.com/Kikubay/AnimeLens/releases).
+2. Extract the 7z file to a folder on your computer.
+3. Open Google Chrome.
+4. Go to:
+   ```text
+   chrome://extensions
+   ```
+5. Enable **Developer mode**.
+6. Click **Load unpacked**.
+7. Select the extracted extension folder containing `manifest.json`.
+
+*Do not select the `7z` file itself. Select the folder containing `manifest.json`.*
 
 If AnimeLens is already installed, replace the old extension files with the new release files and click **Reload** on the AnimeLens card in `chrome://extensions`.
+
+### Option 2: Build from Source
+1. Clone this repository:
+   ```bash
+   git clone https://github.com/Kikubay/AnimeLens.git
+   cd AnimeLens
+   ```
+2. Install dependencies (using your preferred package manager):
+   ```bash
+   npm install
+   ```
+3. Build the extension:
+   ```bash
+   npm run build
+   ```
+4. Load the generated output folder (`dist`) into Chrome using the steps in **Option 1**.
+
 ___
 
 ## Configure
@@ -163,8 +184,6 @@ https://<your-extension-id>.chromiumapp.org/
 
 - AniList access tokens are long-lived (about one year). When it expires, AniList shows as disconnected and you simply authorize again.
 </details>
-
-> Note: Don’t worry—this is just a one-time setup for the beta! Once AnimeLens launches on the Chrome Web Store, you won't have to do this manually; everything will be handled automatically in the background.
 
 ___
 
@@ -294,9 +313,12 @@ ___
 
 ## License
 
-**All Rights Reserved.** 
+The source code for AnimeLens is now publicly available in this repository. 
 
-The compiled releases of AnimeLens are provided for personal evaluation only. You may not use, copy, modify, distribute, or create derivative works from this software without explicit written permission from the copyright holder. 
+**All Rights Reserved.** 
+The compiled releases of AnimeLens are provided for personal evaluation only. You may not use, copy, modify, distribute, or create derivative works from the *compiled software* without explicit written permission from the copyright holder. 
+
+*(Developer Note: If you are transitioning this project to a standard open-source license like MIT or GPL, please replace this section with the appropriate license text and update the badge at the top of the README.)*
 
 See the [LICENSE](https://github.com/Kikubay/AnimeLens?tab=License-1-ov-file) file for full details.
 
