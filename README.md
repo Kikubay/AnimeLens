@@ -15,7 +15,7 @@
 <br>
 
 <p align="center">
-  <img alt="Animelens banner" src="https://github.com/user-attachments/assets/7ea21f73-e67f-43e1-a69b-71a9f1de4695">
+  <img alt="Animelens banner" src="https://github.com/Kikubay/AnimeLens/blob/main/.github/img/Banner.png?raw=true">
 </p>
 
 <p align="center">
