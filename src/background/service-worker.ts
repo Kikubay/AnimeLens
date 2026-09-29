@@ -60,7 +60,7 @@ import {
 } from '../updates/update-checker';
 import type { UpdateMessage, UpdateResponse } from '../updates/update-messages';
 import { isUpdateMessage } from '../updates/update-messages';
-import { getCopy, type Language } from '../i18n';
+import { getCopy, type Language } from '../locales';
 
 const dependencies = createRuntimeAuthDependencies();
 const providerRegistry = createRuntimeProviderRegistryService(dependencies);
@@ -571,7 +571,7 @@ async function showDailyRecommendationNotification(): Promise<void> {
   await chrome.notifications.create(DAILY_RECOMMENDATION_ALARM, {
     type: 'basic',
     iconUrl: 'icons/icon128.png',
-    title: 'AnimeLens',
+    title: copy.dailyNotificationTitle,
     message: copy.dailyNotificationMessage,
   });
 }

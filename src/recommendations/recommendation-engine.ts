@@ -6,7 +6,7 @@ import type {
   RecommendationReasonKind,
 } from '../domain/recommendation';
 import type { UserTasteProfile } from '../domain/user-profile';
-import { getCopy, type Language } from '../i18n';
+import { getCopy, type Language } from '../locales';
 import type {
   FeedbackFeatureSnapshot,
   FeedbackValue,

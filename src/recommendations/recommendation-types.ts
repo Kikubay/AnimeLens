@@ -1,7 +1,7 @@
 import type { Anime, AnimeListEntry, AnimeSeason, AnimeType } from '../domain/anime';
 import type { RecommendationFeedback } from '../domain/feedback';
 import type { RecommendationCategory, RecommendationReason } from '../domain/recommendation';
-import type { Language } from '../i18n';
+import type { Language } from '../locales';
 
 export interface FeatureVector {
   readonly genres: readonly string[];

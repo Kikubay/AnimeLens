@@ -1,7 +1,7 @@
 import { useEffect, useId, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import type { ButtonHTMLAttributes, HTMLAttributes, ReactNode } from 'react';
-import type { AppCopy } from '../../i18n';
+import type { AppCopy } from '../../locales';
 
 export type IconName =
   | 'arrow-right'
@@ -259,19 +259,12 @@ interface ModalProps {
   readonly onClose: () => void;
   readonly children: ReactNode;
   /** Accessible label for the close button. */
-  readonly closeLabel?: string;
+  readonly closeLabel: string;
   /** Extra class on the dialog, for size variants. */
   readonly className?: string;
 }
 
-export function Modal({
-  open,
-  title,
-  onClose,
-  children,
-  closeLabel = 'Close',
-  className = '',
-}: ModalProps) {
+export function Modal({ open, title, onClose, children, closeLabel, className = '' }: ModalProps) {
   const titleId = useId();
   const dialogRef = useRef<HTMLElement>(null);
   const previouslyFocused = useRef<HTMLElement | null>(null);
@@ -417,19 +410,14 @@ interface ToastProps {
   readonly message: string;
   readonly onClose: () => void;
   /** Accessible label for the dismiss button. */
-  readonly dismissLabel?: string;
+  readonly dismissLabel: string;
   /** Auto-dismiss delay in milliseconds. `0` disables the timer. */
   readonly autoDismissMs?: number;
 }
 
 const TOAST_EXIT_ANIMATION_MS = 260;
 
-export function Toast({
-  message,
-  onClose,
-  dismissLabel = 'Dismiss notification',
-  autoDismissMs = 2000,
-}: ToastProps) {
+export function Toast({ message, onClose, dismissLabel, autoDismissMs = 2000 }: ToastProps) {
   // `closing` keeps the toast mounted while the exit animation plays; the
   // parent unmounts it only after the animation finishes (onClose).
   const [closing, setClosing] = useState(false);
@@ -518,13 +506,10 @@ export function Rating({
 }: {
   readonly value: number;
   readonly outOf?: number;
-  readonly copy?: AppCopy;
+  readonly copy: AppCopy;
 }) {
   return (
-    <span
-      className="rating"
-      aria-label={copy?.ratingAria(value, outOf) ?? `Rating ${value} out of ${outOf}`}
-    >
+    <span className="rating" aria-label={copy.ratingAria(value, outOf)}>
       <Icon name="star" size={13} /> {value.toFixed(1)}
     </span>
   );
@@ -537,18 +522,18 @@ export function CompatibilityScore({
 }: {
   readonly value: number;
   readonly compact?: boolean;
-  readonly copy?: AppCopy;
+  readonly copy: AppCopy;
 }) {
   return (
     <div
       className={`compatibility-score${compact ? ' is-compact' : ''}`}
-      aria-label={copy?.compatibilityAria(value) ?? `${value} percent compatibility`}
+      aria-label={copy.compatibilityAria(value)}
     >
       <div className="score-ring" style={{ '--score': `${value * 3.6}deg` } as React.CSSProperties}>
         <span>{value}</span>
         <small>%</small>
       </div>
-      {!compact && <span className="score-caption">{copy?.matchCaption ?? 'match'}</span>}
+      {!compact && <span className="score-caption">{copy.matchCaption}</span>}
     </div>
   );
 }

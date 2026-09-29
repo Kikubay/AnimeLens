@@ -1,7 +1,7 @@
 import type { AnimeFormat, AnimeSeason } from '../domain/anime';
 import type { AuthSnapshot, ProviderId } from '../auth/auth-types';
 import type { RecommendationDiscoveryPreferences } from '../recommendations/recommendation-types';
-import { normalizeLanguage, type Language } from '../i18n';
+import { normalizeLanguage, type Language } from '../locales';
 
 export type RecommendationMode = 'personalized' | 'exploratory';
 

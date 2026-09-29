@@ -58,6 +58,7 @@ export interface TasteCardStats {
  * already sees in the profile view, plus their public display name and avatar.
  */
 export interface TasteCardModel {
+  /** Provider username, or `''` when the profile has none. */
   readonly displayName: string;
   /** Single fallback glyph used while the avatar is loading or unavailable. */
   readonly monogram: string;
@@ -71,8 +72,6 @@ export interface TasteCardModel {
   readonly headline: string | null;
   readonly hasData: boolean;
 }
-
-const FALLBACK_DISPLAY_NAME = 'Anime fan';
 
 /** User-controlled rendering options for the card. */
 export interface TasteCardRenderOptions {
@@ -168,7 +167,9 @@ export function monogramFor(displayName: string): string {
 
 function normalizeDisplayName(username: string | null): string {
   const trimmed = username?.trim() ?? '';
-  if (trimmed.length === 0) return FALLBACK_DISPLAY_NAME;
+  // An absent name stays empty here so the painter can substitute a localized
+  // one; the monogram is a glyph and must not follow that substitution.
+  if (trimmed.length === 0) return '';
   // Keep the name on a single line and well inside the card's header.
   return trimmed.length > 24 ? `${trimmed.slice(0, 23)}…` : trimmed;
 }

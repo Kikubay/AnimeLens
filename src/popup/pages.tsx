@@ -51,7 +51,7 @@ import {
   type UserPreferences,
 } from '../settings/settings-types';
 import { applyThemePreference } from '../settings/theme';
-import type { AppCopy } from '../i18n';
+import { categoryLabel, type AppCopy } from '../locales';
 import { MAL_GENRE_NAMES, MAL_THEME_NAMES } from '../api/mal-taxonomy';
 import type { AnimeCardData } from './components/anime';
 import { AnimeGrid, FeaturedAnime } from './components/anime';
@@ -145,7 +145,7 @@ export function DashboardPage({
     errorMessage: null,
   });
 
-  const loadRecommendations = () => {
+  const loadRecommendations = useCallback(() => {
     const sequence = requestSequence.current + 1;
     requestSequence.current = sequence;
     setSnapshot((current) => ({ ...current, status: 'loading', errorMessage: null }));
@@ -161,7 +161,7 @@ export function DashboardPage({
           errorMessage: error instanceof Error ? error.message : copy.recommendationsUnavailable,
         }));
       });
-  };
+  }, [copy.recommendationsUnavailable]);
 
   useEffect(() => {
     disposed.current = false;
@@ -170,13 +170,13 @@ export function DashboardPage({
       disposed.current = true;
       requestSequence.current += 1;
     };
-  }, [recommendationsRevision]);
+  }, [recommendationsRevision, loadRecommendations]);
 
   useEffect(() => {
     if (sync.metadata.status === 'success' || sync.metadata.status === 'offline') {
       loadRecommendations();
     }
-  }, [sync.metadata.status, sync.metadata.lastSyncedAt]);
+  }, [sync.metadata.status, sync.metadata.lastSyncedAt, loadRecommendations]);
 
   const toCardData = (recommendation: Recommendation): AnimeCardData => ({
     ...recommendation.anime,
@@ -593,7 +593,11 @@ export function DetailPage({
           )}
         </div>
         <div>
-          <Badge tone="accent">{anime.category ?? copy.recommendations}</Badge>
+          <Badge tone="accent">
+            {anime.category === null || anime.category === undefined
+              ? copy.recommendations
+              : categoryLabel(copy, anime.category)}
+          </Badge>
           <h2>{anime.title.default}</h2>
           {alternativeTitle !== undefined && (
             <p className="alternative-title">{alternativeTitle}</p>
@@ -762,7 +766,7 @@ export function ProfilePage({
     errorMessage: null,
   });
 
-  const loadProfile = () => {
+  const loadProfile = useCallback(() => {
     const sequence = requestSequence.current + 1;
     requestSequence.current = sequence;
     setSnapshot((current) => ({ ...current, status: 'loading', errorMessage: null }));
@@ -778,7 +782,7 @@ export function ProfilePage({
           errorMessage: error instanceof Error ? error.message : copy.recommendationsUnavailable,
         });
       });
-  };
+  }, [copy.recommendationsUnavailable]);
 
   useEffect(() => {
     disposed.current = false;
@@ -787,7 +791,7 @@ export function ProfilePage({
       disposed.current = true;
       requestSequence.current += 1;
     };
-  }, []);
+  }, [loadProfile]);
 
   if (snapshot.status === 'loading') return <ProfileLoadingPage />;
   if (snapshot.status === 'error') {
@@ -1670,7 +1674,7 @@ export function SettingsPage({
         )}
         <p className="settings-note">{copy.providersIntro}</p>
       </SettingsSection>
-      <SettingsSection title={copy.oauthConfig} eyebrow="OAUTH">
+      <SettingsSection title={copy.oauthConfig} eyebrow={copy.oauthEyebrow}>
         <div className="mal-config-panel">
           <div>
             <strong>{copy.malClientId}</strong>
@@ -2024,7 +2028,7 @@ function BlacklistEditor({
       <div className="blacklist-heading">
         <div>
           <strong>{copy.exclusionType}</strong>
-          <p>{copy.discoveryStyleDescription}</p>
+          <p>{copy.exclusionDescription}</p>
         </div>
       </div>
       <div className="blacklist-kind" role="radiogroup" aria-label={copy.exclusionType}>

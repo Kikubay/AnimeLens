@@ -1,5 +1,5 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
-import { AuthPhaseFailureError } from '../auth/auth-messages';
+import { AuthPhaseFailureError, isAuthServiceUnavailableError } from '../auth/auth-messages';
 import type { AuthSnapshot } from '../auth/auth-types';
 import type { DislikeReason, FeedbackValue } from '../domain/feedback';
 import { submitRecommendationFeedback } from '../feedback/feedback-messages';
@@ -9,7 +9,7 @@ import type { SyncSnapshot } from '../sync/sync-messages';
 import { Icon, IconButton, Modal, Button, Toast } from './components/ui';
 import { applyThemePreference } from '../settings/theme';
 import { DEFAULT_USER_PREFERENCES, type UserPreferences } from '../settings/settings-types';
-import { getCopy, normalizeLanguage, type AppCopy, type Language } from '../i18n';
+import { getCopy, normalizeLanguage, type AppCopy, type Language } from '../locales';
 import { requestSettingsSnapshot } from '../settings/settings-messages';
 import { requestUpdateCheck } from '../updates/update-messages';
 import type { UpdateSnapshot } from '../updates/update-checker';
@@ -298,12 +298,13 @@ export function App() {
         }
       })
       .catch((error: unknown) => {
-        const message =
-          error instanceof AuthPhaseFailureError
+        const message = isAuthServiceUnavailableError(error)
+          ? copy.authUnavailable
+          : error instanceof AuthPhaseFailureError
             ? error.message
             : error instanceof Error
               ? error.message
-              : copy.authUnavailable;
+              : copy.actionImpossible;
         const phase =
           error instanceof AuthPhaseFailureError
             ? error.phase
@@ -330,11 +331,11 @@ export function App() {
           className="brand"
           type="button"
           onClick={() => navigate('dashboard')}
-          aria-label={`${copy.discover} · AnimeLens`}
+          aria-label={`${copy.discover} · ${copy.brandWordmark}`}
         >
           <img className="brand-icon" src="icons/icon32.png" alt="" aria-hidden="true" />
-          <span className="brand-name">AnimeLens</span>
-          <span className="brand-badge">Beta</span>
+          <span className="brand-name">{copy.brandWordmark}</span>
+          <span className="brand-badge">{copy.betaBadge}</span>
         </button>
         <div className="header-actions">
           <span className={`connection-status${isOnline ? '' : ' is-offline'}`}>

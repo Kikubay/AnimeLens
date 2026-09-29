@@ -6,7 +6,7 @@ import { AnimeListSyncService } from './sync-service';
 import type { SyncRunOptions, SyncResult } from './sync-types';
 import type { AnimeCacheStore } from './sync-types';
 import type { StorageAdapter } from '../storage/storage-adapter';
-import type { Language } from '../i18n';
+import type { Language } from '../locales';
 
 /**
  * Sync facade that resolves the **active** provider for every run. Each

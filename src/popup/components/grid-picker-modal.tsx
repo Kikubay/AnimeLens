@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import type { AppCopy } from '../../i18n';
+import type { AppCopy } from '../../locales';
 import { GRID_SLOT_COUNT, type TopPickCandidate } from '../../profile/top-picks';
 import { Badge, Button, Modal } from './ui';
 

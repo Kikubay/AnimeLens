@@ -10,6 +10,24 @@ export interface AuthMessageResponse {
   readonly message?: string;
 }
 
+/**
+ * Raised when the background service does not answer, or answers with no usable
+ * payload. It deliberately carries no message of its own: the popup maps it to
+ * `copy.authUnavailable`, so the text the user sees stays translated.
+ */
+export class AuthServiceUnavailableError extends Error {
+  constructor() {
+    super('auth-service-unavailable');
+    this.name = 'AuthServiceUnavailableError';
+  }
+}
+
+export function isAuthServiceUnavailableError(
+  value: unknown,
+): value is AuthServiceUnavailableError {
+  return value instanceof Error && value.name === 'AuthServiceUnavailableError';
+}
+
 function isAuthSnapshot(value: unknown): value is AuthSnapshot {
   if (typeof value !== 'object' || value === null) return false;
   const candidate = value as Record<string, unknown>;
@@ -24,14 +42,16 @@ function isAuthSnapshot(value: unknown): value is AuthSnapshot {
 export async function requestAuthSnapshot(type: AuthMessageType): Promise<AuthSnapshot> {
   const response = (await chrome.runtime.sendMessage({ type })) as AuthMessageResponse | undefined;
   if (response === undefined || typeof response !== 'object') {
-    throw new Error('Authentication service is unavailable.');
+    throw new AuthServiceUnavailableError();
   }
 
   if (response.ok && isAuthSnapshot(response.snapshot)) {
     return response.snapshot;
   }
 
-  const message = response.message ?? 'Authentication service is unavailable.';
+  const message = response.message;
+  // No reason at all means the service could not answer, not that it refused.
+  if (message === undefined) throw new AuthServiceUnavailableError();
   // The service may attach the failing phase to a non-ok response; surface it.
   const snapshot = response.snapshot;
   if (isAuthSnapshot(snapshot) && snapshot.phase !== undefined) {
@@ -52,7 +72,7 @@ export async function requestProviderList(): Promise<readonly ProviderStatusView
       }
     | undefined;
   if (response === undefined || !response.ok || response.providers === undefined) {
-    throw new Error(response?.message ?? 'Authentication service is unavailable.');
+    throw new AuthServiceUnavailableError();
   }
   return response.providers;
 }
@@ -83,12 +103,13 @@ export async function completeAniListPinSignIn(token: string): Promise<AuthSnaps
     token,
   })) as AuthMessageResponse | undefined;
   if (response === undefined || typeof response !== 'object') {
-    throw new Error('Authentication service is unavailable.');
+    throw new AuthServiceUnavailableError();
   }
   if (response.ok && isAuthSnapshot(response.snapshot)) {
     return response.snapshot;
   }
-  throw new Error(response.message ?? 'Authentication service is unavailable.');
+  if (response.message === undefined) throw new AuthServiceUnavailableError();
+  throw new Error(response.message);
 }
 
 async function requestAuthMessage(message: {
@@ -97,12 +118,13 @@ async function requestAuthMessage(message: {
 }): Promise<AuthSnapshot> {
   const response = (await chrome.runtime.sendMessage(message)) as AuthMessageResponse | undefined;
   if (response === undefined || typeof response !== 'object') {
-    throw new Error('Authentication service is unavailable.');
+    throw new AuthServiceUnavailableError();
   }
   if (response.ok && isAuthSnapshot(response.snapshot)) {
     return response.snapshot;
   }
-  const errorMessage = response.message ?? 'Authentication service is unavailable.';
+  const errorMessage = response.message;
+  if (errorMessage === undefined) throw new AuthServiceUnavailableError();
   const snapshot = response.snapshot;
   if (isAuthSnapshot(snapshot) && snapshot.phase !== undefined) {
     throw new AuthPhaseFailureError(snapshot.phase, errorMessage);

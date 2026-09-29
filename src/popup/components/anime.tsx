@@ -1,7 +1,7 @@
 import type { Anime } from '../../domain/anime';
 import type { DislikeReason, FeedbackValue } from '../../domain/feedback';
 import type { Recommendation, RecommendationReason } from '../../domain/recommendation';
-import type { AppCopy } from '../../i18n';
+import type { AppCopy } from '../../locales';
 import { Badge, Button, Card, CompatibilityScore, Icon, IconButton, Rating, Tooltip } from './ui';
 
 export interface AnimeCardData extends Anime {
@@ -15,9 +15,6 @@ export interface AnimeCardData extends Anime {
   readonly isNew?: boolean;
 }
 
-/** Legacy name retained for existing mock fixtures and tests. */
-export type MockAnime = AnimeCardData;
-
 interface AnimeCardProps {
   readonly anime: AnimeCardData;
   readonly featured?: boolean;
@@ -27,7 +24,7 @@ interface AnimeCardProps {
     value: FeedbackValue,
     reasons?: readonly DislikeReason[],
   ) => void;
-  readonly copy?: AppCopy;
+  readonly copy: AppCopy;
 }
 
 function animeSubtitle(anime: AnimeCardData): string {
@@ -57,7 +54,7 @@ function Poster({
 }: {
   readonly anime: AnimeCardData;
   readonly featured?: boolean;
-  readonly copy?: AppCopy;
+  readonly copy: AppCopy;
 }) {
   const imageUrl = anime.image?.large ?? anime.image?.medium;
   return (
@@ -82,7 +79,7 @@ function Poster({
       {!featured && <CompatibilityScore value={anime.compatibility} compact copy={copy} />}
       {anime.isNew && (
         <Badge tone="accent" className="poster-badge">
-          {copy?.newLabel ?? 'NEW'}
+          {copy.newLabel}
         </Badge>
       )}
     </div>
@@ -102,7 +99,7 @@ export function AnimeCard({
         className="anime-card-main"
         type="button"
         onClick={() => onSelect?.(anime)}
-        aria-label={`${copy?.openDetails ?? 'Open details'}: ${anime.title.default}`}
+        aria-label={`${copy.openDetails}: ${anime.title.default}`}
       >
         <Poster anime={anime} copy={copy} />
         <div className="anime-card-content">
@@ -116,13 +113,10 @@ export function AnimeCard({
             {anime.score !== null && <Rating value={anime.score} copy={copy} />}
             <span>•</span>
             <span>
-              {anime.episodeCount ?? '—'} {copy?.episodesShort ?? 'eps'}
+              {anime.episodeCount ?? '—'} {copy.episodesShort}
             </span>
           </div>
-          <div
-            className="anime-reason"
-            aria-label={copy?.recommendationWhy ?? 'Why this recommendation'}
-          >
+          <div className="anime-reason" aria-label={copy.recommendationWhy}>
             <Icon name="sparkles" size={12} />
             <span>{anime.recommendation}</span>
           </div>
@@ -133,28 +127,28 @@ export function AnimeCard({
           anime={anime}
           value="like"
           icon="thumbs-up"
-          label={copy?.like ?? 'Like'}
+          label={copy.like}
           onFeedback={onRecommendationFeedback}
         />
         <FeedbackButton
           anime={anime}
           value="dislike"
           icon="thumbs-down"
-          label={copy?.dislike ?? 'Not for me'}
+          label={copy.dislike}
           onFeedback={onRecommendationFeedback}
         />
         <FeedbackButton
           anime={anime}
           value="seen"
           icon="check"
-          label={copy?.seen ?? 'Watched'}
+          label={copy.seen}
           onFeedback={onRecommendationFeedback}
         />
         <FeedbackButton
           anime={anime}
           value="not_now"
           icon="moon"
-          label={copy?.notNow ?? 'Not now'}
+          label={copy.notNow}
           onFeedback={onRecommendationFeedback}
         />
       </div>
@@ -200,7 +194,7 @@ export function AnimeGrid({
     value: FeedbackValue,
     reasons?: readonly DislikeReason[],
   ) => void;
-  readonly copy?: AppCopy;
+  readonly copy: AppCopy;
 }) {
   return (
     <div className="anime-grid">
@@ -224,52 +218,47 @@ export function FeaturedAnime({ anime, onSelect, onRecommendationFeedback, copy 
       <div className="featured-copy">
         <div className="featured-topline">
           <Badge tone="accent">
-            {anime.category === 'hidden-gem'
-              ? (copy?.hiddenGem ?? 'HIDDEN GEM')
-              : (copy?.todayPick ?? "TODAY'S SIGNAL")}
+            {anime.category === 'hidden-gem' ? copy.hiddenGem : copy.todayPick}
           </Badge>
-          <span className="featured-topline-note">
-            {copy?.recommendationEngine ?? 'Recommendation Engine'}
-          </span>
+          <span className="featured-topline-note">{copy.recommendationEngine}</span>
         </div>
         <h2>{anime.title.default}</h2>
         <p className="featured-subtitle">
-          {animeSubtitle(anime)} <span>•</span> {anime.episodeCount ?? '—'}{' '}
-          {copy?.episodesShort ?? 'episodes'}
+          {animeSubtitle(anime)} <span>•</span> {anime.episodeCount ?? '—'} {copy.episodesShort}
         </p>
         <p className="featured-description">{anime.synopsis ?? anime.recommendation}</p>
         <div className="featured-footer">
           <CompatibilityScore value={anime.compatibility} copy={copy} />
           <div className="featured-actions">
             <Button size="sm" icon="arrow-right" onClick={() => onSelect?.(anime)}>
-              {copy?.openDetails ?? 'View details'}
+              {copy.openDetails}
             </Button>
             <FeedbackButton
               anime={anime}
               value="like"
               icon="thumbs-up"
-              label={copy?.like ?? 'Like'}
+              label={copy.like}
               onFeedback={onRecommendationFeedback}
             />
             <FeedbackButton
               anime={anime}
               value="dislike"
               icon="thumbs-down"
-              label={copy?.dislike ?? 'Not for me'}
+              label={copy.dislike}
               onFeedback={onRecommendationFeedback}
             />
             <FeedbackButton
               anime={anime}
               value="seen"
               icon="check"
-              label={copy?.seen ?? 'Watched'}
+              label={copy.seen}
               onFeedback={onRecommendationFeedback}
             />
             <FeedbackButton
               anime={anime}
               value="not_now"
               icon="moon"
-              label={copy?.notNow ?? 'Not now'}
+              label={copy.notNow}
               onFeedback={onRecommendationFeedback}
             />
           </div>

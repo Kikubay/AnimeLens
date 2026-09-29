@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import type { AppCopy } from '../../i18n';
+import type { AppCopy } from '../../locales';
 import type { UserProfile } from '../../domain/user-profile';
 import {
   TASTE_CARD_FORMAT_ORDER,

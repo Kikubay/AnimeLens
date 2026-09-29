@@ -1,6 +1,6 @@
 import type { AnimeListEntry } from '../domain/anime';
 import type { AnimeCache, SyncMetadata, SyncProgress } from '../domain/sync';
-import type { Language } from '../i18n';
+import type { Language } from '../locales';
 
 export type SyncReason = 'initial' | 'manual' | 'reconnect';
 

@@ -1,6 +1,6 @@
 import type { AnimeListEntry } from '../domain/anime';
 import type { RecommendationProfile } from '../recommendations/recommendation-types';
-import { getCopy, type Language } from '../i18n';
+import { getCopy, type Language } from '../locales';
 import { emptyTopPickPlan, planTopPicks, type TopPickPlan } from './top-picks';
 
 export interface ProfilePreferenceItem {

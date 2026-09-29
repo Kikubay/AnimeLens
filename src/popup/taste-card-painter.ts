@@ -1,4 +1,4 @@
-import type { AppCopy } from '../i18n';
+import type { AppCopy } from '../locales';
 import {
   DEFAULT_TASTE_CARD_RENDER_OPTIONS,
   TASTE_CARD_FORMATS,
@@ -777,7 +777,9 @@ function paintIdentity(
 
   const nameHeight = lineHeight(metrics.name, 1.05);
   const maxNameWidth = width - metrics.padX * 2;
-  const name = ellipsize(context, model.displayName, maxNameWidth);
+  // An empty name means the provider profile had no username to show.
+  const displayName = model.displayName === '' ? copy.tasteCardDefaultName : model.displayName;
+  const name = ellipsize(context, displayName, maxNameWidth);
   setFont(context, 800, fitFontSize(context, name, maxNameWidth, metrics.name, 40));
   context.fillStyle = COLORS.text;
   context.fillText(name, centerX, y + nameHeight / 2);

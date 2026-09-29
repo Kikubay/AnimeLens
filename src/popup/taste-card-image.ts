@@ -1,4 +1,4 @@
-import type { AppCopy } from '../i18n';
+import type { AppCopy } from '../locales';
 import {
   DEFAULT_TASTE_CARD_RENDER_OPTIONS,
   TASTE_CARD_FORMATS,

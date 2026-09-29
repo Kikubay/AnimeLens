@@ -9,7 +9,7 @@ import {
 } from '../domain/sync';
 import { createAnimeCache, isAnimeCache, isFreshAnimeCache } from './sync-cache';
 import type { AnimeCacheStore, SyncRunOptions, SyncResult } from './sync-types';
-import { getCopy, type Language } from '../i18n';
+import { getCopy, type Language } from '../locales';
 
 const DEFAULT_MAX_RETRIES = 2;
 const MAX_RETRY_DELAY_MS = 30_000;
