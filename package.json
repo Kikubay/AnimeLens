@@ -2,6 +2,13 @@
   "name": "animelens",
   "version": "0.1.6",
   "private": true,
+  "license": "SEE LICENSE IN LICENSE.md",
+  "author": "Kikubay",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Kikubay/AnimeLens.git"
+  },
+  "homepage": "https://github.com/Kikubay/AnimeLens",
   "type": "module",
   "scripts": {
     "dev": "vite --mode development",
@@ -30,6 +37,6 @@
     "typescript": "^5.7.2",
     "typescript-eslint": "^8.18.0",
     "vite": "^6.0.5",
-    "vitest": "^4.1.11"
+    "vitest": "^2.1.8"
   }
 }
