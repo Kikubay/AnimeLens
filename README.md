@@ -34,9 +34,6 @@
 </p>
 <br />
 
-> 🎉 **The source code is now public!** 
-> You can now explore, build, and contribute to the project directly from this repository. 
-> 
 > *Note: Once AnimeLens launches on the Chrome Web Store, installation will be a single click, and the manual OAuth setup will be handled automatically in the background.*
 
 ___
