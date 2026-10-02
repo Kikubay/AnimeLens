@@ -59,6 +59,7 @@ ___
 - 🔄 **Dual-Provider Support**: Connect both **MyAnimeList** and **AniList** accounts simultaneously. 
 - ⚡ **Instant Account Switching**: Seamlessly switch your active provider in seconds. Your cached list remains available offline while a fresh sync runs quietly in the background.
 - 📊 **Profile Analysis & Taste Cards**: Visualize your anime journey! Generate beautiful, shareable "Taste Cards" showcasing your top genres, completion stats, and highest-rated anime (with smart tie-breaking for your absolute favorites).
+- 📺 **"Where to Watch"**: Open any recommendation to see which platforms stream it, with a direct link to each one.
 - 🎬 **Unified "Add-to-List"**: Whether you are browsing recommendations or using quick-add features, all actions automatically target your currently active provider.
 - 🔒 **Privacy-First Architecture**: AnimeLens never asks for your passwords or Client Secrets. All OAuth sessions, preferences, and synchronized data are stored securely and locally in your Chrome extension storage.
 

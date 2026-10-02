@@ -242,6 +242,8 @@ export interface AppCopy {
   readonly shortSeriesDescription: string;
   readonly discoveryStyle: string;
   readonly discoveryStyleDescription: string;
+  readonly whereToWatch: string;
+  readonly watchOn: (name: string) => string;
   readonly appearance: string;
   readonly interfaceLabel: string;
   readonly notifications: string;
@@ -436,6 +438,7 @@ const MESSAGE_PARAMS = {
   providerListError: ['name'],
   providerConnectToAdd: ['name'],
   providerScore: ['name'],
+  watchOn: ['name'],
   listAuthRequired: ['name'],
   listSessionExpired: ['name'],
   listUnavailable: ['name'],

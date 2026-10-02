@@ -2,6 +2,13 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { AuthSnapshot } from '../auth/auth-types';
 import type { UserProfile } from '../domain/user-profile';
 import { addAnimeToMalList } from '../api/mal-list-messages';
+import { requestStreamingLinks } from '../api/streaming-links-messages';
+import type { StreamingLink } from '../domain/streaming';
+import {
+  entryProviderDisplayName,
+  entryProviderUrl,
+  isAniListEntry,
+} from '../domain/entry-provider';
 import type { SyncSnapshot } from '../sync/sync-messages';
 import {
   requestDashboardRecommendations,
@@ -521,11 +528,32 @@ export function DetailPage({
   const [isAddingToList, setIsAddingToList] = useState(false);
   const [isOnMalList, setIsOnMalList] = useState(false);
   const [listError, setListError] = useState<string | null>(null);
+  const [fetchedStreamingLinks, setFetchedStreamingLinks] = useState<readonly StreamingLink[] | null>(
+    null,
+  );
 
   useEffect(() => {
     setIsOnMalList(false);
     setListError(null);
   }, [anime?.id]);
+
+  // Streaming links are not guaranteed to be on the record already in hand: the
+  // cache may predate the field, and some endpoints never return them. Asking
+  // the worker for this one title is what makes the "Where to watch" card
+  // reliable; the request is skipped when the links are already present.
+  useEffect(() => {
+    const embedded = anime?.streamingSites;
+    if (anime === null || anime === undefined) return;
+    if (embedded !== undefined && embedded.length > 0) return;
+    let cancelled = false;
+    setFetchedStreamingLinks(null);
+    void requestStreamingLinks(anime.id).then((links) => {
+      if (!cancelled) setFetchedStreamingLinks(links);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [anime]);
 
   if (anime === null) {
     return (
@@ -540,12 +568,11 @@ export function DetailPage({
 
   const imageUrl = anime.image?.large ?? anime.image?.medium;
   const alternativeTitle = anime.title.english ?? anime.title.japanese ?? anime.title.synonyms[0];
-  const isAniListEntry = anime.provider === 'anilist';
-  const entryProviderName = isAniListEntry ? 'AniList' : 'MyAnimeList';
-  const providerUrl = isAniListEntry
-    ? `https://anilist.co/anime/${anime.id}`
-    : `https://myanimelist.net/anime/${anime.id}`;
+  const isAniListEntryRecord = isAniListEntry(anime);
+  const entryProviderName = entryProviderDisplayName(anime);
+  const providerUrl = entryProviderUrl(anime);
   const reasons = anime.reasons ?? [];
+  const streamingSites = anime.streamingSites ?? fetchedStreamingLinks ?? [];
   const canUpdateMalList = auth?.status === 'authenticated';
 
   const addToPlanToWatch = () => {
@@ -667,6 +694,37 @@ export function DetailPage({
           ))}
         </div>
       </Card>
+      {streamingSites.length > 0 && (
+        <Card className="where-to-watch-card">
+          <div className="why-card-heading">
+            <span className="state-icon">
+              <Icon name="play" size={17} />
+            </span>
+            <h3>{copy.whereToWatch}</h3>
+          </div>
+          <div className="where-to-watch-links">
+            {streamingSites.map((site) =>
+              site.url === null ? (
+                <span className="streaming-link is-static" key={site.serviceId}>
+                  {site.serviceName}
+                </span>
+              ) : (
+                <a
+                  className="streaming-link"
+                  key={site.serviceId}
+                  href={site.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  aria-label={copy.watchOn(site.serviceName)}
+                >
+                  <Icon name="play" size={11} />
+                  {site.serviceName}
+                </a>
+              ),
+            )}
+          </div>
+        </Card>
+      )}
       <div className="detail-score-row">
         <CompatibilityScore value={anime.compatibility} copy={copy} />
         <div>
@@ -695,7 +753,7 @@ export function DetailPage({
           icon="arrow-right"
           onClick={() => window.open(providerUrl, '_blank', 'noopener,noreferrer')}
         >
-          {isAniListEntry ? copy.openOnAnilist : copy.openOnMal}
+          {isAniListEntryRecord ? copy.openOnAnilist : copy.openOnMal}
         </Button>
       </div>
       {listError !== null && (
@@ -735,7 +793,7 @@ export function DetailPage({
         type="button"
         onClick={() => window.open(providerUrl, '_blank', 'noopener,noreferrer')}
       >
-        {isAniListEntry ? copy.viewAnilist : copy.viewMal}
+        {isAniListEntryRecord ? copy.viewAnilist : copy.viewMal}
       </button>
     </div>
   );

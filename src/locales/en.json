@@ -242,6 +242,8 @@
     "shortSeriesDescription": "Favor series with 13 episodes or fewer",
     "discoveryStyle": "Discovery style",
     "discoveryStyleDescription": "Choose the balance between affinity and surprise.",
+    "whereToWatch": "Where to watch",
+    "watchOn": "Watch on {name}",
     "appearance": "Appearance",
     "interfaceLabel": "INTERFACE",
     "notifications": "Notifications",

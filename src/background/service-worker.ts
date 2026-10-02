@@ -47,6 +47,11 @@ import { isRecommendationMessage } from '../recommendations/recommendation-messa
 import type { MalListMessage, MalListMessageResponse } from '../api/mal-list-messages';
 import type { ProviderStatus } from '../providers/provider-registry';
 import { isMalListMessage } from '../api/mal-list-messages';
+import {
+  isStreamingLinksMessage,
+  type StreamingLinksMessage,
+  type StreamingLinksResponse,
+} from '../api/streaming-links-messages';
 import { ANILIST_PIN_REDIRECT_URL } from '../api/providers/anilist/anilist-queries';
 import {
   GITHUB_LATEST_RELEASE_URL,
@@ -217,6 +222,14 @@ chrome.runtime.onMessage.addListener(
     }
     if (isRecommendationMessage(message)) {
       void handleRecommendationMessage(message)
+        .then(sendResponse)
+        .catch(async (error: unknown) =>
+          sendResponse({ ok: false, message: await toMessage(error) }),
+        );
+      return true;
+    }
+    if (isStreamingLinksMessage(message)) {
+      void handleStreamingLinksMessage(message)
         .then(sendResponse)
         .catch(async (error: unknown) =>
           sendResponse({ ok: false, message: await toMessage(error) }),
@@ -585,6 +598,34 @@ async function readActiveProviderCache(): Promise<AnimeCache | undefined> {
   const cacheStore = new ChromeAnimeCacheStore(storage, providerId);
   const raw = await cacheStore.get();
   return raw === null || raw === undefined ? undefined : (raw as AnimeCache);
+}
+
+async function handleStreamingLinksMessage(
+  message: StreamingLinksMessage,
+): Promise<StreamingLinksResponse> {
+  try {
+    return {
+      ok: true,
+      links: await (
+        await activeAuthService()
+      ).withAccessToken(async (accessToken) => {
+        const provider = await providerRegistry.createActiveProvider(accessToken);
+        // A dedicated per-title lookup: the list, suggestions and ranking
+        // endpoints are not required to carry streaming links, so the card never
+        // depends on where the recommendation happened to come from. Falls back
+        // to the media record for a provider without a dedicated lookup.
+        const dedicated = await provider.getStreamingLinks?.(message.animeId);
+        if (dedicated !== undefined) return dedicated;
+        const anime = await provider.getAnime(message.animeId);
+        return anime.streamingSites ?? [];
+      }),
+    };
+  } catch (error) {
+    // The card is an enhancement: an expired session, a provider without the
+    // data, or an offline lookup must leave the detail page usable.
+    reportBackgroundFailure(error);
+    return { ok: true, links: [] };
+  }
 }
 
 async function handleMalListMessage(message: MalListMessage): Promise<MalListMessageResponse> {

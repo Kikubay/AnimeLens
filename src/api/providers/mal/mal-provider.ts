@@ -1,4 +1,5 @@
 import type { Anime, AnimeListEntry, AnimeStatus } from '../../../domain/anime';
+import type { StreamingLink } from '../../../domain/streaming';
 import type { UserProfile } from '../../../domain/user-profile';
 import { ApiError } from '../../api-errors';
 import type { AnimeListFetchOptions, AnimeProvider } from '../../anime-provider';
@@ -13,6 +14,7 @@ import {
   normalizeUserProfile,
 } from '../../mal-normalizer';
 import type { MalAnimeDto, MalAnimeListResponse, MalUserDto } from '../../mal-types';
+import { fetchMalStreamingPlatforms } from './mal-streaming';
 
 const MAX_PAGES = 100;
 
@@ -112,6 +114,20 @@ export class MalAnimeProvider implements AnimeProvider {
       throw new ApiError('Anime list status is invalid.', { code: 'bad_request' });
     }
     await this.requestListStatus(id, status);
+  }
+
+  /**
+   * Streaming platforms for the "Where to watch" card.
+   *
+   * MAL's API has no such field, so this reads the anime's web page. It is
+   * deliberately the only MAL call that touches the website, and it sends no
+   * cookies and no API token.
+   */
+  async getStreamingLinks(id: number): Promise<readonly StreamingLink[]> {
+    if (!Number.isInteger(id) || id <= 0) {
+      throw new ApiError('Anime ID must be a positive integer.', { code: 'bad_request' });
+    }
+    return fetchMalStreamingPlatforms(id);
   }
 
   async searchAnime(query: string): Promise<Anime[]> {

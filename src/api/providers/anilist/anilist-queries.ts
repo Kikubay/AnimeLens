@@ -59,7 +59,12 @@ export function extractAccessToken(input: string): string {
 export const ANILIST_PAGE_SIZE = 50;
 export const ANILIST_SEARCH_PAGE_SIZE = 50;
 
-/** Shared fragment for a lean anime node (list/suggestion/ranking queries). */
+/** Shared fragment for a lean anime node (list/suggestion/ranking queries).
+ *
+ * `externalLinks` is AniList's current spelling (`externalSites` was rejected
+ * outright by the API with "Cannot query field") and every entry carries a
+ * `type`, so only `STREAMING` entries are real availability.
+ */
 export const ANIME_MEDIA_FRAGMENT = `
 fragment AnimeMedia on Media {
   id
@@ -75,6 +80,7 @@ fragment AnimeMedia on Media {
   status
   popularity
   isAdult
+  externalLinks { site url type }
   studios(isMain: true) { nodes { id name } }
 }
 `;

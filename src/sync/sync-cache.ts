@@ -230,7 +230,26 @@ function isAnime(value: unknown): boolean {
     isAiringStatus(value.status) &&
     isAnimeType(value.type) &&
     (value.popularity === null || isNonNegativeInteger(value.popularity)) &&
-    (value.memberCount === null || isNonNegativeInteger(value.memberCount))
+    (value.memberCount === null || isNonNegativeInteger(value.memberCount)) &&
+    isStreamingSites(value.streamingSites)
+  );
+}
+
+/**
+ * `streamingSites` is optional: entries cached by an older build have no such
+ * key and must keep validating. A present value must be an array of links.
+ */
+function isStreamingSites(value: unknown): boolean {
+  if (value === undefined) return true;
+  return (
+    Array.isArray(value) &&
+    value.every(
+      (link) =>
+        isRecord(link) &&
+        typeof link.serviceId === 'string' &&
+        typeof link.serviceName === 'string' &&
+        (link.url === null || typeof link.url === 'string'),
+    )
   );
 }
 

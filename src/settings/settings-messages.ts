@@ -1,16 +1,6 @@
-import type { AuthSnapshot } from '../auth/auth-types';
-import type { ProviderStatusView, UserPreferences } from './settings-types';
+import type { SettingsSnapshot, UserPreferences } from './settings-types';
 
-export interface SettingsSnapshot {
-  readonly preferences: UserPreferences;
-  /** Snapshot of the ACTIVE provider's auth state. */
-  readonly auth: AuthSnapshot;
-  readonly providers: readonly ProviderStatusView[];
-  readonly malClientId: string;
-  readonly anilistClientId: string;
-  readonly malRedirectUri: string;
-  readonly anilistRedirectUri: string;
-}
+export type { SettingsSnapshot } from './settings-types';
 
 export type SettingsMessage =
   | { readonly type: 'settings.get_snapshot' }

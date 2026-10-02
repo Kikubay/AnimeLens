@@ -242,6 +242,8 @@
     "shortSeriesDescription": "Favoriser les séries de 13 épisodes ou moins",
     "discoveryStyle": "Style de découverte",
     "discoveryStyleDescription": "Choisissez l’équilibre entre affinité et surprise.",
+    "whereToWatch": "Où regarder",
+    "watchOn": "Regarder sur {name}",
     "appearance": "Apparence",
     "interfaceLabel": "INTERFACE",
     "notifications": "Notifications",

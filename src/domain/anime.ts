@@ -1,3 +1,5 @@
+import type { StreamingLink } from './streaming';
+
 export type AnimeId = number;
 
 /** Provider an anime record originated from (for deep links and labels). */
@@ -79,6 +81,15 @@ export interface Anime {
   readonly popularity: number | null;
   readonly memberCount: number | null;
   readonly contentRating?: AnimeContentRating;
+  /**
+   * Where the title can be streamed.
+   *
+   * Optional because it is absent from data cached by older builds, and because
+   * not every provider populates it on every endpoint (MAL only returns
+   * `external` on the anime detail route). An empty array means the provider
+   * reported no known service; `undefined` means never requested.
+   */
+  readonly streamingSites?: readonly StreamingLink[];
 }
 
 export interface AnimeListEntry {

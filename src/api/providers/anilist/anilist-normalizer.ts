@@ -8,6 +8,7 @@ import type {
   StaffMember,
 } from '../../../domain/anime';
 import type { UserProfile } from '../../../domain/user-profile';
+import { normalizeStreamingSites } from '../../../domain/streaming';
 
 /**
  * AniList GraphQL DTOs (only the fields this integration consumes).
@@ -41,6 +42,17 @@ export interface AniListStaffEdgeDto {
   } | null;
 }
 
+/**
+ * AniList's `externalLinks`. `type` is the reliable signal: only `STREAMING`
+ * entries mean the title is watchable, the rest are official sites and social
+ * accounts. `site` is a display name, not an enum.
+ */
+export interface AniListExternalLinkDto {
+  readonly site?: string | null;
+  readonly url?: string | null;
+  readonly type?: string | null;
+}
+
 export interface AniListMediaDto {
   readonly id: number;
   readonly title?: AniListTitleDto | null;
@@ -56,6 +68,7 @@ export interface AniListMediaDto {
   readonly status?: string | null;
   readonly popularity?: number | null;
   readonly isAdult?: boolean | null;
+  readonly externalLinks?: readonly AniListExternalLinkDto[] | null;
   readonly studios?: { readonly nodes?: readonly AniListStudioNodeDto[] | null } | null;
   readonly staff?: { readonly edges?: readonly AniListStaffEdgeDto[] | null } | null;
 }
@@ -169,6 +182,7 @@ export function normalizeAnime(input: AniListMediaDto): Anime {
     popularity: normalizeNonNegativeInteger(input.popularity),
     memberCount: normalizeNonNegativeInteger(input.popularity),
     contentRating: input.isAdult === true ? 'explicit' : 'safe',
+    streamingSites: normalizeStreamingSites(input.externalLinks),
   };
 }
 

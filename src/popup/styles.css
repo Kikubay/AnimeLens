@@ -1205,6 +1205,44 @@ button:focus-visible {
   line-height: 1.35;
   text-overflow: ellipsis;
 }
+.where-to-watch-card {
+  margin-top: 13px;
+  padding: 13px;
+}
+.where-to-watch-card h3 {
+  margin: 0;
+  font-size: 14px;
+  letter-spacing: -0.04em;
+}
+.where-to-watch-card .state-icon {
+  color: var(--accent);
+  background: rgb(138 126 207 / 12%);
+}
+.where-to-watch-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 12px;
+}
+.streaming-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 6px 9px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  color: var(--muted);
+  background: var(--surface);
+  font-size: 9px;
+  text-decoration: none;
+}
+.streaming-link:hover {
+  color: var(--text);
+  border-color: var(--accent);
+}
+.streaming-link.is-static {
+  color: var(--dim);
+}
 .detail-reasons {
   display: grid;
   gap: 9px;

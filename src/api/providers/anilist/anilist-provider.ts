@@ -1,4 +1,5 @@
 import type { Anime, AnimeListEntry, AnimeStatus } from '../../../domain/anime';
+import type { StreamingLink } from '../../../domain/streaming';
 import type { UserProfile } from '../../../domain/user-profile';
 import type { HttpClient } from '../../http-client';
 import { ApiError } from '../../api-errors';
@@ -167,6 +168,14 @@ export class AniListProvider implements AnimeProvider {
     );
     if (!isAniListPageResponse(data)) throw invalidResponse('anime ranking');
     return data.Page.media.filter(isAniListMedia).map(normalizeAnime);
+  }
+
+  /**
+   * Streaming platforms for the "Where to watch" card. AniList returns them on
+   * the media query itself, so this is the same call the detail page uses.
+   */
+  async getStreamingLinks(id: number): Promise<readonly StreamingLink[]> {
+    return (await this.getAnime(id)).streamingSites ?? [];
   }
 
   async searchAnime(query: string): Promise<Anime[]> {
