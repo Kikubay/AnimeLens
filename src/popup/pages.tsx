@@ -18,8 +18,9 @@ import type { RecommendationSectionId } from '../recommendations/recommendation-
 import type { Recommendation } from '../domain/recommendation';
 import type { FeedbackValue } from '../domain/feedback';
 import type { DislikeReason } from '../domain/feedback';
-import { requestProfileSnapshot } from '../profile/profile-messages';
+import { requestProfileSnapshot, clearProfileHistory } from '../profile/profile-messages';
 import type { ProfileSnapshot, UserProfileSummary } from '../profile/profile-types';
+import type { ProfileAxis, ProfileChange, ProfileDelta } from '../profile/profile-delta';
 import {
   buildTasteCardModel,
   layoutAfterCardClose,
@@ -528,9 +529,9 @@ export function DetailPage({
   const [isAddingToList, setIsAddingToList] = useState(false);
   const [isOnMalList, setIsOnMalList] = useState(false);
   const [listError, setListError] = useState<string | null>(null);
-  const [fetchedStreamingLinks, setFetchedStreamingLinks] = useState<readonly StreamingLink[] | null>(
-    null,
-  );
+  const [fetchedStreamingLinks, setFetchedStreamingLinks] = useState<
+    readonly StreamingLink[] | null
+  >(null);
 
   useEffect(() => {
     setIsOnMalList(false);
@@ -820,6 +821,7 @@ export function ProfilePage({
   const [snapshot, setSnapshot] = useState<ProfileSnapshot>({
     status: 'loading',
     summary: null,
+    delta: null,
     errorMessage: null,
   });
 
@@ -836,6 +838,7 @@ export function ProfilePage({
         setSnapshot({
           status: 'error',
           summary: null,
+          delta: null,
           errorMessage: error instanceof Error ? error.message : copy.recommendationsUnavailable,
         });
       });
@@ -849,6 +852,25 @@ export function ProfilePage({
       requestSequence.current += 1;
     };
   }, [loadProfile]);
+
+  // Clearing drops the comparison point only, and the response is a whole new
+  // snapshot, so the page re-renders from it instead of reading again.
+  const [isResetting, setIsResetting] = useState(false);
+  const resetHistory = useCallback(() => {
+    setIsResetting(true);
+    void clearProfileHistory()
+      .then((next) => {
+        if (disposed.current) return;
+        setSnapshot(next);
+        onFeedback(copy.profileDeltaCleared);
+      })
+      .catch(() => {
+        if (!disposed.current) onFeedback(copy.recommendationsUnavailable);
+      })
+      .finally(() => {
+        if (!disposed.current) setIsResetting(false);
+      });
+  }, [copy.profileDeltaCleared, copy.recommendationsUnavailable, onFeedback]);
 
   if (snapshot.status === 'loading') return <ProfileLoadingPage />;
   if (snapshot.status === 'error') {
@@ -888,6 +910,9 @@ export function ProfilePage({
       onPreferencesChange={onPreferencesChange}
       onFeedback={onFeedback}
       onRefresh={loadProfile}
+      delta={snapshot.delta}
+      onResetHistory={resetHistory}
+      isResettingHistory={isResetting}
       copy={copy}
     />
   );
@@ -901,6 +926,9 @@ function ProfileSummary({
   onPreferencesChange,
   onFeedback,
   onRefresh,
+  delta,
+  onResetHistory,
+  isResettingHistory,
   copy,
 }: {
   readonly summary: UserProfileSummary;
@@ -910,6 +938,9 @@ function ProfileSummary({
   readonly onPreferencesChange?: (preferences: UserPreferences) => void;
   readonly onFeedback: (message: string) => void;
   readonly onRefresh: () => void;
+  readonly delta: ProfileDelta | null;
+  readonly onResetHistory: () => void;
+  readonly isResettingHistory: boolean;
   readonly copy: AppCopy;
 }) {
   const [isTasteCardOpen, setTasteCardOpen] = useState(false);
@@ -1102,6 +1133,12 @@ function ProfileSummary({
           <span>{copy.favoriteGenres}</span>
         </div>
       </div>
+      <ProfileDeltaCard
+        delta={delta}
+        copy={copy}
+        onReset={onResetHistory}
+        isResetting={isResettingHistory}
+      />
       <PreferenceSection title={copy.favoriteGenres} items={summary.favoriteGenres} copy={copy} />
       <PreferenceSection title={copy.favoriteThemes} items={summary.favoriteThemes} copy={copy} />
       <PreferenceSection title={copy.favoriteStudios} items={summary.favoriteStudios} copy={copy} />
@@ -1189,6 +1226,137 @@ function ProfileSummary({
         }
       />
     </div>
+  );
+}
+
+/** The axis label from the section this mirrors, lowercased by the loader. */
+const AXIS_COPY: Readonly<
+  Record<ProfileAxis, 'favoriteGenres' | 'favoriteThemes' | 'favoriteStudios'>
+> = {
+  genres: 'favoriteGenres',
+  themes: 'favoriteThemes',
+  studios: 'favoriteStudios',
+};
+
+function describeChange(change: ProfileChange, copy: AppCopy): string {
+  const axis = copy[AXIS_COPY[change.axis]];
+  switch (change.kind) {
+    case 'entered':
+      return copy.profileDeltaEntered(axis, change.name, (change.to ?? 0) + 1);
+    case 'left':
+      return copy.profileDeltaLeft(axis, change.name);
+    case 'rank_up':
+      return copy.profileDeltaRankUp(axis, change.name, (change.to ?? 0) + 1);
+    case 'rank_down':
+      return copy.profileDeltaRankDown(axis, change.name, (change.to ?? 0) + 1);
+    case 'score_up':
+      return copy.profileDeltaScoreUp(axis, change.name, scoreSwing(change));
+    case 'score_down':
+      return copy.profileDeltaScoreDown(axis, change.name, scoreSwing(change));
+  }
+}
+
+function scoreSwing(change: ProfileChange): number {
+  if (change.fromScore === null || change.toScore === null) return 0;
+  return Math.abs(change.toScore - change.fromScore);
+}
+
+const RISING: ReadonlySet<ProfileChange['kind']> = new Set(['entered', 'rank_up', 'score_up']);
+
+/** What moved since the last snapshot, above the bars it explains. */
+function ProfileDeltaCard({
+  delta,
+  copy,
+  onReset,
+  isResetting,
+}: {
+  readonly delta: ProfileDelta | null;
+  readonly copy: AppCopy;
+  readonly onReset: () => void;
+  readonly isResetting: boolean;
+}) {
+  // A failed load, or no profile at all. A placeholder here would read as a
+  // bug rather than an absence, so the card is simply not on the page yet.
+  if (delta === null) return null;
+
+  const isReady = delta.status === 'ready';
+  const hasHistory = delta.status !== 'baseline';
+
+  return (
+    <Card className="delta-card">
+      <div className="section-heading">
+        <div>
+          <p className="eyebrow">{copy.profileDeltaEyebrow}</p>
+          <h2>{copy.profileDeltaTitle}</h2>
+        </div>
+        {isReady && <Badge tone="success">{copy.profileDeltaUpdated}</Badge>}
+      </div>
+
+      {delta.status === 'baseline' && <p className="profile-muted">{copy.profileDeltaBaseline}</p>}
+      {delta.status === 'stable' && <p className="profile-muted">{copy.profileDeltaStable}</p>}
+      {delta.status === 'unavailable' && (
+        <p className="profile-muted">{copy.profileDeltaUnavailable}</p>
+      )}
+
+      {isReady && (
+        <div className="detected-list">
+          {delta.changes.map((change) => (
+            <div className="detected-item" key={`${change.axis}:${change.name}`}>
+              {/* A falling bar is a fact about the profile, not a failure, so
+                  it is muted rather than coloured as an error. */}
+              <span className={RISING.has(change.kind) ? 'delta-sign-up' : 'delta-sign-down'}>
+                <Icon name={RISING.has(change.kind) ? 'arrow-up' : 'arrow-down'} size={14} />
+              </span>
+              <div>
+                <strong>{change.name}</strong>
+                <p>{describeChange(change, copy)}</p>
+              </div>
+            </div>
+          ))}
+          {delta.averageChange !== null && (
+            <div className="detected-item">
+              <span
+                className={
+                  delta.averageChange.direction === 'up' ? 'delta-sign-up' : 'delta-sign-down'
+                }
+              >
+                <Icon
+                  name={delta.averageChange.direction === 'up' ? 'arrow-up' : 'arrow-down'}
+                  size={14}
+                />
+              </span>
+              <div>
+                <strong>{copy.averageScore}</strong>
+                <p>
+                  {delta.averageChange.direction === 'up'
+                    ? copy.profileDeltaAverageUp(
+                        delta.averageChange.from.toFixed(1),
+                        delta.averageChange.to.toFixed(1),
+                      )
+                    : copy.profileDeltaAverageDown(
+                        delta.averageChange.from.toFixed(1),
+                        delta.averageChange.to.toFixed(1),
+                      )}
+                </p>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {hasHistory && (
+        <div className="delta-foot">
+          <span className="profile-muted">
+            {delta.previousAt === null
+              ? null
+              : copy.profileDeltaSince(new Date(delta.previousAt).toLocaleDateString())}
+          </span>
+          <Button size="sm" variant="ghost" onClick={onReset} disabled={isResetting}>
+            {copy.profileDeltaClear}
+          </Button>
+        </div>
+      )}
+    </Card>
   );
 }
 

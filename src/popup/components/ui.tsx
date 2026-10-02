@@ -4,7 +4,9 @@ import type { ButtonHTMLAttributes, HTMLAttributes, ReactNode } from 'react';
 import type { AppCopy } from '../../locales';
 
 export type IconName =
+  | 'arrow-down'
   | 'arrow-right'
+  | 'arrow-up'
   | 'check'
   | 'chevron-down'
   | 'chevron-left'
@@ -46,10 +48,22 @@ export function Icon({ name, size = 18, strokeWidth = 1.8 }: IconProps) {
   };
 
   const paths: Record<IconName, ReactNode> = {
+    'arrow-down': (
+      <>
+        <path d="M12 5v14" />
+        <path d="m6 13 6 6 6-6" />
+      </>
+    ),
     'arrow-right': (
       <>
         <path d="M5 12h14" />
         <path d="m13 6 6 6-6 6" />
+      </>
+    ),
+    'arrow-up': (
+      <>
+        <path d="M12 19V5" />
+        <path d="m6 11 6-6 6 6" />
       </>
     ),
     check: <path d="m5 12 4 4L19 6" />,

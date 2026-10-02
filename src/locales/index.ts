@@ -29,6 +29,26 @@ export function placeholdersIn(template: string): readonly string[] {
 }
 
 /**
+ * A bare number is not an ordinal in French. "1re" is feminine because every
+ * template taking a rank goes on to say "position".
+ */
+function ordinal(language: Language, value: unknown): string {
+  const rank = Number(value);
+  if (!Number.isFinite(rank)) return String(value);
+  return language === 'fr' ? (rank === 1 ? '1re' : `${rank}e`) : `#${rank}`;
+}
+
+/** Keys of the "what changed" section, with whether each one shows a position. */
+const DELTA_TRANSFORMS = [
+  { key: 'profileDeltaEntered', rank: true },
+  { key: 'profileDeltaLeft', rank: false },
+  { key: 'profileDeltaRankUp', rank: true },
+  { key: 'profileDeltaRankDown', rank: true },
+  { key: 'profileDeltaScoreUp', rank: false },
+  { key: 'profileDeltaScoreDown', rank: false },
+] as const satisfies readonly { readonly key: MessageKey; readonly rank: boolean }[];
+
+/**
  * Messages whose rendered value is not a direct substitution of the arguments.
  * Each transforms its inputs first so the templates in the JSON files stay
  * plain strings a translator can read without touching code.
@@ -47,6 +67,20 @@ const ARGUMENT_TRANSFORMS: Readonly<
   reasonTheme: ([name]) => ({ name: String(name).toLowerCase() }),
   // The leading genre is optional, so the sentence has to read without it.
   detectedRichWorldsDetail: ([name], locale) => ({ name: name ?? locale.meta.richWorldsFallback }),
+  // The "what changed" sentences open with the axis label, which is a heading
+  // elsewhere and reads wrong capitalised mid-sentence. Ranks are localized;
+  // every other argument passes through.
+  ...Object.fromEntries(
+    DELTA_TRANSFORMS.map(({ key, rank }) => [
+      key,
+      (args: readonly unknown[], locale: LocaleFile) => {
+        const values: Record<string, unknown> = bind(placeholdersOf(key), args);
+        values.axis = String(args[0] ?? '').toLowerCase();
+        if (rank) values.rank = ordinal(normalizeLanguage(locale.meta.language), args[2]);
+        return values;
+      },
+    ]),
+  ),
 };
 
 /**

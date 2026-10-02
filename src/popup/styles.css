@@ -1380,7 +1380,8 @@ button:focus-visible {
   padding: 13px;
 }
 .preference-card .section-heading,
-.detected-card .section-heading {
+.detected-card .section-heading,
+.delta-card .section-heading {
   margin: 0 0 15px;
 }
 .preference-bars {
@@ -1430,6 +1431,37 @@ button:focus-visible {
   color: var(--accent);
   font-family: ui-monospace, monospace;
   font-size: 9px;
+}
+.delta-card {
+  margin-top: 10px;
+  padding: 13px;
+}
+.delta-sign-up,
+.delta-sign-down {
+  display: grid;
+  width: 28px;
+  height: 28px;
+  flex: 0 0 auto;
+  place-items: center;
+  border-radius: 7px;
+  background: rgb(136 198 158 / 10%);
+}
+.delta-sign-up {
+  color: var(--success);
+}
+/* A preference cooling off is normal, so it reads as quiet rather than wrong. */
+.delta-sign-down {
+  color: var(--muted);
+  background: rgb(141 139 144 / 10%);
+}
+.delta-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 9px;
+  margin-top: 13px;
+  padding-top: 11px;
+  border-top: 1px solid var(--line-soft);
 }
 .profile-refresh-row {
   display: flex;

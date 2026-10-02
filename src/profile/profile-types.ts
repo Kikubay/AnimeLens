@@ -2,6 +2,7 @@ import type { AnimeListEntry } from '../domain/anime';
 import type { RecommendationProfile } from '../recommendations/recommendation-types';
 import { getCopy, type Language } from '../locales';
 import { emptyTopPickPlan, planTopPicks, type TopPickPlan } from './top-picks';
+import type { ProfileDelta } from './profile-delta';
 
 export interface ProfilePreferenceItem {
   readonly name: string;
@@ -37,6 +38,8 @@ export interface UserProfileSummary {
 export interface ProfileSnapshot {
   readonly status: 'loading' | 'ready' | 'empty' | 'error';
   readonly summary: UserProfileSummary | null;
+  /** What moved since the baseline, or `null` if the profile was not measured. */
+  readonly delta: ProfileDelta | null;
   readonly errorMessage: string | null;
 }
 

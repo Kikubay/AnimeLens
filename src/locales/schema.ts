@@ -130,6 +130,24 @@ export interface AppCopy {
   readonly positiveSignal: string;
   readonly negativeSignal: string;
   readonly lessLikedGenres: string;
+  readonly profileDeltaEyebrow: string;
+  readonly profileDeltaTitle: string;
+  readonly profileDeltaUpdated: string;
+  /** No baseline yet: explains what the section is for instead of hiding it. */
+  readonly profileDeltaBaseline: string;
+  readonly profileDeltaStable: string;
+  readonly profileDeltaSince: (date: string) => string;
+  readonly profileDeltaEntered: (axis: string, name: string, rank: number) => string;
+  readonly profileDeltaLeft: (axis: string, name: string) => string;
+  readonly profileDeltaRankUp: (axis: string, name: string, rank: number) => string;
+  readonly profileDeltaRankDown: (axis: string, name: string, rank: number) => string;
+  readonly profileDeltaScoreUp: (axis: string, name: string, points: number) => string;
+  readonly profileDeltaScoreDown: (axis: string, name: string, points: number) => string;
+  readonly profileDeltaAverageUp: (from: string, to: string) => string;
+  readonly profileDeltaAverageDown: (from: string, to: string) => string;
+  readonly profileDeltaClear: string;
+  readonly profileDeltaCleared: string;
+  readonly profileDeltaUnavailable: string;
   readonly profileCalculated: string;
   readonly refresh: string;
   readonly tasteCardShare: string;
@@ -422,6 +440,15 @@ const MESSAGE_PARAMS = {
   detectedRichWorldsDetail: ['name'],
   detectedDiscerningTasteDetail: ['average'],
   detectedRefinedProfileDetail: ['count'],
+  profileDeltaSince: ['date'],
+  profileDeltaEntered: ['axis', 'name', 'rank'],
+  profileDeltaLeft: ['axis', 'name'],
+  profileDeltaRankUp: ['axis', 'name', 'rank'],
+  profileDeltaRankDown: ['axis', 'name', 'rank'],
+  profileDeltaScoreUp: ['axis', 'name', 'points'],
+  profileDeltaScoreDown: ['axis', 'name', 'points'],
+  profileDeltaAverageUp: ['from', 'to'],
+  profileDeltaAverageDown: ['from', 'to'],
   providerConnectedToast: ['name'],
   providerDisconnectedToast: ['name'],
   providerActiveToast: ['name'],

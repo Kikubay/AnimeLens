@@ -30,8 +30,15 @@ import {
   createEmptyDashboardRecommendationSnapshot,
 } from '../recommendations/recommendation-dashboard';
 import { emptyProfileSummary, profileSummaryFromModel } from '../profile/profile-types';
+import type { UserProfileSummary } from '../profile/profile-types';
 import type { ProfileMessage, ProfileMessageResponse } from '../profile/profile-messages';
 import { isProfileMessage } from '../profile/profile-messages';
+import {
+  baselineProfileDelta,
+  diffProfileSnapshots,
+  toStoredProfileSnapshot,
+} from '../profile/profile-delta';
+import { createProfileHistoryStore } from '../profile/profile-history-store';
 import { createTopPicksStore } from '../profile/top-picks-store';
 import { emptyTopPickPlan, planTopPicks, type TopPickPlan } from '../profile/top-picks';
 import type { TopPicksMessage, TopPicksMessageResponse } from '../profile/top-picks-messages';
@@ -105,6 +112,7 @@ const storage = {
 
 const feedbackService = new RecommendationFeedbackService(new ChromeFeedbackStore(storage));
 const topPicksStore = createTopPicksStore(storage);
+const profileHistoryStore = createProfileHistoryStore(storage);
 let syncSnapshot: SyncSnapshot = {
   metadata: createIdleMetadata(),
   progress: null,
@@ -450,6 +458,7 @@ async function handleAuthMessage(message: AuthMessage): Promise<AuthResponse> {
       .then((statuses) => statuses.some((status) => status.signedIn));
     if (!anySignedIn) {
       await Promise.all([storage.remove('feedback'), storage.remove('profile')]);
+      await profileHistoryStore.clear();
     }
     await configureScheduledTasks();
     syncSnapshot = { metadata: createIdleMetadata(), progress: null };
@@ -490,6 +499,9 @@ async function handleSettingsMessage(message: SettingsMessage): Promise<Settings
   }
   if (message.type === 'settings.clear_cache') {
     await syncService.invalidate();
+    // The history derives entirely from the cache, so keeping it after the
+    // cache is gone would let the next sync diff against discarded data.
+    await profileHistoryStore.clear();
     syncSnapshot = { metadata: createIdleMetadata(), progress: null };
     void hydrateCachedSync().catch(reportBackgroundFailure);
     return settingsSnapshot();
@@ -506,6 +518,7 @@ async function handleSettingsMessage(message: SettingsMessage): Promise<Settings
       storage.remove(ANILIST_CLIENT_ID_STORAGE_KEY),
       storage.remove('activeProvider'),
     ]);
+    await profileHistoryStore.clear();
     syncSnapshot = { metadata: createIdleMetadata(), progress: null };
     await configureScheduledTasks();
     return settingsSnapshot();
@@ -515,11 +528,13 @@ async function handleSettingsMessage(message: SettingsMessage): Promise<Settings
   // AniList's cached list. Legacy caches under `animeData` belong to MAL.
   await providerRegistry.getAuthService('mal').disconnect();
   await Promise.all([storage.remove('animeData'), storage.remove('animeData:mal')]);
+  await profileHistoryStore.clear('mal');
   const anySignedIn = await providerRegistry
     .listProviderStatuses()
     .then((statuses) => statuses.some((status) => status.signedIn));
   if (!anySignedIn) {
     await Promise.all([storage.remove('feedback'), storage.remove('profile')]);
+    await profileHistoryStore.clear();
   }
   syncSnapshot = { metadata: createIdleMetadata(), progress: null };
   void hydrateCachedSync().catch(reportBackgroundFailure);
@@ -690,28 +705,70 @@ async function handleRecommendationMessage(
   };
 }
 
-async function handleProfileMessage(_message: ProfileMessage): Promise<ProfileMessageResponse> {
+/** The active provider's profile, recomputed from the cache. */
+async function buildCurrentProfileSummary(): Promise<{
+  readonly summary: UserProfileSummary;
+  readonly providerId: string;
+} | null> {
   const stored = await readActiveProviderCache();
-  const feedback = await feedbackService.list();
-  if (stored === undefined) {
-    return {
-      ok: true,
-      snapshot: { status: 'empty', summary: emptyProfileSummary(), errorMessage: null },
-    };
-  }
+  if (stored === undefined) return null;
   const providerId = await providerRegistry.registry.getActiveProvider();
-  const profile = buildUserPreferenceProfile(stored.entries, feedback);
+  const feedback = await feedbackService.list();
   const summary = profileSummaryFromModel(
-    profile,
+    buildUserPreferenceProfile(stored.entries, feedback),
     await currentLanguage(),
     stored.entries,
     providerId,
   );
+  return { summary, providerId };
+}
+
+/**
+ * Makes the current profile the point later snapshots are compared against.
+ *
+ * Called when the inputs change - a completed sync, a written rating - and
+ * never on a read, or the delta would be consumed by the first popup opening.
+ */
+async function recordProfileBaseline(): Promise<void> {
+  try {
+    const current = await buildCurrentProfileSummary();
+    if (current === null || !current.summary.hasData) return;
+    await profileHistoryStore.record(current.providerId, current.summary);
+  } catch (error) {
+    // A history that fails to write must not break a sync or a rating.
+    reportBackgroundFailure(error);
+  }
+}
+
+async function handleProfileMessage(message: ProfileMessage): Promise<ProfileMessageResponse> {
+  const historyCleared = message.type === 'profile.clear_history';
+  if (historyCleared) {
+    await profileHistoryStore.clear(await providerRegistry.registry.getActiveProvider());
+  }
+  const current = await buildCurrentProfileSummary();
+  if (current === null) {
+    return {
+      ok: true,
+      snapshot: {
+        status: 'empty',
+        summary: emptyProfileSummary(),
+        delta: baselineProfileDelta(),
+        errorMessage: null,
+      },
+    };
+  }
+  const snapshot = toStoredProfileSnapshot(
+    current.summary,
+    current.providerId,
+    new Date().toISOString(),
+  );
+  const previous = historyCleared ? null : await profileHistoryStore.load(current.providerId);
   return {
     ok: true,
     snapshot: {
-      status: summary.hasData ? 'ready' : 'empty',
-      summary,
+      status: current.summary.hasData ? 'ready' : 'empty',
+      summary: current.summary,
+      delta: diffProfileSnapshots(previous, snapshot),
       errorMessage: null,
     },
   };
@@ -755,15 +812,16 @@ async function handleTopPicksMessage(message: TopPicksMessage): Promise<TopPicks
 }
 
 async function handleFeedbackMessage(message: FeedbackMessage): Promise<FeedbackMessageResponse> {
-  const feedback =
-    message.type === 'feedback.list'
-      ? await feedbackService.list()
-      : await feedbackService.submit(
-          message.recommendationId,
-          message.anime,
-          message.value,
-          message.reasons ?? [],
-        );
+  if (message.type === 'feedback.list') return { ok: true, feedback: await feedbackService.list() };
+  const feedback = await feedbackService.submit(
+    message.recommendationId,
+    message.anime,
+    message.value,
+    message.reasons ?? [],
+  );
+  // Feedback feeds the same model as the list, so a rating moves the profile
+  // just as watching something does.
+  await recordProfileBaseline();
   return { ok: true, feedback };
 }
 
@@ -800,6 +858,9 @@ async function startSync(reason: 'initial' | 'manual' | 'reconnect'): Promise<vo
       onProgress: (progress) => updateProgress(progress),
     });
     syncSnapshot = { metadata: result.metadata, progress: result.metadata.progress };
+    // A completed sync is the one moment the list behind the profile is known
+    // to have changed.
+    if (result.metadata.status === 'success') await recordProfileBaseline();
   } catch (error) {
     let cached: Awaited<ReturnType<typeof syncService.getCachedResult>> = null;
     try {
