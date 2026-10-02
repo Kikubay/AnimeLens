@@ -537,10 +537,9 @@ export function DetailPage({
     setListError(null);
   }, [anime?.id]);
 
-  // Streaming links are not guaranteed to be on the record already in hand: the
-  // cache may predate the field, and some endpoints never return them. Asking
-  // the worker for this one title is what makes the "Where to watch" card
-  // reliable; the request is skipped when the links are already present.
+  // The record we're holding isn't guaranteed to carry links — the cache may
+  // predate the field, and some endpoints never send them. Ask for this one
+  // title, and skip the round-trip when we already have them.
   useEffect(() => {
     const embedded = anime?.streamingSites;
     if (anime === null || anime === undefined) return;

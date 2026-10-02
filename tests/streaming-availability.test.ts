@@ -64,7 +64,6 @@ describe('normalizeStreamingSites', () => {
   });
 
   it('keeps a streaming platform the catalogue does not know', () => {
-    // AniList labelled it STREAMING, so hiding it would misreport availability.
     expect(
       normalizeStreamingSites([
         { site: 'Adult Swim', url: 'https://www.adultswim.com/videos/x', type: 'STREAMING' },
@@ -119,15 +118,12 @@ describe('normalizeStreamingSites', () => {
 
 describe('AniList integration', () => {
   it('requests externalLinks, the spelling the API accepts', () => {
-    // `externalSites` is rejected outright with a GraphQL error, which would
-    // fail every AniList query the fragment is embedded in.
+    // Wrong spelling 400s every query this fragment is embedded in.
     expect(ANIME_MEDIA_FRAGMENT).toContain('externalLinks { site url type }');
     expect(ANIME_MEDIA_FRAGMENT).not.toContain('externalSites');
   });
 
   it('requests no MAL field that does not exist', () => {
-    // MAL documents 400 Bad Request / Invalid Parameters and has no
-    // streaming-links field, so `external` must never be requested.
     expect(MAL_FIELDS.split(',')).not.toContain('external');
   });
 
@@ -165,11 +161,8 @@ describe('AniList integration', () => {
 });
 
 describe('MAL streaming platforms', () => {
-  /**
-   * Trimmed from the live page for Frieren (myanimelist.net/anime/52991):
-   * a "Resources" section holding non-streaming links, the "Streaming Platforms"
-   * section, and a following heading that must terminate the scan.
-   */
+  // Trimmed from myanimelist.net/anime/52991. The Resources section and the
+  // trailing heading are both there to prove neither leaks into the card.
   const MAL_PAGE = `<!DOCTYPE html><html><body>
 <div class="js-scrollfix-bottom-rel">
   <h2>Resources</h2>

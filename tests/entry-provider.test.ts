@@ -53,8 +53,6 @@ describe('entry provider', () => {
   });
 
   it('keeps each provider on its own URL host, so IDs never cross over', () => {
-    // Same numeric id, two providers, two different titles: the link must follow
-    // the record, never the other way round.
     const sharedId = 52991;
     expect(entryProviderUrl(record({ id: sharedId, provider: 'mal' }))).toContain(
       'myanimelist.net',
@@ -77,8 +75,6 @@ describe('entry provider', () => {
 
 describe('provider switching, end to end', () => {
   it('labels and links each normalizer output on its own provider', () => {
-    // These are the exact records the dashboard renders: whatever the active
-    // provider is, its normalizer stamps the origin the detail page reads.
     const mal = normalizeMalAnime({ id: 52991, title: 'Sousou no Frieren' });
     const anilist = normalizeAniListAnime({ id: 154587, title: { romaji: 'Sousou no Frieren' } });
 
@@ -89,8 +85,6 @@ describe('provider switching, end to end', () => {
   });
 
   it('keeps the two providers distinct even for the same title', () => {
-    // MAL and AniList IDs for one title usually differ; the detail page must
-    // still follow the record rather than the title.
     const mal = normalizeMalAnime({ id: 5114, title: 'Hagane no Renkinjutsushi' });
     const anilist = normalizeAniListAnime({ id: 16498, title: { romaji: 'Shingeki no Kyojin' } });
 

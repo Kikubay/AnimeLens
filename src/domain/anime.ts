@@ -82,12 +82,9 @@ export interface Anime {
   readonly memberCount: number | null;
   readonly contentRating?: AnimeContentRating;
   /**
-   * Where the title can be streamed.
-   *
-   * Optional because it is absent from data cached by older builds, and because
-   * not every provider populates it on every endpoint (MAL only returns
-   * `external` on the anime detail route). An empty array means the provider
-   * reported no known service; `undefined` means never requested.
+   * `undefined` means nobody asked yet — cached entries from older builds have no
+   * such key. An empty array means the provider answered and found nothing, which
+   * is a different answer.
    */
   readonly streamingSites?: readonly StreamingLink[];
 }

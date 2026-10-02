@@ -170,10 +170,6 @@ export class AniListProvider implements AnimeProvider {
     return data.Page.media.filter(isAniListMedia).map(normalizeAnime);
   }
 
-  /**
-   * Streaming platforms for the "Where to watch" card. AniList returns them on
-   * the media query itself, so this is the same call the detail page uses.
-   */
   async getStreamingLinks(id: number): Promise<readonly StreamingLink[]> {
     return (await this.getAnime(id)).streamingSites ?? [];
   }

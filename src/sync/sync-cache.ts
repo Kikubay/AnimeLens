@@ -235,10 +235,8 @@ function isAnime(value: unknown): boolean {
   );
 }
 
-/**
- * `streamingSites` is optional: entries cached by an older build have no such
- * key and must keep validating. A present value must be an array of links.
- */
+// Absent in caches written before the field existed, and those must keep
+// validating or every returning user loses their whole list.
 function isStreamingSites(value: unknown): boolean {
   if (value === undefined) return true;
   return (

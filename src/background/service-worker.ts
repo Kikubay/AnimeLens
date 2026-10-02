@@ -610,10 +610,8 @@ async function handleStreamingLinksMessage(
         await activeAuthService()
       ).withAccessToken(async (accessToken) => {
         const provider = await providerRegistry.createActiveProvider(accessToken);
-        // A dedicated per-title lookup: the list, suggestions and ranking
-        // endpoints are not required to carry streaming links, so the card never
-        // depends on where the recommendation happened to come from. Falls back
-        // to the media record for a provider without a dedicated lookup.
+        // Asked per title rather than read off the cached record: list,
+        // suggestions and ranking responses aren't obliged to carry these.
         const dedicated = await provider.getStreamingLinks?.(message.animeId);
         if (dedicated !== undefined) return dedicated;
         const anime = await provider.getAnime(message.animeId);
@@ -621,8 +619,7 @@ async function handleStreamingLinksMessage(
       }),
     };
   } catch (error) {
-    // The card is an enhancement: an expired session, a provider without the
-    // data, or an offline lookup must leave the detail page usable.
+    // Expired session, no data, offline — none of it may break the page.
     reportBackgroundFailure(error);
     return { ok: true, links: [] };
   }

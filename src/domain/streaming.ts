@@ -1,21 +1,19 @@
 /**
  * Streaming availability, normalized from AniList's `externalLinks`.
  *
- * Only AniList exposes this: its entries carry a `type`, so `STREAMING` can be
- * told apart from `INFO`/`SOCIAL`/`MANGA` noise in the same array. MyAnimeList
- * publishes **no** streaming-links field — its documented anime fields stop at
- * `related_anime, related_manga, recommendations, studios, statistics` — so
- * nothing here is fetched for MAL and its records simply carry no
- * `streamingSites`.
+ * AniList is the only provider that publishes this, and it's what makes the
+ * feature possible at all: every link carries a `type`, so `STREAMING` is
+ * distinguishable from the `INFO`/`SOCIAL` noise in the same array. MAL has no
+ * equivalent field anywhere in its API (see `mal-streaming.ts`).
  *
- * A platform in the catalogue below keeps a stable id and its canonical brand
- * spelling, so the same brand always renders identically. One AniList reports
- * as `STREAMING` but the catalogue does not know keeps the provider's own name
- * and a slug derived from it, because hiding a platform AniList explicitly
- * labelled as streaming would misreport availability.
+ * A service in the catalogue keeps a stable id and canonical spelling, so the
+ * same brand always renders the same way. One AniList calls streaming but we
+ * don't know keeps its own name — dropping it would report a watchable title as
+ * unwatched.
  */
 
-/** Known service ids, kept stable so the same brand is always the same value. */
+// These ids end up in stored preferences and in link comparisons, so renaming
+// one silently drops whatever the user had selected.
 export const STREAMING_SERVICE_IDS = [
   'crunchyroll',
   'netflix',
@@ -32,7 +30,6 @@ export const STREAMING_SERVICE_IDS = [
 
 export type StreamingServiceId = (typeof STREAMING_SERVICE_IDS)[number];
 
-/** Canonical brand spelling for each catalogue service. */
 const STREAMING_SERVICE_NAMES: Readonly<Record<StreamingServiceId, string>> = {
   crunchyroll: 'Crunchyroll',
   netflix: 'Netflix',
@@ -47,10 +44,8 @@ const STREAMING_SERVICE_NAMES: Readonly<Record<StreamingServiceId, string>> = {
   bilibili: 'Bilibili',
 };
 
-/**
- * Aliases seen in AniList `site` values, keyed by service id. Keys are compared
- * after {@link normalizeServiceKey}, so they are stored in that folded form.
- */
+// Keys are folded by `normalizeServiceKey` before lookup, so write them the way
+// `normalizeServiceKey` would — no spaces, no punctuation.
 const SERVICE_ALIASES: Readonly<Record<StreamingServiceId, readonly string[]>> = {
   crunchyroll: ['crunchyroll'],
   netflix: ['netflix'],
@@ -65,29 +60,21 @@ const SERVICE_ALIASES: Readonly<Record<StreamingServiceId, readonly string[]>> =
   bilibili: ['bilibili', 'bilibilitv'],
 };
 
-/** folded name -> service id, for O(1) resolution of an alias. */
 const ALIAS_INDEX: ReadonlyMap<string, StreamingServiceId> = buildAliasIndex();
 
-/** Where a title can be watched, as shown to the user. */
 export interface StreamingLink {
   /** Catalogue id, or a slug derived from AniList's own service name. */
   readonly serviceId: string;
   readonly serviceName: string;
-  /** Deep link to the title on that service, when AniList supplied one. */
   readonly url: string | null;
 }
 
-/** AniList `externalLinks` entry. */
 export interface AniListExternalLinkDto {
   readonly site?: string | null;
   readonly url?: string | null;
   readonly type?: string | null;
 }
 
-/**
- * Folds a provider's service name into the catalogue. Returns `null` for
- * anything the catalogue does not know.
- */
 export function resolveStreamingServiceId(value: string | null | undefined): StreamingServiceId | null {
   if (value === null || value === undefined) return null;
   const trimmed = value.trim();
@@ -95,14 +82,9 @@ export function resolveStreamingServiceId(value: string | null | undefined): Str
   return ALIAS_INDEX.get(normalizeServiceKey(trimmed)) ?? null;
 }
 
-/**
- * Normalizes AniList `externalLinks` into one entry per service.
- *
- * `type === STREAMING` is trusted, so official sites, MAL/AniList links and
- * social accounts are dropped and platforms outside the catalogue are kept. A
- * title deep link always wins over a bare service home page, and only absolute
- * http(s) links survive so the popup can never render a `javascript:` payload.
- */
+// `type` is what makes this trustworthy, so when it's missing we only accept
+// platforms we'd recognise anyway. http(s) only, so a smuggled `javascript:`
+// payload can never reach an anchor we render.
 export function normalizeStreamingSites(
   links: readonly AniListExternalLinkDto[] | null | undefined,
 ): readonly StreamingLink[] {
@@ -116,7 +98,7 @@ export function normalizeStreamingSites(
     if (type !== null && type.trim().length > 0) {
       if (type.trim().toUpperCase() !== 'STREAMING') continue;
     } else if (resolveStreamingServiceId(site) === null) {
-      // Untyped and unknown: no way to tell a platform from an official site.
+      // No type, unknown name — can't tell a platform from an official site.
       continue;
     }
     const known = resolveStreamingServiceId(site);
@@ -165,7 +147,7 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null;
 }
 
-/** Provider payloads are untrusted: a non-string field is treated as absent. */
+// Anything non-string in the payload is treated as absent rather than coerced.
 function optionalString(value: unknown): string | null {
   return typeof value === 'string' ? value : null;
 }

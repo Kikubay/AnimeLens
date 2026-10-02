@@ -33,12 +33,10 @@ export interface AnimeProvider {
   searchAnime(query: string): Promise<Anime[]>;
   addToList(id: number, status?: AnimeStatus): Promise<void>;
   /**
-   * Where the title can be watched, for the detail page's "Where to watch" card.
-   *
-   * Optional because not every provider has a source for it: MyAnimeList's API
-   * publishes no streaming-links field, so its implementation reads the anime
-   * page instead. Returns an empty list when nothing is known, and must never
-   * throw — the card is an enhancement, not a hard dependency.
+   * Must return an empty list rather than throw when it can't answer — the card
+   * is an enhancement, and a thrown error here would take the detail page with
+   * it. Optional because MAL has to scrape its website for this, and a
+   * mock provider has no opinion at all.
    */
   getStreamingLinks?(id: number): Promise<readonly StreamingLink[]>;
 }

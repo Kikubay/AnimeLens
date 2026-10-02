@@ -61,9 +61,10 @@ export const ANILIST_SEARCH_PAGE_SIZE = 50;
 
 /** Shared fragment for a lean anime node (list/suggestion/ranking queries).
  *
- * `externalLinks` is AniList's current spelling (`externalSites` was rejected
- * outright by the API with "Cannot query field") and every entry carries a
- * `type`, so only `STREAMING` entries are real availability.
+ * `externalLinks`, not `externalSites` — the API rejects the latter outright, and
+ * since this fragment is spread across every anime query, getting it wrong 400s
+ * the whole integration. `type` is what separates real platforms from the
+ * official-site and social links in the same array.
  */
 export const ANIME_MEDIA_FRAGMENT = `
 fragment AnimeMedia on Media {

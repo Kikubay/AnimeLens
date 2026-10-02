@@ -116,13 +116,7 @@ export class MalAnimeProvider implements AnimeProvider {
     await this.requestListStatus(id, status);
   }
 
-  /**
-   * Streaming platforms for the "Where to watch" card.
-   *
-   * MAL's API has no such field, so this reads the anime's web page. It is
-   * deliberately the only MAL call that touches the website, and it sends no
-   * cookies and no API token.
-   */
+  // The one MAL call that leaves the API. See mal-streaming.ts.
   async getStreamingLinks(id: number): Promise<readonly StreamingLink[]> {
     if (!Number.isInteger(id) || id <= 0) {
       throw new ApiError('Anime ID must be a positive integer.', { code: 'bad_request' });

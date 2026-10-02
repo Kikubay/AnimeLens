@@ -4,33 +4,32 @@ import { normalizeStreamingSites } from '../../../domain/streaming';
 /**
  * Where-to-watch data for MyAnimeList.
  *
- * MAL's **API** publishes no streaming-links field (its documented anime fields
- * stop at `related_anime, related_manga, recommendations, studios, statistics`,
- * and the word "streaming" appears nowhere in the API reference), so the card
- * cannot be fed from `/anime/{id}`. The website does render the data, under a
- * "Streaming Platforms" heading:
+ * The API can't help us here. Its documented anime fields are `id, title,
+ * main_picture, …, related_anime, related_manga, recommendations, studios,
+ * statistics` — no streaming links, and it answers `400 Invalid Parameters` for
+ * fields it doesn't know, so inventing one breaks sync. The website does render
+ * the data though, under a "Streaming Platforms" heading:
  *
  * ```html
  * <h2>Streaming Platforms</h2>
- * <div class="pb16 broadcasts"><div class="broadcast">
- *   <a href="http://www.crunchyroll.com/series-283731" title="Crunchyroll"
- *      class="broadcast-item available" data-available="1" ...>
- *     <i class="spicon spicon-crunchyroll"></i><div class="caption">Crunchyroll</div>
+ * <a href="http://www.crunchyroll.com/series-283731" title="Crunchyroll"
+ *    class="broadcast-item available" data-available="1" …>
  * ```
  *
- * So the page is read instead. Two consequences worth keeping in mind:
+ * So we read the page. Two things make that workable:
  *
- * - This is a scrape, and MAL obfuscates its CSS class names, so nothing keys
- *   off a generated class. The heading *text* locates the section and
- *   `broadcast-item` (a stable, semantic class) identifies the entries.
- * - MV3 service workers have no `DOMParser`, so the markup is scanned with a
- *   tag scanner rather than parsed into a DOM.
+ * - MAL obfuscates its CSS classes, so we find the section by its heading *text*
+ *   and pick entries out by `broadcast-item`, which is stable and semantic.
+ * - MV3 service workers have no `DOMParser`, so it's a tag scanner, not a parser.
+ *
+ * It's a scrape, so treat it as the fragile part of this feature: when MAL
+ * redesigns, it breaks by rendering no card, never by throwing.
  */
 
-/** Anime pages are the same origin the extension already declares access to. */
+// Already covered by the `myanimelist.net` host permission.
 export const MAL_WEB_ANIME_URL = 'https://myanimelist.net/anime';
 
-/** Bound on the slice scanned after the heading, so a huge page cannot stall. */
+// Anime pages are ~200KB; we only ever need the section itself.
 const SECTION_WINDOW_CHARS = 12_000;
 
 const REQUEST_TIMEOUT_MS = 8_000;
@@ -40,12 +39,8 @@ const STREAMING_HEADING = /streaming\s*platform/i;
 const ANCHOR = /<a\b([^>]*)>([\s\S]*?)<\/a>/gi;
 const CAPTION = /<div[^>]*class="[^"]*caption[^"]*"[^>]*>([\s\S]*?)<\/div>/i;
 
-/**
- * Extracts the streaming platforms of one MAL anime page.
- *
- * Returns an empty list for a page without the section (an unstreamed title, or
- * a layout change), which the caller renders as "no card" rather than an error.
- */
+// No section means an unstreamed title or a layout change. Either way the caller
+// renders no card, which is the honest outcome.
 export function parseMalStreamingPlatforms(html: string): readonly StreamingLink[] {
   const section = streamingSection(html);
   if (section === null) return [];
@@ -54,7 +49,7 @@ export function parseMalStreamingPlatforms(html: string): readonly StreamingLink
   for (const anchor of section.matchAll(ANCHOR)) {
     const attributes = anchor[1] ?? '';
     if (!/\bbroadcast-item\b/.test(attributes)) continue;
-    // MAL marks a platform that is not currently serving the title.
+    // Listed but not actually serving the title right now.
     if (/\bdata-available="0"/i.test(attributes)) continue;
     const url = readAttribute(attributes, 'href');
     if (url === null) continue;
@@ -65,10 +60,6 @@ export function parseMalStreamingPlatforms(html: string): readonly StreamingLink
   return normalizeStreamingSites(entries);
 }
 
-/**
- * The markup of the "Streaming Platforms" section, from just after its heading
- * to the next heading, or `null` when the page has no such section.
- */
 function streamingSection(html: string): string | null {
   for (const heading of html.matchAll(HEADING)) {
     if (!STREAMING_HEADING.test(stripTags(heading[1] ?? ''))) continue;
@@ -80,10 +71,6 @@ function streamingSection(html: string): string | null {
   return null;
 }
 
-/**
- * Reads the platform name from the `title` attribute, falling back to the
- * visible caption inside the anchor.
- */
 function captionOf(innerHtml: string): string | null {
   const caption = CAPTION.exec(innerHtml);
   const text = stripTags(caption?.[1] ?? innerHtml);
@@ -112,12 +99,8 @@ function decodeEntities(value: string): string {
 }
 
 /**
- * Fetches and parses one MAL anime page.
- *
- * Sent without cookies or an `Authorization` header: this is the public
- * website, and the user's MAL API token must never be handed to it. Never
- * throws — the card is an enhancement, so a network or layout failure resolves
- * to no card.
+ * No cookies and no Authorization header, on purpose: that's the public website
+ * and the user's MAL API token has no business being handed to it.
  */
 export async function fetchMalStreamingPlatforms(
   animeId: number,

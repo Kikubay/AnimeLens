@@ -10,12 +10,12 @@ export type StreamingLinksResponse =
   | { readonly ok: false; readonly message: string };
 
 /**
- * Asks the background worker where a single title can be watched.
+ * Asked on open only when the record we already hold carries no links — the
+ * list, suggestions and ranking endpoints aren't required to include them, so
+ * relying on the record alone left the card silently empty.
  *
- * The detail page calls this whenever the record it already holds carries no
- * links, so the card does not depend on which endpoint the record came from or
- * on how old the local cache is. Never throws: a provider that cannot answer
- * (or is not connected) resolves to an empty list, which simply renders no card.
+ * Never rejects: no connection, an expired token or a provider with nothing to
+ * say all resolve to no links, which renders as no card.
  */
 export async function requestStreamingLinks(
   animeId: number,
