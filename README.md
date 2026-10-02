@@ -94,8 +94,8 @@ ___
 ## Install
 
 ### Option 1: Pre-compiled Release (Recommended)
-1. Download the latest `AnimeLens.7z` file from the [GitHub Releases page](https://github.com/Kikubay/AnimeLens/releases).
-2. Extract the 7z file to a folder on your computer.
+1. Download the latest `AnimeLens.zip` file from the [GitHub Releases page](https://github.com/Kikubay/AnimeLens/releases).
+2. Extract the ZIP file to a folder on your computer.
 3. Open Google Chrome.
 4. Go to:
    ```text
@@ -105,7 +105,7 @@ ___
 6. Click **Load unpacked**.
 7. Select the extracted extension folder containing `manifest.json`.
 
-*Do not select the `7z` file itself. Select the folder containing `manifest.json`.*
+*Do not select the `ZIP` file itself. Select the folder containing `manifest.json`.*
 
 If AnimeLens is already installed, replace the old extension files with the new release files and click **Reload** on the AnimeLens card in `chrome://extensions`.
 
@@ -200,7 +200,7 @@ ___
 When a newer version is available:
 
 1. Click **Update** in the AnimeLens update banner.
-2. Download the latest release 7z.
+2. Download the latest release ZIP.
 3. Extract it to a new folder, or replace the existing extension files.
 4. Open `chrome://extensions`.
 5. Click **Reload** on AnimeLens.
@@ -214,7 +214,7 @@ ___
 <details>
 <summary>The extension does not load</summary>
 
-  - Confirm that you selected the extracted folder, not the 7z file.
+  - Confirm that you selected the extracted folder, not the ZIP file.
   - Confirm that the selected folder contains `manifest.json`.
   - Download the latest release again if files are missing.
   - Open `chrome://extensions` and check the error details on the AnimeLens card.
