@@ -29,7 +29,7 @@
     <img alt="Soon" src="https://img.shields.io/badge/Chrome-Extension-4285F4?logo=googlechrome&logoColor=white">
   </a>
   <a href="https://github.com/Kikubay/AnimeLens?tab=License-1-ov-file">
-    <img alt="License" src="https://img.shields.io/badge/License-All%20Rights%20Reserved-red">
+    <img alt="License" src="https://img.shields.io/badge/License-Non--Commercial%20Copyleft-blue">
   </a>
 </p>
 <br />
@@ -311,14 +311,13 @@ ___
 
 ## License
 
-The source code for AnimeLens is now publicly available in this repository. 
+AnimeLens is licensed under a custom **non-commercial copyleft** license, based on the philosophy of the AGPL. It is free and open to inspect, study, copy, modify, and redistribute for **non-commercial** purposes, with strong copyleft obligations: derivative works must stay under the same license and must offer their complete source code, including over the network.
 
-**All Rights Reserved.** 
-The compiled releases of AnimeLens are provided for personal evaluation only. You may not use, copy, modify, distribute, or create derivative works from the *compiled software* without explicit written permission from the copyright holder. 
+**Commercial use is prohibited** without explicit written permission from the copyright holder. A separate commercial license may be granted on request.
 
-*(Developer Note: If you are transitioning this project to a standard open-source license like MIT or GPL, please replace this section with the appropriate license text and update the badge at the top of the README.)*
+Because commercial use is restricted, this is a **source-available** license, not an OSI-approved "open source" license. See the [LICENSE](https://github.com/Kikubay/AnimeLens?tab=License-1-ov-file) file for the full terms.
 
-See the [LICENSE](https://github.com/Kikubay/AnimeLens?tab=License-1-ov-file) file for full details.
+© 2026 Kikubay. All rights reserved except as expressly granted.
 
 *Note: AnimeLens is an independent project and is not affiliated with or endorsed by MyAnimeList or AniList.*
 
