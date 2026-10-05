@@ -1,12 +1,47 @@
+import { readFileSync } from 'node:fs';
+import { dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import eslint from '@eslint/js';
 import reactHooks from 'eslint-plugin-react-hooks';
 import reactRefresh from 'eslint-plugin-react-refresh';
 import globals from 'globals';
 import tseslint from 'typescript-eslint';
 
+const rootDir = dirname(fileURLToPath(import.meta.url));
+
+// Convert a single .gitignore-style line into an ESLint flat-config glob.
+function toGlob(pattern) {
+  if (pattern.endsWith('/')) return `${pattern}**`;
+  if (pattern.includes('/')) return pattern;
+  return `**/${pattern}`;
+}
+
+// Ignore exactly what Git already ignores. Anything listed in `.gitignore` or in
+// the local-only `.git/info/exclude` is unpublished or generated, so it must
+// never surface as a lint failure.
+function readIgnoreFile(file) {
+  let contents;
+  try {
+    contents = readFileSync(file, 'utf8');
+  } catch {
+    return [];
+  }
+  return contents
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter((line) => line && !line.startsWith('#') && !line.startsWith('!'))
+    .map(toGlob);
+}
+
+const ignores = [
+  ...new Set(
+    [join(rootDir, '.gitignore'), join(rootDir, '.git', 'info', 'exclude')].flatMap(readIgnoreFile),
+  ),
+];
+
 export default tseslint.config(
   {
-    ignores: ['dist/**', 'node_modules/**', 'MAL-API_doc/**', 'public/icons/**'],
+    ignores,
   },
   eslint.configs.recommended,
   ...tseslint.configs.recommended,
