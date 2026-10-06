@@ -44,3 +44,10 @@ linux:
     - AppImage
     - deb
   category: Network
+  synopsis: MyAnimeList and AniList recommendations
+  # Without a desktopName, window managers cannot link running windows to the
+  # .desktop entry, so the taskbar icon goes missing.
+  desktop:
+    entry:
+      Name: AnimeLens
+  syncDesktopName: true
