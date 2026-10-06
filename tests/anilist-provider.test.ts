@@ -54,6 +54,12 @@ const MEDIA = {
   coverImage: { medium: 'https://img/s.jpg', large: 'https://img/l.jpg' },
   averageScore: 85,
   genres: ['Action', 'Supernatural'],
+  tags: [
+    { id: 1, name: 'Contemporary', rank: 90 },
+    { id: 2, name: 'School', rank: 85 },
+    // Below TAG_MIN_RANK: present in the payload, filtered out of the domain.
+    { id: 3, name: 'Male Protagonist', rank: 5 },
+  ],
   format: 'TV',
   episodes: 24,
   season: 'FALL',
@@ -141,6 +147,27 @@ describe('AniListProvider', () => {
     expect(entries[1]?.userScore).toBeNull();
   });
 
+  it('requests tags on the list query so list entries carry themes', async () => {
+    // Regression guard: tags moved from the detail fragment to the shared one so
+    // `anime.themes` stops being permanently empty on list and candidate records.
+    // Without them the engine's 0.16 themes weight and the genres+themes overlap
+    // Behind-You-Liked provenance both silently do nothing for AniList users.
+    const http = new RecordingHttpClient((query) =>
+      isViewerQuery(query) ? VIEWER_PAYLOAD : LIST_PAYLOAD,
+    );
+    const provider = new AniListProvider(http, 'token');
+    await provider.getUserAnimeList();
+
+    const listQuery = http.requests.find((request) => request.query.includes('MediaListCollection'));
+    expect(listQuery?.query).toContain('tags { id name rank }');
+
+    const entries = await provider.getUserAnimeList();
+    expect(entries[0]?.anime.themes.map((theme) => theme.name)).toEqual([
+      'Contemporary',
+      'School',
+    ]);
+  });
+
   it('strips HTML from synopses and keeps the 0-10 community scale', () => {
     const anime = normalizeAnime(MEDIA);
     expect(anime.score).toBe(8.5);
@@ -151,6 +178,14 @@ describe('AniListProvider', () => {
     expect(anime.year).toBe(2020);
     expect(anime.season).toBe('fall');
     expect(anime.studios[0]?.name).toBe('MAPPA');
+  });
+
+  it('maps AniList tags to themes, dropping tags below the relevance rank', () => {
+    const anime = normalizeAnime(MEDIA);
+    expect(anime.themes).toEqual([
+      { id: 1, name: 'Contemporary' },
+      { id: 2, name: 'School' },
+    ]);
   });
 
   it('converts an MAL-style ranking offset into an AniList page', async () => {

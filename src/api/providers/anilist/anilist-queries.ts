@@ -65,6 +65,9 @@ export const ANILIST_SEARCH_PAGE_SIZE = 50;
  * since this fragment is spread across every anime query, getting it wrong 400s
  * the whole integration. `type` is what separates real platforms from the
  * official-site and social links in the same array.
+ *
+ * `tags` is not optional decoration: see ANIME_MEDIA_DETAIL_FRAGMENT for why it
+ * has to be selected on every anime node, not just the detail one.
  */
 export const ANIME_MEDIA_FRAGMENT = `
 fragment AnimeMedia on Media {
@@ -83,14 +86,24 @@ fragment AnimeMedia on Media {
   isAdult
   externalLinks { site url type }
   studios(isMain: true) { nodes { id name } }
+  tags { id name rank }
 }
 `;
 
-/** Detail fragment adds tags (themes), staff and the user's own list entry. */
+/**
+ * Detail fragment adds staff and the user's own list entry.
+ *
+ * `tags` lives in the shared fragment, not here: it is AniList's equivalent of
+ * MAL's taxonomy-split themes, and the recommendation engine scores `themes` at
+ * a 0.16 weight plus requires genres+themes overlap for Because-You-Liked
+ * provenance. Requesting it only on the detail query left `anime.themes`
+ * permanently empty for every list and candidate record, so that weight was
+ * inert on both axes. `rank` is selected because the normalizer filters on it
+ * (TAG_MIN_RANK), which also bounds how many themes reach the cache.
+ */
 export const ANIME_MEDIA_DETAIL_FRAGMENT = `
 fragment AnimeMediaDetail on Media {
   ...AnimeMedia
-  tags { id name rank }
   staff(perPage: 8) { edges { role node { id name { full } image { large } } } }
 }
 `;

@@ -174,6 +174,97 @@ describe('AnimeListSyncService', () => {
     expect(waits).toEqual([2000]);
   });
 
+  it('honours a server Retry-After exactly and jitters only the fallback', async () => {
+    const jittered: number[] = [];
+    const guided: number[] = [];
+
+    // A guided retry must land on the server's number exactly; shortening it
+    // would retry inside a window the provider has not reopened yet.
+    let guidedCalls = 0;
+    const guidedProvider: AnimeProvider = {
+      getCurrentUser: async () => {
+        throw new Error('Not used');
+      },
+      getUserAnimeList: async () => {
+        guidedCalls += 1;
+        if (guidedCalls === 1) {
+          throw new ApiError('slow down', { code: 'rate_limited', retryAfterSeconds: 4 });
+        }
+        return [entry(4)];
+      },
+      getAnime: async () => anime,
+      searchAnime: async () => [],
+      addToList: async () => undefined,
+    };
+    const guidedService = new AnimeListSyncService(
+      guidedProvider,
+      new MemoryCache(),
+      undefined,
+      async (ms) => {
+        guided.push(ms);
+      },
+    );
+    await guidedService.sync({ maxRetries: 1 });
+    expect(guided).toEqual([4000]);
+
+    // With no Retry-After the exponential fallback is spread, so concurrent
+    // clients do not all wake at the same instant. Each run needs its own
+    // failing-then-succeeding provider, otherwise only the first one retries.
+    for (let run = 0; run < 12; run += 1) {
+      let fallbackCalls = 0;
+      const fallbackProvider: AnimeProvider = {
+        ...guidedProvider,
+        getUserAnimeList: async () => {
+          fallbackCalls += 1;
+          if (fallbackCalls === 1) {
+            throw new ApiError('offline', { code: 'network_error' });
+          }
+          return [entry(4)];
+        },
+      };
+      const service = new AnimeListSyncService(
+        fallbackProvider,
+        new MemoryCache(),
+        undefined,
+        async (ms) => {
+          jittered.push(ms);
+        },
+      );
+      await service.sync({ maxRetries: 1 });
+    }
+
+    expect(jittered).toHaveLength(12);
+    // Nominal 250ms, +/-25%, so 188..313 — never the bare 250.
+    for (const wait of jittered) {
+      expect(wait).toBeGreaterThanOrEqual(187);
+      expect(wait).toBeLessThanOrEqual(313);
+    }
+    expect(new Set(jittered).size).toBeGreaterThan(1);
+  });
+
+  it('retries a transient server failure', async () => {
+    let calls = 0;
+    const provider: AnimeProvider = {
+      getCurrentUser: async () => {
+        throw new Error('Not used');
+      },
+      getUserAnimeList: async () => {
+        calls += 1;
+        if (calls === 1) throw new ApiError('bad gateway', { code: 'network_error', status: 502 });
+        return [entry(4)];
+      },
+      getAnime: async () => anime,
+      searchAnime: async () => [],
+      addToList: async () => undefined,
+    };
+    const service = new AnimeListSyncService(provider, new MemoryCache(), undefined, async () => {
+      // No real waiting in tests.
+    });
+
+    await expect(service.sync({ maxRetries: 1 })).resolves.toMatchObject({ fromCache: false });
+    expect(calls).toBe(2);
+  });
+
   it('falls back to an expired cache when the network is unavailable', async () => {
     const cache = new MemoryCache();
     cache.value = createAnimeCache([entry(5)], new Date('2026-09-01T10:00:00.000Z'));

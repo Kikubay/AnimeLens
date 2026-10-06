@@ -20,6 +20,7 @@ import type { FeedbackMessage, FeedbackMessageResponse } from '../feedback/feedb
 import { isFeedbackMessage } from '../feedback/feedback-messages';
 import { ChromeAnimeCacheStore } from '../sync/sync-cache';
 import type { AnimeCache } from '../domain/sync';
+import type { Anime } from '../domain/anime';
 import { AuthenticatedAnimeListSyncService } from '../sync/runtime-sync';
 import type { SyncMessage, SyncMessageResponse, SyncSnapshot } from '../sync/sync-messages';
 import { isSyncMessage } from '../sync/sync-messages';
@@ -38,7 +39,9 @@ import {
   diffProfileSnapshots,
   toStoredProfileSnapshot,
 } from '../profile/profile-delta';
-import { createProfileHistoryStore } from '../profile/profile-history-store';
+import { createProfileHistoryStore, PROFILE_HISTORY_KEY } from '../profile/profile-history-store';
+import { TOP_PICKS_RANKING_KEY, TOP_PICKS_SIGNATURE_KEY } from '../profile/top-picks-store';
+import type { StorageKey } from '../storage/storage-types';
 import { createTopPicksStore } from '../profile/top-picks-store';
 import { emptyTopPickPlan, planTopPicks, type TopPickPlan } from '../profile/top-picks';
 import type { TopPicksMessage, TopPicksMessageResponse } from '../profile/top-picks-messages';
@@ -94,6 +97,46 @@ const RANKING_DISCOVERY_OFFSET = 2000;
 const DAILY_RECOMMENDATION_ALARM = 'animelens-daily-recommendation';
 const SYNC_ALARM = 'animelens-sync';
 let updateCheckInFlight: Promise<UpdateSnapshot> | null = null;
+
+/**
+ * How long a fetched candidate pool stays reusable.
+ *
+ * The dashboard re-requests on every feedback submit, list add, preference
+ * change and sync, and each request previously issued two provider calls. One
+ * popup session that synced and rated two anime therefore spent 8+ requests
+ * returning byte-identical suggestions and ranking pages. The pool is the same
+ * for the whole window — it depends on the account, not on local state — so a
+ * short TTL collapses that amplification without making recommendations feel
+ * pinned to a stale pool.
+ */
+const CANDIDATE_POOL_TTL_MS = 10 * 60 * 1000;
+const CANDIDATE_POOL_SUGGESTION_LIMIT = 50;
+const CANDIDATE_POOL_RANKING_LIMIT = 100;
+
+interface CandidatePoolEntry {
+  readonly providerId: ProviderId;
+  readonly fetchedAt: number;
+  readonly pool: readonly Anime[];
+}
+
+/**
+ * In-memory only. An MV3 worker is torn down after ~30s idle, which discards
+ * this map; that is acceptable because the burst being fixed happens inside a
+ * live popup session, while the worker is still alive for it. A disk-backed
+ * pool would go stale across sessions and add a second cache to invalidate on
+ * disconnect and clear-cache.
+ */
+let candidatePoolCache: CandidatePoolEntry | null = null;
+let candidatePoolInFlight: {
+  readonly providerId: ProviderId;
+  readonly request: Promise<readonly Anime[]>;
+} | null = null;
+
+/** Drop the pool when the account, or the data it was drawn from, changes. */
+function invalidateCandidatePool(): void {
+  candidatePoolCache = null;
+  candidatePoolInFlight = null;
+}
 
 type Storage = ConstructorParameters<typeof ChromeAnimeCacheStore>[0];
 
@@ -376,6 +419,7 @@ async function handleAuthMessage(message: AuthMessage): Promise<AuthResponse> {
     await providerRegistry.registry.setActiveProvider(providerId);
     // Reset the visible sync state; the fresh provider's cache hydrates on
     // the next snapshot read, then a background re-sync refreshes it.
+    invalidateCandidatePool();
     syncSnapshot = { metadata: createIdleMetadata(), progress: null };
     void hydrateCachedSync().catch(reportBackgroundFailure);
     const auth = await (await activeAuthService()).getSnapshot();
@@ -437,6 +481,7 @@ async function handleAuthMessage(message: AuthMessage): Promise<AuthResponse> {
       targetProviderId === undefined || targetProviderId === activeProvider || !activeStillSignedIn;
     if (shouldActivate && targetProviderId !== undefined && targetProviderId !== activeProvider) {
       await providerRegistry.registry.setActiveProvider(targetProviderId);
+      invalidateCandidatePool();
       syncSnapshot = { metadata: createIdleMetadata(), progress: null };
       void hydrateCachedSync().catch(reportBackgroundFailure);
     }
@@ -453,6 +498,7 @@ async function handleAuthMessage(message: AuthMessage): Promise<AuthResponse> {
     const disconnectedProviderId =
       targetProviderId ?? (await providerRegistry.registry.getActiveProvider());
     await syncService.invalidate(disconnectedProviderId);
+    invalidateCandidatePool();
     const anySignedIn = await providerRegistry
       .listProviderStatuses()
       .then((statuses) => statuses.some((status) => status.signedIn));
@@ -499,6 +545,7 @@ async function handleSettingsMessage(message: SettingsMessage): Promise<Settings
   }
   if (message.type === 'settings.clear_cache') {
     await syncService.invalidate();
+    invalidateCandidatePool();
     // The history derives entirely from the cache, so keeping it after the
     // cache is gone would let the next sync diff against discarded data.
     await profileHistoryStore.clear();
@@ -507,39 +554,56 @@ async function handleSettingsMessage(message: SettingsMessage): Promise<Settings
     return settingsSnapshot();
   }
   if (message.type === 'settings.delete_local_data') {
-    await Promise.all([
-      storage.remove('animeData'),
-      storage.remove('animeData:mal'),
-      storage.remove('animeData:anilist'),
-      storage.remove('feedback'),
-      storage.remove('profile'),
-      storage.remove('preferences'),
-      storage.remove(MAL_CLIENT_ID_STORAGE_KEY),
-      storage.remove(ANILIST_CLIENT_ID_STORAGE_KEY),
-      storage.remove('activeProvider'),
-    ]);
+    // Every key the extension persists, typed against AnimeLensStorage so a
+    // new persisted key is a compile error here rather than a silent omission.
+    const LOCAL_DATA_KEYS: readonly StorageKey[] = [
+      'animeData',
+      'animeData:mal',
+      'animeData:anilist',
+      'feedback',
+      'profile',
+      'preferences',
+      PROFILE_HISTORY_KEY,
+      TOP_PICKS_RANKING_KEY,
+      TOP_PICKS_SIGNATURE_KEY,
+      'updateCheck',
+      'malClientId',
+      'anilistClientId',
+      'activeProvider',
+    ];
+    await Promise.all(LOCAL_DATA_KEYS.map((key) => storage.remove(key)));
     await profileHistoryStore.clear();
+    invalidateCandidatePool();
     syncSnapshot = { metadata: createIdleMetadata(), progress: null };
     await configureScheduledTasks();
     return settingsSnapshot();
   }
 
-  // settings.disconnect_mal: disconnect MAL only; keep AniList sessions and
-  // AniList's cached list. Legacy caches under `animeData` belong to MAL.
-  await providerRegistry.getAuthService('mal').disconnect();
-  await Promise.all([storage.remove('animeData'), storage.remove('animeData:mal')]);
-  await profileHistoryStore.clear('mal');
-  const anySignedIn = await providerRegistry
-    .listProviderStatuses()
-    .then((statuses) => statuses.some((status) => status.signedIn));
-  if (!anySignedIn) {
-    await Promise.all([storage.remove('feedback'), storage.remove('profile')]);
-    await profileHistoryStore.clear();
+  if (message.type === 'settings.disconnect_mal') {
+    // Disconnect MAL only; keep AniList sessions and AniList's cached list.
+    // Legacy caches under `animeData` belong to MAL. Matched explicitly rather
+    // than as the fall-through of the chain above: an unrecognized settings
+    // message must not silently wipe the user's list.
+    await providerRegistry.getAuthService('mal').disconnect();
+    await Promise.all([storage.remove('animeData'), storage.remove('animeData:mal')]);
+    await profileHistoryStore.clear('mal');
+    const anySignedIn = await providerRegistry
+      .listProviderStatuses()
+      .then((statuses) => statuses.some((status) => status.signedIn));
+    if (!anySignedIn) {
+      await Promise.all([storage.remove('feedback'), storage.remove('profile')]);
+      await profileHistoryStore.clear();
+    }
+    invalidateCandidatePool();
+    syncSnapshot = { metadata: createIdleMetadata(), progress: null };
+    void hydrateCachedSync().catch(reportBackgroundFailure);
+    await configureScheduledTasks();
+    return settingsSnapshot();
   }
-  syncSnapshot = { metadata: createIdleMetadata(), progress: null };
-  void hydrateCachedSync().catch(reportBackgroundFailure);
-  await configureScheduledTasks();
-  return settingsSnapshot();
+
+  // Unreachable for every message in `SettingsMessage`, but kept explicit so
+  // adding a variant is a type error rather than a destructive fall-through.
+  return { ok: false, message: 'Unknown settings action.' };
 }
 
 async function settingsSnapshot(): Promise<SettingsResponse> {
@@ -566,31 +630,64 @@ async function settingsSnapshot(): Promise<SettingsResponse> {
   };
 }
 
+const DAILY_RECOMMENDATION_PERIOD_MINUTES = 24 * 60;
+const SYNC_PERIOD_MINUTES = {
+  daily: 24 * 60,
+  weekly: 7 * 24 * 60,
+} as const satisfies Record<string, number>;
+
 async function configureScheduledTasks(): Promise<void> {
   const preferences = normalizeUserPreferences(await storage.get('preferences'));
   await updateDailyRecommendationAlarm(preferences.dailyRecommendationsEnabled);
   await updateSyncAlarm(preferences.syncFrequency);
 }
 
-async function updateDailyRecommendationAlarm(enabled: boolean): Promise<void> {
-  await chrome.alarms.clear(DAILY_RECOMMENDATION_ALARM);
-  if (!enabled) return;
-  chrome.alarms.create(DAILY_RECOMMENDATION_ALARM, {
-    delayInMinutes: 24 * 60,
-    periodInMinutes: 24 * 60,
+/**
+ * Reconcile one alarm against a desired period without disturbing an
+ * equivalent one that is already scheduled.
+ *
+ * An MV3 worker is torn down after ~30s idle and re-instantiated on the next
+ * event, so this runs on effectively every cold start. `chrome.alarms.create`
+ * with an existing name *replaces* the alarm and restarts its countdown from
+ * `delayInMinutes`, so a clear-then-create on every wake pushes the alarm
+ * forward by a full period each time and it never fires. Clearing also resets
+ * the countdown when the user merely toggles an unrelated preference.
+ *
+ * Only clear-and-recreate when the desired period genuinely differs from the
+ * live one, so an unchanged alarm survives both worker restarts and unrelated
+ * preference writes.
+ */
+async function reconcileAlarm(name: string, periodMinutes: number | null): Promise<void> {
+  const existing = await chrome.alarms.get(name);
+
+  if (periodMinutes === null) {
+    if (existing !== undefined) await chrome.alarms.clear(name);
+    return;
+  }
+
+  if (existing !== undefined && existing.periodInMinutes === periodMinutes) return;
+
+  if (existing !== undefined) await chrome.alarms.clear(name);
+  chrome.alarms.create(name, {
+    delayInMinutes: periodMinutes,
+    periodInMinutes: periodMinutes,
   });
+}
+
+async function updateDailyRecommendationAlarm(enabled: boolean): Promise<void> {
+  await reconcileAlarm(
+    DAILY_RECOMMENDATION_ALARM,
+    enabled ? DAILY_RECOMMENDATION_PERIOD_MINUTES : null,
+  );
 }
 
 async function updateSyncAlarm(
   frequency: ReturnType<typeof normalizeUserPreferences>['syncFrequency'],
 ): Promise<void> {
-  await chrome.alarms.clear(SYNC_ALARM);
-  if (frequency === 'manual') return;
-  const periodInMinutes = frequency === 'daily' ? 24 * 60 : 7 * 24 * 60;
-  chrome.alarms.create(SYNC_ALARM, {
-    delayInMinutes: periodInMinutes,
-    periodInMinutes,
-  });
+  await reconcileAlarm(
+    SYNC_ALARM,
+    frequency === 'manual' ? null : SYNC_PERIOD_MINUTES[frequency],
+  );
 }
 
 async function showDailyRecommendationNotification(): Promise<void> {
@@ -654,6 +751,98 @@ async function handleMalListMessage(message: MalListMessage): Promise<MalListMes
   }
 }
 
+/**
+ * The dashboard's discovery pool: provider-personalized suggestions plus a deep
+ * page of the ranking.
+ *
+ * Suggestions stay the primary source (they reflect what the provider thinks
+ * the user wants; AniList has no such endpoint and resolves to an empty pool).
+ * Top-ranked titles are already known to heavy users and far too popular to
+ * ever qualify as hidden gems, so a deep ranking page widens the pool with
+ * quality-but-obscure titles.
+ *
+ * The two calls are issued concurrently and degraded **independently**: a
+ * ranking failure must not discard the suggestions, and vice versa. They used
+ * to be sequential, and the ranking fallback sat behind an unguarded
+ * suggestions `await`, so any suggestions failure unwound straight to the
+ * outer catch and skipped the ranking pool entirely — the fallback could not
+ * run in the case it existed for.
+ */
+async function fetchCandidatePool(): Promise<readonly Anime[]> {
+  const pool = await (
+    await activeAuthService()
+  ).withAccessToken(async (accessToken) => {
+    const provider = await providerRegistry.createActiveProvider(accessToken);
+
+    /** One source failing must not discard the other. */
+    const degrade = async <T,>(
+      load: () => Promise<readonly T[]> | undefined,
+    ): Promise<readonly T[]> => {
+      try {
+        return (await load()) ?? [];
+      } catch (error) {
+        reportBackgroundFailure(error);
+        return [];
+      }
+    };
+
+    const [suggested, ranked] = await Promise.all([
+      degrade<Anime>(() => provider.getAnimeSuggestions?.(CANDIDATE_POOL_SUGGESTION_LIMIT)),
+      degrade<Anime>(() =>
+        provider.getAnimeRanking?.(CANDIDATE_POOL_RANKING_LIMIT, RANKING_DISCOVERY_OFFSET),
+      ),
+    ]);
+    const seen = new Set(suggested.map((anime) => anime.id));
+    return [...suggested, ...ranked.filter((anime) => !seen.has(anime.id))];
+  });
+  return pool;
+}
+
+/**
+ * TTL-cached, in-flight-deduplicated wrapper around {@link fetchCandidatePool}.
+ *
+ * Keyed on the active provider so switching accounts cannot serve the previous
+ * account's pool, and on wall clock so the refresh survives the worker restart
+ * that clears the map.
+ */
+async function loadCandidatePool(): Promise<readonly Anime[]> {
+  const providerId = await providerRegistry.registry.getActiveProvider();
+  const cached = candidatePoolCache;
+  if (cached !== null && cached.providerId === providerId) {
+    if (Date.now() - cached.fetchedAt < CANDIDATE_POOL_TTL_MS) return cached.pool;
+  }
+
+  // A provider switch mid-flight must not be served the previous account's pool.
+  if (candidatePoolInFlight !== null && candidatePoolInFlight.providerId === providerId) {
+    return candidatePoolInFlight.request;
+  }
+
+  const request = (async () => {
+    try {
+      return await fetchCandidatePool();
+    } catch (error) {
+      // Session or network problems must not block the dashboard: degrade to
+      // plan-to-watch-only candidates.
+      reportBackgroundFailure(error);
+      return [] as readonly Anime[];
+    }
+  })();
+  candidatePoolInFlight = { providerId, request };
+
+  try {
+    const pool = await request;
+    // An empty pool is the degraded result of a failure, not a real answer, so
+    // it is not cached; the next dashboard request retries instead of being
+    // locked to an empty pool for the whole TTL.
+    if (pool.length > 0) {
+      candidatePoolCache = { providerId, fetchedAt: Date.now(), pool };
+    }
+    return pool;
+  } finally {
+    if (candidatePoolInFlight?.request === request) candidatePoolInFlight = null;
+  }
+}
+
 async function handleRecommendationMessage(
   _message: RecommendationMessage,
 ): Promise<RecommendationMessageResponse> {
@@ -675,32 +864,7 @@ async function handleRecommendationMessage(
       preferences,
       feedback,
       new Date().toISOString(),
-      async () => {
-        try {
-          return await (
-            await activeAuthService()
-          ).withAccessToken(async (accessToken) => {
-            const provider = await providerRegistry.createActiveProvider(accessToken);
-            // Personalized suggestions stay the primary source: they reflect
-            // what the provider thinks this user wants. AniList has no
-            // suggestions endpoint and resolves to an empty pool here.
-            const suggestions = (await provider.getAnimeSuggestions?.(50)) ?? [];
-            // Top-ranked titles are already known to heavy users and are far
-            // too popular to ever qualify as hidden gems, so a deep page of
-            // the ranking widens the pool with quality-but-obscure titles.
-            const deepRanking =
-              (await provider.getAnimeRanking?.(100, RANKING_DISCOVERY_OFFSET).catch(() => [])) ??
-              [];
-            const seen = new Set(suggestions.map((anime) => anime.id));
-            return [...suggestions, ...deepRanking.filter((anime) => !seen.has(anime.id))];
-          });
-        } catch (error) {
-          // Session or network problems must not block the dashboard: degrade
-          // to plan-to-watch-only candidates.
-          reportBackgroundFailure(error);
-          return [];
-        }
-      },
+      loadCandidatePool,
     ),
   };
 }

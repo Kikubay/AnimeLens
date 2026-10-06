@@ -3,6 +3,7 @@ import type { StreamingLink } from '../../../domain/streaming';
 import type { UserProfile } from '../../../domain/user-profile';
 import type { HttpClient } from '../../http-client';
 import { ApiError } from '../../api-errors';
+import { parseRetryAfterSeconds } from '../../retry-after';
 import type { AnimeProvider } from '../../anime-provider';
 import {
   ANILIST_GRAPHQL_URL,
@@ -88,11 +89,13 @@ function toApiError(
             : status === 429
               ? 'rate_limited'
               : 'invalid_response';
-  const retryAfter = headers.get('Retry-After');
   return new ApiError(`AniList: ${message}`, {
     code,
     status,
-    retryAfterSeconds: retryAfter !== null && /^\d+$/.test(retryAfter) ? Number(retryAfter) : null,
+    // AniList signals its limit with `errors[].status === 429` inside an HTTP
+    // 200 body, so this mapper — not the HTTP status — is the real 429 path.
+    // It still has to honour the HTTP-date form of Retry-After.
+    retryAfterSeconds: parseRetryAfterSeconds(headers.get('Retry-After')),
   });
 }
 

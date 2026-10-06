@@ -10,6 +10,7 @@ const jsonResponse = (body: unknown, status = 200, headers?: HeadersInit): Respo
 describe('FetchHttpClient', () => {
   afterEach(() => {
     vi.restoreAllMocks();
+    vi.useRealTimers();
   });
 
   it('binds the native fetch receiver for the default client', async () => {
@@ -58,6 +59,55 @@ describe('FetchHttpClient', () => {
       status: 429,
       retryAfterSeconds: 17,
       message: 'Slow down',
+    });
+  });
+
+  it('parses the HTTP-date form of Retry-After into a relative delay', async () => {
+    // MAL and GitHub send the date form as readily as delta-seconds; a
+    // numeric-only parser dropped it and fell back to a sub-second backoff
+    // against a rate-limit window measured in tens of seconds.
+    const now = Date.parse('2026-10-21T07:00:00Z');
+    vi.useFakeTimers();
+    vi.setSystemTime(now);
+
+    const client = new FetchHttpClient(async () =>
+      jsonResponse({ message: 'Slow down' }, 429, {
+        'Retry-After': 'Wed, 21 Oct 2026 07:00:30 GMT',
+      }),
+    );
+
+    await expect(client.get('/resource')).rejects.toMatchObject({
+      code: 'rate_limited',
+      retryAfterSeconds: 30,
+    });
+  });
+
+  it('maps 5xx to a retryable network_error instead of an opaque unknown', async () => {
+    const client = new FetchHttpClient(async () =>
+      jsonResponse({ message: 'Bad gateway' }, 502),
+    );
+
+    await expect(client.get('/resource')).rejects.toMatchObject({
+      code: 'network_error',
+      status: 502,
+    });
+  });
+
+  it('keeps a genuine client error non-retryable', async () => {
+    const client = new FetchHttpClient(async () => jsonResponse({ message: 'Nope' }, 404));
+
+    await expect(client.get('/resource')).rejects.toMatchObject({
+      code: 'not_found',
+    });
+  });
+
+  it('unwraps a GraphQL errors[] body so the provider message survives', async () => {
+    const client = new FetchHttpClient(async () =>
+      jsonResponse({ errors: [{ message: 'Too Many Requests.' }] }, 400),
+    );
+
+    await expect(client.get('/resource')).rejects.toMatchObject({
+      message: 'Too Many Requests.',
     });
   });
 
