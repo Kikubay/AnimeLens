@@ -1,22 +1,12 @@
 export const ANILIST_GRAPHQL_URL = 'https://graphql.anilist.co';
 export const ANILIST_AUTHORIZATION_URL = 'https://anilist.co/api/v2/oauth/authorize';
 
-/**
- * Auth Pin redirect URL. `launchWebAuthFlow` cannot complete AniList's
- * implicit flow (the fragment redirect fails with "Authorization page could
- * not be loaded"), so connect opens the authorize page in a normal tab with
- * this redirect: AniList then displays the access token for manual paste.
- * This exact URL must be registered as the app's Redirect URL.
- */
+// `launchWebAuthFlow` can't finish AniList's implicit flow (the fragment redirect fails), so connect opens the authorize page in a normal tab and the user pastes the token this page shows. Must be registered as the app's Redirect URL.
 export const ANILIST_PIN_REDIRECT_URL = 'https://anilist.co/api/v2/oauth/pin';
 
 export function buildAnilistPinAuthorizeUrl(clientId: string): string {
   const url = new URL(ANILIST_AUTHORIZATION_URL);
-  // AniList's implicit-grant contract: the authorize request carries ONLY
-  // `client_id` and `response_type=token`. The redirect target is always the
-  // URL registered in the application settings (the pin page) — sending a
-  // `redirect_uri` query param makes the server reject the request with
-  // `unsupported_grant_type`.
+  // Only these two params — adding `redirect_uri` makes AniList reject the request with `unsupported_grant_type`.
   url.search = new URLSearchParams({
     response_type: 'token',
     client_id: clientId,
@@ -27,22 +17,14 @@ export function buildAnilistPinAuthorizeUrl(clientId: string): string {
 /** Prefix of the pin-page redirect URL carrying the token in its fragment. */
 const ANILIST_PIN_TAB_URL_PREFIX = 'https://anilist.co/api/v2/oauth/pin#access_token=';
 
-/**
- * True when a tab URL is the pin-page redirect holding a fresh access token
- * (`https://anilist.co/api/v2/oauth/pin#access_token=…`). Chrome match
- * patterns ignore fragments, so detection must inspect the full URL.
- */
+// Chrome match patterns ignore fragments, so the token in `#access_token=…` can only be spotted by inspecting the full URL.
 export function isAniListPinTabUrl(url: string): boolean {
   return (
     url.startsWith(ANILIST_PIN_TAB_URL_PREFIX) && url.length > ANILIST_PIN_TAB_URL_PREFIX.length
   );
 }
 
-/**
- * Extracts the bearer token from user input: either the raw token itself or
- * a full pin-page URL containing an `access_token` fragment parameter (what
- * users typically copy straight from the address bar).
- */
+// Accepts a raw token or the whole pin-page URL, since that's what people copy out of the address bar.
 export function extractAccessToken(input: string): string {
   const match = /[#&?]access_token=([^&\s]+)/.exec(input);
   if (match !== null) {
@@ -59,16 +41,7 @@ export function extractAccessToken(input: string): string {
 export const ANILIST_PAGE_SIZE = 50;
 export const ANILIST_SEARCH_PAGE_SIZE = 50;
 
-/** Shared fragment for a lean anime node (list/suggestion/ranking queries).
- *
- * `externalLinks`, not `externalSites` — the API rejects the latter outright, and
- * since this fragment is spread across every anime query, getting it wrong 400s
- * the whole integration. `type` is what separates real platforms from the
- * official-site and social links in the same array.
- *
- * `tags` is not optional decoration: see ANIME_MEDIA_DETAIL_FRAGMENT for why it
- * has to be selected on every anime node, not just the detail one.
- */
+// `externalLinks` is correct, `externalSites` gets the API to reject the query — and since this fragment is spread across every anime query, that would 400 the whole integration. `type` is what separates real platforms from the official-site and social links in the same array; `tags` is AniList's version of MAL's split themes, see below.
 export const ANIME_MEDIA_FRAGMENT = `
 fragment AnimeMedia on Media {
   id
@@ -90,17 +63,7 @@ fragment AnimeMedia on Media {
 }
 `;
 
-/**
- * Detail fragment adds staff and the user's own list entry.
- *
- * `tags` lives in the shared fragment, not here: it is AniList's equivalent of
- * MAL's taxonomy-split themes, and the recommendation engine scores `themes` at
- * a 0.16 weight plus requires genres+themes overlap for Because-You-Liked
- * provenance. Requesting it only on the detail query left `anime.themes`
- * permanently empty for every list and candidate record, so that weight was
- * inert on both axes. `rank` is selected because the normalizer filters on it
- * (TAG_MIN_RANK), which also bounds how many themes reach the cache.
- */
+// `tags` is selected on every node (see above), not just the detail one: the engine weights `themes` at 0.16 and wants genre+theme overlap, so leaving it detail-only kept that weight inert on every list and candidate record. `rank` is needed because the normalizer filters on it, which also bounds how many themes reach the cache.
 export const ANIME_MEDIA_DETAIL_FRAGMENT = `
 fragment AnimeMediaDetail on Media {
   ...AnimeMedia

@@ -38,7 +38,6 @@ function memoryStorage(seed: Partial<Record<StorageKey, unknown>> = {}) {
   return storage;
 }
 
-/** The raw snapshot ring, to assert on what actually reached storage. */
 function readSnapshots(storage: ReturnType<typeof memoryStorage>, providerId = 'mal'): unknown[] {
   const all = storage.data.get(PROFILE_HISTORY_KEY) as
     Record<string, { snapshots: unknown[] }> | undefined;

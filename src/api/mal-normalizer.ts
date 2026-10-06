@@ -72,9 +72,7 @@ export function isMalUserDto(value: unknown): value is MalUserDto {
 }
 
 export function normalizeAnime(input: MalAnimeDto, userScore: number | null = null): Anime {
-  // MAL folds themes and demographics into the flat `genres` array (a separate
-  // `themes` field does not exist in practice); split them back apart by the
-  // official ID taxonomy so themes feed their own profile signals.
+  // Splitting `genres` back apart is what lets themes feed their own profile signals.
   const genreSplit = splitMalGenreArray(input.genres);
   return {
     id: input.id,
@@ -158,7 +156,7 @@ function normalizeScore(value: number | null | undefined): number | null {
     : null;
 }
 
-/** MAL reports `score: 0` for unscored list entries; only 1-10 is a rating. */
+// MAL sends `score: 0` to mean "not rated", and only 1-10 counts as a real rating.
 function normalizeUserScore(value: number | null | undefined): number | null {
   return value !== null && value !== undefined && value >= 1 ? normalizeScore(value) : null;
 }

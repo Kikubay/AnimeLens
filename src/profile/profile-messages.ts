@@ -10,7 +10,6 @@ export async function requestProfileSnapshot(): Promise<ProfileSnapshot> {
   return (await send({ type: 'profile.get_snapshot' })).snapshot;
 }
 
-/** Drops the baseline and returns a fresh snapshot, so one response is enough. */
 export async function clearProfileHistory(): Promise<ProfileSnapshot> {
   return (await send({ type: 'profile.clear_history' })).snapshot;
 }

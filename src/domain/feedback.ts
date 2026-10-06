@@ -23,7 +23,7 @@ export interface FeedbackFeatureSnapshot {
 
 export interface RecommendationFeedback {
   readonly recommendationId: string;
-  /** Stored as `animeMalId` for storage-compatibility with existing data. */
+  /** Still called `animeMalId` so existing stored feedback keeps loading. */
   readonly animeMalId: AnimeId;
   readonly value: FeedbackValue;
   readonly createdAt: string;
@@ -61,5 +61,5 @@ export function createFeedback(
   };
 }
 
-/** Backwards-compatible alias for the original storage contract. */
+/** Old name for `RecommendationFeedback`. */
 export type AnimeFeedback = RecommendationFeedback;

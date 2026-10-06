@@ -55,9 +55,7 @@ describe('MAL normalization', () => {
     expect(anime.synopsis).toBe('An elf mage begins a journey after the end of a great adventure.');
     expect(anime.score).toBe(9.3);
     expect(anime.userScore).toBe(10);
-    // The flat `genres` array is split by the official ID taxonomy:
-    // Fantasy(10) stays a genre, Military(38) is a theme, Shounen(27) a
-    // demographic (kept as a genre).
+    // Split by the official ID taxonomy: Fantasy(10) stays a genre, Military(38) is a theme, Shounen(27) a demographic and so kept as a genre.
     expect(anime.genres).toEqual([
       { id: 10, name: 'Fantasy' },
       { id: 27, name: 'Shounen' },

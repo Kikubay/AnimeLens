@@ -1,69 +1,36 @@
 import type { AnimeListEntry } from '../domain/anime';
 
-/**
- * A list entry competing for one of the card's Top 3 slots.
- *
- * Only display-safe fields are exposed: no notes, watch progress, or list
- * status. `updatedAt` is the provider's own "last touched" timestamp, used for
- * the default tie-break order; it is never painted on the card.
- */
+// Display-safe fields only: no notes, watch progress or list status. `updatedAt` drives the default tie-break order and is never painted.
 export interface TopPickCandidate {
   readonly id: number;
   readonly title: string;
   readonly score: number;
-  /** Smaller cover, used at the default thumbnail size. */
   readonly imageUrl: string | null;
-  /** Full-size cover, used when the user enlarges the thumbnails. */
   readonly largeImageUrl: string | null;
   /** ISO-8601 UTC, or `null` when the provider omitted it. */
   readonly updatedAt: string | null;
 }
 
-/**
- * The resolved Top 3 plan for the current list.
- *
- * `locked` are the slots no choice is needed for, because their score is
- * strictly above the boundary. `candidates` is the group tied at the boundary
- * that the user picks from. `picks` is always a usable, fully populated Top 3:
- * the locked entries plus the default fill, so the card can render without
- * waiting on any user interaction.
- */
+// `picks` is always a complete, renderable Top 3 (locked plus default fill), so the card never waits on user interaction.
 export interface TopPickPlan {
   readonly limit: number;
   readonly locked: readonly TopPickCandidate[];
   readonly candidates: readonly TopPickCandidate[];
-  /** Locked entries followed by the default fill. At most `limit` long. */
+  /** Locked entries followed by the default fill, at most `limit` long. */
   readonly picks: readonly TopPickCandidate[];
-  /** Score of the `limit`-th highest rated entry; the tie sits at this value. */
   readonly boundaryScore: number | null;
-  /** Slots left to fill at the boundary score. */
   readonly openSlots: number;
-  /**
-   * Whether the user actually has to choose. The third-highest entry is always
-   * a boundary candidate, so `openSlots > 0` alone would prompt even for a
-   * clean 10 / 9 / 8 ranking. A prompt is only warranted when the tied group is
-   * larger than the number of slots it competes for.
-   */
+  /** Only true when the tied group outnumbers the slots it competes for. */
   readonly needsChoice: boolean;
-  /** Provider-prefixed fingerprint of the tied pool. */
   readonly signature: string;
   readonly providerId: string;
-  /**
-   * Every rated entry in rank order, capped at {@link MAX_GRID_CANDIDATES}.
-   * Backs the 3x3 grid layout, where the user assembles their own nine
-   * instead of ranking a single Top 3. This is never persisted: it is a
-   * starting point for a per-session choice, not a saved result.
-   */
+  /** Caps at MAX_GRID_CANDIDATES; backs the 3x3 grid and is never persisted. */
   readonly ranked: readonly TopPickCandidate[];
 }
 
-/**
- * Upper bound on the grid candidate pool, so a very large list cannot bloat the
- * profile snapshot that ships it.
- */
+// Bounds the grid pool so a huge list can't bloat the profile snapshot that ships it.
 export const MAX_GRID_CANDIDATES = 120;
 
-/** The 3x3 collage holds nine hand-picked entries. */
 export const GRID_SLOT_COUNT = 9;
 
 export const DEFAULT_TOP_PICK_LIMIT = 3;
@@ -75,11 +42,7 @@ interface RankedEntry {
 
 export interface PlanTopPicksOptions {
   readonly limit?: number;
-  /**
-   * Provider the entries came from. Prefixed onto the signature so a MAL
-   * ranking can never validate against an AniList pool, whose numeric ids
-   * overlap.
-   */
+  /** Prefixed onto the signature, so a MAL ranking can't validate against an AniList pool whose ids overlap. */
   readonly providerId?: string | null;
 }
 
@@ -101,16 +64,7 @@ export function emptyTopPickPlan(
   };
 }
 
-/**
- * Resolves the Top 3 and detects whether the user has to break a tie.
- *
- * Ordering is `score desc → updatedAt desc → community score desc → title`.
- * Because the timestamp is the secondary key, the default fill is simply the
- * first entries of the tied group — that *is* the "most recently updated"
- * fallback, with no second code path to keep in sync. A missing timestamp sorts
- * last and falls through to the community score and then the title, i.e. the
- * provider's own default order.
- */
+// Ordering is score desc → updatedAt desc → community score desc → title. Because the timestamp is the secondary key, the default fill is just the head of the tied group, which *is* the "most recently updated" fallback with no second code path to keep in sync.
 export function planTopPicks(
   entries: readonly AnimeListEntry[],
   options: PlanTopPicksOptions = {},
@@ -126,8 +80,7 @@ export function planTopPicks(
 
   if (ranked.length === 0) return emptyTopPickPlan(provider, limit);
 
-  // The whole list fits, so there is nothing to choose between even if scores
-  // repeat. A signature is still produced so a stale ranking clears itself.
+  // Everything fits, so there's nothing to choose even if scores repeat; the signature is still emitted so a stale ranking clears itself.
   if (ranked.length <= limit) {
     return {
       limit,
@@ -155,8 +108,7 @@ export function planTopPicks(
     .filter((value) => value.candidate.score === boundary)
     .map((value) => value.candidate);
   const openSlots = Math.max(0, limit - locked.length);
-  // The third-highest entry is always a boundary candidate, so a prompt is
-  // only warranted when the tied group outnumbers the slots it competes for.
+  // The third-highest entry is always a boundary candidate, so `openSlots > 0` alone would prompt on a clean 10/9/8.
   const needsChoice = candidates.length > openSlots;
 
   return {
@@ -180,13 +132,7 @@ function galleryFrom(ranked: readonly RankedEntry[]): readonly TopPickCandidate[
   return ranked.slice(0, MAX_GRID_CANDIDATES).map((value) => value.candidate);
 }
 
-/**
- * Applies a stored ranking on top of the plan's locked entries.
- *
- * The ranking is re-validated against the current plan rather than trusted: a
- * stale, truncated, or tampered value degrades to the default fill instead of
- * producing a card with missing or duplicated entries.
- */
+// Re-validated against the current plan rather than trusted, so a stale, truncated or tampered value degrades to the default fill.
 export function applyManualRanking(
   plan: TopPickPlan,
   ranking: readonly number[] | null | undefined,
@@ -206,13 +152,7 @@ export function applyManualRanking(
   return [...plan.locked, ...chosen];
 }
 
-/**
- * Appends a candidate to an in-progress ranking, filling the current open slot.
- *
- * Returns `null` when the pick is not allowed: the candidate is already taken,
- * the slots are full, or the id is not part of the tied pool. The picker uses
- * this to advance one slot per click and stop at the limit.
- */
+// `null` means the pick isn't allowed (already taken, slots full, or not in the tied pool), which is how the picker advances one slot per click.
 export function addTopPickChoice(
   chosen: readonly number[],
   id: number,
@@ -225,19 +165,11 @@ export function addTopPickChoice(
   return [...chosen, id];
 }
 
-/** True once every open slot has been filled. */
 export function isTopPickComplete(chosen: readonly number[], plan: TopPickPlan): boolean {
   return plan.needsChoice && chosen.length >= plan.openSlots;
 }
 
-/**
- * Fingerprint of the tied pool: the provider id plus the pool's ids and scores,
- * sorted by id so the value is stable regardless of list ordering.
- *
- * It deliberately ignores entries outside the pool, so rating an anime below the
- * boundary score leaves a saved ranking intact. Adding, removing, or re-scoring
- * a pooled entry changes it and invalidates the ranking.
- */
+// Deliberately ignores entries outside the pool, so rating an anime below the boundary score leaves a saved ranking intact.
 export function topPickPoolSignature(
   pool: readonly TopPickCandidate[],
   providerId: string | null = null,
@@ -262,8 +194,7 @@ function toRankedEntry(entry: AnimeListEntry): RankedEntry | null {
       id: anime.id,
       title: title.trim(),
       score,
-      // Both variants are carried so the UI can pick the resolution that suits
-      // the thumbnail size the user actually asked for.
+      // Both resolutions ride along so the UI can pick one to match the requested thumbnail size.
       imageUrl: anime.image?.medium ?? anime.image?.large ?? null,
       largeImageUrl: anime.image?.large ?? anime.image?.medium ?? null,
       updatedAt: typeof entry.updatedAt === 'string' ? entry.updatedAt : null,
@@ -281,7 +212,6 @@ function compareRanked(left: RankedEntry, right: RankedEntry): number {
   );
 }
 
-/** Descending by recency; `null` (provider omitted it) always sorts last. */
 function compareUpdatedAt(left: string | null, right: string | null): number {
   if (left === right) return 0;
   if (left === null) return 1;

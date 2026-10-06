@@ -24,7 +24,6 @@ describe('parseRetryAfterSeconds', () => {
     expect(parseRetryAfterSeconds('', NOW)).toBeNull();
     expect(parseRetryAfterSeconds('   ', NOW)).toBeNull();
     expect(parseRetryAfterSeconds('soon', NOW)).toBeNull();
-    // A partial numeric match would produce a plausible but wrong delay.
     expect(parseRetryAfterSeconds('30, then', NOW)).toBeNull();
     expect(parseRetryAfterSeconds('1e3', NOW)).toBeNull();
     expect(parseRetryAfterSeconds('-5', NOW)).toBeNull();

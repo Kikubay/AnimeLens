@@ -27,10 +27,7 @@ export interface UserProfileSummary {
   readonly favoriteStudios: readonly ProfilePreferenceItem[];
   readonly lessLikedGenres: readonly ProfilePreferenceItem[];
   readonly detectedPreferences: readonly DetectedPreference[];
-  /**
-   * Top 3 for the taste card, with the tie already resolved by default and the
-   * tied pool exposed so the UI can ask the user to choose.
-   */
+  /** Tie resolved by default, with the tied pool exposed so the UI can ask the user. */
   readonly topPicks: TopPickPlan;
   readonly hasData: boolean;
 }
@@ -122,14 +119,7 @@ interface LessLikedCandidate {
   readonly count: number;
 }
 
-/**
- * "Less liked" is relative, not absolute: most genres accumulate positive
- * signals from completed entries, so requiring `negative > positive` would
- * freeze the section to genres with exclusively negative signals. Instead,
- * genres are ranked by net sentiment per signal and compared against the
- * user's own cross-genre average, so any dislike, drop, or low rating moves
- * the section immediately.
- */
+// "Less liked" is relative: most genres pick up positive signals from completed entries, so requiring negative > positive would freeze the section. Ranking net sentiment against the user's own cross-genre average makes any dislike, drop or low rating show up at once.
 function toLessLikedItems(
   values: ReadonlyMap<
     string,

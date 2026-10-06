@@ -9,26 +9,14 @@ import type { StorageAdapter } from '../storage/storage-adapter';
 import type { StorageKey } from '../storage/storage-types';
 import type { AnimeCacheStore } from './sync-types';
 
-/**
- * Legacy cache key (pre-multi-provider): always belonged to MAL.
- * `ChromeAnimeCacheStore` migrates it into the MAL-scoped key on first read.
- */
+// Always MAL; `ChromeAnimeCacheStore` migrates it into the MAL-scoped key on first read.
 const LEGACY_STORAGE_KEY = 'animeData';
 
-/**
- * Per-provider cache key. Each provider keeps its own cached list so
- * switching the active provider restores its data instantly (even offline).
- * Returns a `StorageKey` literal declared in `AnimeLensStorage`.
- */
 export function animeCacheStorageKey(providerId: 'mal' | 'anilist'): StorageKey {
   return `animeData:${providerId}`;
 }
 
-/**
- * Cache version 5 introduced the provider-neutral rename (`malId` → `id`,
- * `malScore` → `score`). Entries written by older builds are re-mapped on
- * read by `migrateLegacyCache` so existing users keep their cached list.
- */
+// v5 renamed malId/malScore to id/score, so older caches are re-mapped on read and existing users keep their list.
 const LEGACY_CACHE_VERSIONS = [1, 2, 3, 4];
 
 interface LegacyAnimeCache {
@@ -43,7 +31,6 @@ function isLegacyCacheVersion(value: unknown): value is number {
   return typeof value === 'number' && LEGACY_CACHE_VERSIONS.includes(value);
 }
 
-/** Re-maps pre-v5 persisted entries (`malId`/`malScore`) to the new shape. */
 function migrateLegacyEntry(value: unknown): unknown {
   if (!isRecord(value)) return value;
   const anime = isRecord(value.anime) ? { ...value.anime } : value.anime;
@@ -87,8 +74,7 @@ export class ChromeAnimeCacheStore implements AnimeCacheStore {
   async get(): Promise<unknown> {
     const raw = await this.storage.get(this.storageKey);
     if (raw !== undefined && raw !== null) return migrateLegacyCache(raw);
-    // Migration: pre-multi-provider builds cached MAL data under the single
-    // legacy key. Only the MAL store inherits it.
+    // Only the MAL store inherits the pre-multi-provider cache.
     if (this.providerId !== 'mal') return undefined;
     const legacy = await this.storage.get(LEGACY_STORAGE_KEY);
     if (legacy === undefined || legacy === null) return undefined;
@@ -141,11 +127,7 @@ export function isAnimeCache(value: unknown): value is AnimeCache {
   return value.entries.every(isAnimeListEntry);
 }
 
-/**
- * Re-maps a cache persisted by a pre-v5 build (legacy `malId`/`malScore`
- * field names) to the current shape. Anything that is not a legacy cache is
- * returned unchanged; invalid data is rejected downstream by `isAnimeCache`.
- */
+// Anything that isn't a legacy cache comes back unchanged; `isAnimeCache` rejects invalid data downstream.
 export function migrateLegacyCache(value: unknown): unknown {
   if (!isRecord(value) || !isLegacyCacheVersion(value.version)) return value;
   const legacy = value as unknown as LegacyAnimeCache;
@@ -235,8 +217,7 @@ function isAnime(value: unknown): boolean {
   );
 }
 
-// Absent in caches written before the field existed, and those must keep
-// validating or every returning user loses their whole list.
+// Absent in older caches, which must keep validating or every returning user loses their whole list.
 function isStreamingSites(value: unknown): boolean {
   if (value === undefined) return true;
   return (

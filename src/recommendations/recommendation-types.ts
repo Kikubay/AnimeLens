@@ -95,7 +95,7 @@ export interface RecommendationGenerationOptions {
   readonly excludedAnimeIds?: readonly number[];
   readonly generatedAt?: string;
   readonly now?: string;
-  /** Language used for user-facing reason labels. Defaults to English. */
+  /** Defaults to English. */
   readonly language?: Language;
 }
 

@@ -1,19 +1,6 @@
-/**
- * Streaming availability, normalized from AniList's `externalLinks`.
- *
- * AniList is the only provider that publishes this, and it's what makes the
- * feature possible at all: every link carries a `type`, so `STREAMING` is
- * distinguishable from the `INFO`/`SOCIAL` noise in the same array. MAL has no
- * equivalent field anywhere in its API (see `mal-streaming.ts`).
- *
- * A service in the catalogue keeps a stable id and canonical spelling, so the
- * same brand always renders the same way. One AniList calls streaming but we
- * don't know keeps its own name — dropping it would report a watchable title as
- * unwatched.
- */
+// AniList is the only provider publishing this, and every link carries a `type`, which is how `STREAMING` separates from the `INFO`/`SOCIAL` noise (MAL has no equivalent field). Catalogue ids stay stable because they end up in stored preferences and link comparisons — renaming one silently drops the user's selection.
 
-// These ids end up in stored preferences and in link comparisons, so renaming
-// one silently drops whatever the user had selected.
+// An unknown streaming service keeps its own name rather than being dropped, otherwise a watchable title reads as unwatched.
 export const STREAMING_SERVICE_IDS = [
   'crunchyroll',
   'netflix',
@@ -44,8 +31,7 @@ const STREAMING_SERVICE_NAMES: Readonly<Record<StreamingServiceId, string>> = {
   bilibili: 'Bilibili',
 };
 
-// Keys are folded by `normalizeServiceKey` before lookup, so write them the way
-// `normalizeServiceKey` would — no spaces, no punctuation.
+// Already folded to what `normalizeServiceKey` produces: no spaces, no punctuation.
 const SERVICE_ALIASES: Readonly<Record<StreamingServiceId, readonly string[]>> = {
   crunchyroll: ['crunchyroll'],
   netflix: ['netflix'],
@@ -63,7 +49,7 @@ const SERVICE_ALIASES: Readonly<Record<StreamingServiceId, readonly string[]>> =
 const ALIAS_INDEX: ReadonlyMap<string, StreamingServiceId> = buildAliasIndex();
 
 export interface StreamingLink {
-  /** Catalogue id, or a slug derived from AniList's own service name. */
+  /** Catalogue id, or a slug of AniList's own name for an unknown service. */
   readonly serviceId: string;
   readonly serviceName: string;
   readonly url: string | null;
@@ -82,9 +68,7 @@ export function resolveStreamingServiceId(value: string | null | undefined): Str
   return ALIAS_INDEX.get(normalizeServiceKey(trimmed)) ?? null;
 }
 
-// `type` is what makes this trustworthy, so when it's missing we only accept
-// platforms we'd recognise anyway. http(s) only, so a smuggled `javascript:`
-// payload can never reach an anchor we render.
+// Without a `type` we only trust names we'd recognise anyway, and only http(s) URLs get through, so a `javascript:` payload can't reach an anchor.
 export function normalizeStreamingSites(
   links: readonly AniListExternalLinkDto[] | null | undefined,
 ): readonly StreamingLink[] {
@@ -98,7 +82,7 @@ export function normalizeStreamingSites(
     if (type !== null && type.trim().length > 0) {
       if (type.trim().toUpperCase() !== 'STREAMING') continue;
     } else if (resolveStreamingServiceId(site) === null) {
-      // No type, unknown name — can't tell a platform from an official site.
+      // Untyped and unrecognised: can't tell a platform from an official site.
       continue;
     }
     const known = resolveStreamingServiceId(site);
@@ -147,7 +131,6 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null;
 }
 
-// Anything non-string in the payload is treated as absent rather than coerced.
 function optionalString(value: unknown): string | null {
   return typeof value === 'string' ? value : null;
 }

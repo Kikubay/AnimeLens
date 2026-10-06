@@ -2,21 +2,9 @@ import type { AuthErrorCode } from '../auth/auth-types';
 
 export type Language = 'fr' | 'en';
 
-/** Every language the extension ships, in the order Settings lists them. */
 export const LANGUAGES: readonly Language[] = ['fr', 'en'];
 
-/**
- * The localized text handed to the UI.
- *
- * Each key here MUST exist in every locale JSON file in this directory with a
- * template that uses exactly the placeholders named below, in any order. The
- * `Record<MessageKey, string>` type on the imported files makes a missing key a
- * compile error, and the `locale-parity` tests catch a drifted placeholder.
- *
- * `authErrorMessage` is the one exception: it is keyed by error code rather than
- * by message name, so each locale file carries an `authErrors` map for it.
- */
-
+// Every key here has to exist in each locale JSON with exactly the placeholders declared in MESSAGE_PARAMS, in any order; a missing key is a compile error and the locale-parity tests catch a drifted placeholder. `authErrorMessage` is the exception, since it's keyed by error code and each locale file carries an `authErrors` map for it.
 export interface AppCopy {
   readonly languageName: string;
   readonly newLabel: string;
@@ -133,7 +121,7 @@ export interface AppCopy {
   readonly profileDeltaEyebrow: string;
   readonly profileDeltaTitle: string;
   readonly profileDeltaUpdated: string;
-  /** No baseline yet: explains what the section is for instead of hiding it. */
+  /** Shown instead of the section when there's no baseline to diff against yet. */
   readonly profileDeltaBaseline: string;
   readonly profileDeltaStable: string;
   readonly profileDeltaSince: (date: string) => string;
@@ -163,9 +151,9 @@ export interface AppCopy {
   readonly tasteCardAffinity: string;
   readonly tasteCardNoGenres: string;
   readonly tasteCardFooter: string;
-  /** Display name painted on the card when the provider has no username. */
+  /** Fallback for when the provider has no username to print. */
   readonly tasteCardDefaultName: string;
-  /** The product name itself, which stays in Latin script in every language. */
+  /** Stays in Latin script in every language. */
   readonly brandWordmark: string;
   readonly betaBadge: string;
   readonly tasteCardFormat: string;
@@ -394,16 +382,7 @@ export interface AppCopy {
   readonly authErrorMessage: (code: AuthErrorCode | null, fallback: string) => string;
 }
 
-/**
- * Positional placeholder order for every templated message, mirroring the
- * parameter list of the matching `AppCopy` member. The loader binds arguments by
- * this order rather than by the order a template happens to mention them, so a
- * translation may repeat or reorder placeholders freely.
- *
- * Only templated keys appear here. A plain string member is recognized by its
- * absence, and the `AssertCoverage` check below fails to compile if a templated
- * key is ever added without an entry.
- */
+// Argument order mirrors each `AppCopy` member's parameter list, which is how the loader binds them — that's what lets a translation repeat or reorder its placeholders. Plain-string members are the ones absent from here, and `AssertCoverage` below fails to compile if a templated key is ever added without an entry.
 const MESSAGE_PARAMS = {
   updateAvailable: ['version'],
   currentVersion: ['version'],
@@ -483,10 +462,8 @@ type TemplatedKey = {
       : K;
 }[keyof AppCopy];
 
-/** Keys the map leaves without parameters, which must be exactly `authErrorMessage`. */
 type UndeclaredTemplatedKey = Exclude<TemplatedKey, keyof typeof MESSAGE_PARAMS>;
 
-/** Fails to compile if a templated key is missing from the map. */
 type AssertCoverage = [UndeclaredTemplatedKey] extends [never]
   ? true
   : ['MESSAGE_PARAMS is missing an entry for', UndeclaredTemplatedKey];
@@ -497,7 +474,6 @@ void _coverage;
 export { MESSAGE_PARAMS };
 export type { TemplatedKey };
 
-/** Placeholder order for a key, or `[]` when the message is a plain string. */
 export function placeholdersOf(key: keyof AppCopy): readonly string[] {
   return (MESSAGE_PARAMS as Readonly<Record<string, readonly string[]>>)[key] ?? EMPTY;
 }

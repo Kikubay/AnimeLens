@@ -10,11 +10,7 @@ export interface AuthMessageResponse {
   readonly message?: string;
 }
 
-/**
- * Raised when the background service does not answer, or answers with no usable
- * payload. It deliberately carries no message of its own: the popup maps it to
- * `copy.authUnavailable`, so the text the user sees stays translated.
- */
+// No message of its own, so the popup maps this to a translated string instead of leaking raw English.
 export class AuthServiceUnavailableError extends Error {
   constructor() {
     super('auth-service-unavailable');
@@ -50,9 +46,9 @@ export async function requestAuthSnapshot(type: AuthMessageType): Promise<AuthSn
   }
 
   const message = response.message;
-  // No reason at all means the service could not answer, not that it refused.
+  // No reason at all means the service never answered, not that it refused.
   if (message === undefined) throw new AuthServiceUnavailableError();
-  // The service may attach the failing phase to a non-ok response; surface it.
+  // A non-ok response can name the phase that failed; that is more useful than the bare message.
   const snapshot = response.snapshot;
   if (isAuthSnapshot(snapshot) && snapshot.phase !== undefined) {
     throw new AuthPhaseFailureError(snapshot.phase, message);
@@ -60,7 +56,6 @@ export async function requestAuthSnapshot(type: AuthMessageType): Promise<AuthSn
   throw new Error(message);
 }
 
-/** Sign-in state of every supported provider (signed-in + active flags). */
 export async function requestProviderList(): Promise<readonly ProviderStatusView[]> {
   const response = (await chrome.runtime.sendMessage({
     type: 'auth.get_providers',
@@ -77,25 +72,19 @@ export async function requestProviderList(): Promise<readonly ProviderStatusView
   return response.providers;
 }
 
-/** Connects a specific provider (defaults to the active one when omitted). */
 export async function connectProvider(providerId: ProviderId): Promise<AuthSnapshot> {
   return requestAuthMessage({ type: 'auth.connect', providerId });
 }
 
-/** Disconnects a specific provider (defaults to the active one when omitted). */
 export async function disconnectProvider(providerId: ProviderId): Promise<AuthSnapshot> {
   return requestAuthMessage({ type: 'auth.disconnect', providerId });
 }
 
-/** Flips the active provider and returns the new active auth snapshot. */
 export async function setActiveProvider(providerId: ProviderId): Promise<AuthSnapshot> {
   return requestAuthMessage({ type: 'auth.set_active_provider', providerId });
 }
 
-/**
- * Completes an AniList **Auth Pin** sign-in with the token the user copied
- * from the AniList pin page. Resolves with the resulting auth snapshot.
- */
+// AniList hands the user a token to paste, so sign-in completes in two messages.
 export async function completeAniListPinSignIn(token: string): Promise<AuthSnapshot> {
   const response = (await chrome.runtime.sendMessage({
     type: 'auth.complete_pin_connect',
@@ -132,11 +121,6 @@ async function requestAuthMessage(message: {
   throw new Error(errorMessage);
 }
 
-/**
- * Fetches the provider-level diagnostic for the most recent failed OAuth
- * phase. Resolves to null when the last connect attempt succeeded or none
- * has failed yet.
- */
 export async function requestTokenExchangeDiagnostic(): Promise<TokenExchangeDiagnostic | null> {
   const response = (await chrome.runtime.sendMessage({
     type: 'auth.get_token_exchange_diagnostic',

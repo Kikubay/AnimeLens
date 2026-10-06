@@ -33,7 +33,6 @@ describe('ProviderRegistry', () => {
     const registry = new ProviderRegistry(storage);
     await registry.setActiveProvider('anilist');
     expect(storage.map.get('activeProvider')).toBe('anilist');
-    // A fresh registry (simulating a service-worker restart) reads storage.
     await expect(new ProviderRegistry(storage).getActiveProvider()).resolves.toBe('anilist');
   });
 

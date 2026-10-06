@@ -353,8 +353,7 @@ describe('recommendation pipeline', () => {
       entry(2, 9, { genres: [{ id: 3, name: 'Comedy' }] }),
       entry(3, 8, { genres: [{ id: 4, name: 'Romance' }] }),
     ];
-    // Near-clone of the 10/10 favorite: would also clear the >=80 affinity band,
-    // but the specific provenance signal must win.
+    // Near-clone of the 10/10 favorite: clears the >=80 band too, but the specific provenance signal has to win.
     const clone = anime(10, {
       genres: [
         { id: 1, name: 'Action' },
@@ -374,9 +373,7 @@ describe('recommendation pipeline', () => {
   });
 
   it('categorizes strong broad-affinity matches as highly-compatible', () => {
-    // Taste spread across separate entries: the candidate shares at most one
-    // feature with each rated entry, so no because-you-liked source exists,
-    // but the overall genre and theme affinity is strong.
+    // Shares at most one feature with each rated entry, so there's no because-you-liked source, but broad genre and theme affinity is strong.
     const watched = [
       entry(1, 10, {
         genres: [{ id: 1, name: 'Action' }],
@@ -450,9 +447,7 @@ describe('recommendation pipeline', () => {
   });
 
   it('keeps discovery sections populated on a large list', () => {
-    // On a big list nearly every candidate shares a couple of features with
-    // some highly rated entry and scores in the 60-85 band; regressing to a
-    // single dominant category used to leave Hidden Gems and Explore empty.
+    // Nearly every candidate here overlaps some liked entry and lands in the 60-85 band; collapsing to one dominant category used to leave Hidden Gems and Explore empty.
     const genres = [
       'Action',
       'Adventure',
@@ -506,7 +501,7 @@ describe('recommendation pipeline', () => {
         ],
       };
     };
-    // 70% of list entries cluster around the user's favorite genres/themes.
+    // 70% cluster around the user's favourite genres and themes.
     const tasteFeatures = () => {
       const features = randomFeatures();
       return random() < 0.7
@@ -533,8 +528,7 @@ describe('recommendation pipeline', () => {
             : 3 + Math.floor(random() * 2);
       return entry(index + 1, score, tasteFeatures());
     });
-    // Suggestions-style popular candidates plus a deep-ranking page with
-    // obscure quality titles (the pool the background worker assembles).
+    // Popular candidates plus a deep-ranking page of obscure quality titles, the pool the background worker assembles.
     const candidates = [
       ...Array.from({ length: 40 }, (_, index) =>
         anime(2000 + index, {

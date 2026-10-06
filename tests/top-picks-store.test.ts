@@ -94,7 +94,7 @@ describe('top picks store', () => {
     const store = createTopPicksStore(storage);
     await store.save(contestedPlan(), [5]);
 
-    // A sixth 9/10 joins the tie: the pool moved, so the answer is stale.
+    // A sixth 9/10 grows the tie, so the saved answer no longer matches.
     const grown = planTopPicks(
       [entry(1, 10), entry(2, 10), entry(3, 9), entry(4, 9), entry(5, 9), entry(6, 9)],
       { providerId: 'mal' },
@@ -152,7 +152,7 @@ describe('top picks store', () => {
     const store = createTopPicksStore(storage);
     await store.save(contestedPlan(), [5]);
 
-    // The user deletes two of the tied entries, leaving nothing to choose.
+    // Deleting tied entries leaves nothing to choose.
     const resolved = planTopPicks([entry(1, 10), entry(2, 10), entry(3, 9)], {
       providerId: 'mal',
     });

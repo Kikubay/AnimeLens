@@ -67,8 +67,7 @@ describe('profileSummaryFromModel', () => {
   });
 
   it('exposes the taste card Top 3 plan alongside the other signals', () => {
-    // The spec case: two 10/10s lock slots 1 and 2, so exactly one 9/10 slot
-    // is left for the user to fill from the five-way tie.
+    // Two 10/10s lock slots 1 and 2, leaving one 9/10 slot for the user out of the five-way tie.
     const entries = [
       entry(1, 10, 'Fantasy', 'Worldbuilding', 'Studio North'),
       entry(2, 10, 'Fantasy', 'Worldbuilding', 'Studio North'),
@@ -100,7 +99,7 @@ describe('profileSummaryFromModel', () => {
       'mal',
     );
 
-    // No score is strictly above the boundary, so the user ranks all three.
+    // Nothing strictly above the boundary, so the user ranks all three.
     expect(summary.topPicks.openSlots).toBe(3);
     expect(summary.topPicks.locked).toHaveLength(0);
     expect(summary.topPicks.candidates).toHaveLength(4);
@@ -147,11 +146,9 @@ describe('profileSummaryFromModel', () => {
     const summary = profileSummaryFromModel(profile, 'en', entries, 'mal');
     expect(summary.topPicks.needsChoice).toBe(true);
 
-    // Without an override the card uses the plan's most-recently-updated fill.
     const automatic = buildTasteCardModel(summary, null, 'mal');
     expect(automatic.topPicks.map((pick) => pick.title)).toEqual(['Anime 1', 'Anime 2', 'Anime 3']);
 
-    // With the user's choice, the third slot is the anime they picked.
     const manual = buildTasteCardModel(
       summary,
       null,

@@ -59,9 +59,7 @@ export class FetchHttpClient implements HttpClient {
 async function toApiError(response: Response): Promise<ApiError> {
   const payload = await readErrorPayload(response);
   const message = payload?.message ?? `The API request failed with status ${response.status}.`;
-  // Both RFC 9110 forms are accepted: MAL and GitHub send the HTTP-date form
-  // as readily as delta-seconds, and discarding it costs the caller the only
-  // hint about how long the rate-limit window actually lasts.
+  // MAL and GitHub both send the HTTP-date form, and dropping it loses the only hint at how long the rate-limit window lasts.
   const retryAfterSeconds = parseRetryAfterSeconds(response.headers.get('Retry-After'));
 
   const code =
@@ -76,10 +74,7 @@ async function toApiError(response: Response): Promise<ApiError> {
             : response.status === 429
               ? 'rate_limited'
               : isRetryableStatus(response.status)
-                ? // 5xx (and 408) are transport failures, not bad requests, and
-                  // are retryable — mapping them to `unknown` made them
-                  // indistinguishable from a genuine client error and excluded
-                  // them from retry.
+                ? // 5xx and 408 are transport failures, so they belong with retryable network errors rather than `unknown`.
                   'network_error'
                 : 'unknown';
 
@@ -95,9 +90,7 @@ async function readErrorPayload(response: Response): Promise<{ readonly message?
   try {
     const value: unknown = await response.json();
     if (typeof value !== 'object' || value === null) return null;
-    // GraphQL providers (AniList) report failures as `{ errors: [{ message }] }`
-    // and often omit a top-level `message`, so unwrap that shape too rather
-    // than surfacing a bare "status 400".
+    // AniList hides its message under `{ errors: [{ message }] }`, so unwrap that instead of reporting a bare "status 400".
     if ('message' in value) {
       const message = value.message;
       return typeof message === 'string' ? { message } : null;
@@ -113,7 +106,7 @@ async function readErrorPayload(response: Response): Promise<{ readonly message?
       if (messages.length > 0) return { message: messages.join('; ') };
     }
   } catch {
-    // The response body is optional for an HTTP error.
+    // An error response is allowed to have no body at all, so this swallow is deliberate.
   }
   return null;
 }

@@ -34,12 +34,11 @@ function base(): StoredProfileSnapshot {
   };
 }
 
-/** The earlier profile. Every diff needs the list to have actually moved. */
+// The list count differs from `after()`, which is what makes a diff meaningful at all.
 function before(overrides: Partial<StoredProfileSnapshot> = {}): StoredProfileSnapshot {
   return { ...base(), analyzedAnimeCount: 100, ...overrides };
 }
 
-/** The later profile, with entries added. */
 function after(overrides: Partial<StoredProfileSnapshot> = {}): StoredProfileSnapshot {
   return { ...base(), analyzedAnimeCount: 120, ...overrides };
 }
@@ -81,8 +80,7 @@ describe('profile delta', () => {
     });
 
     it('diffs normally when only the ratings moved', () => {
-      // A user can rate entries already on the list, so the rating count moves
-      // on its own and the guard above must not swallow it.
+      // Rating an entry already on the list moves the rating count on its own, so the count guard above must not swallow it.
       const delta = diffProfileSnapshots(
         before({ ratedAnimeCount: 80, genres: [item('Action', 50, 20)] }),
         after({ ratedAnimeCount: 84, genres: [item('Action', 90, 20)] }),
@@ -367,8 +365,7 @@ describe('profile delta', () => {
 
   describe('language independence', () => {
     it('produces the same stored profile whatever the UI language', () => {
-      // Persisting the already-localized detected preferences would make an
-      // EN -> FR switch look like a change in the user's taste.
+      // Persisting the already-localized detected preferences would make an EN -> FR switch look like a change in taste.
       const build = (language: 'en' | 'fr') => {
         const model = buildUserPreferenceProfile([], []);
         return toStoredProfileSnapshot(

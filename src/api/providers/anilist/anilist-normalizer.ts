@@ -10,11 +10,7 @@ import type {
 import type { UserProfile } from '../../../domain/user-profile';
 import { normalizeStreamingSites } from '../../../domain/streaming';
 
-/**
- * AniList GraphQL DTOs (only the fields this integration consumes).
- * `unknown`-safe guards live at the bottom; normalization is defensive so a
- * single malformed field degrades to `null` instead of failing the sync.
- */
+// AniList GraphQL DTOs, trimmed to what we consume. Normalization is deliberately defensive so one malformed field degrades to `null` instead of failing the whole sync.
 
 export interface AniListTitleDto {
   readonly romaji?: string | null;
@@ -42,11 +38,7 @@ export interface AniListStaffEdgeDto {
   } | null;
 }
 
-/**
- * AniList's `externalLinks`. `type` is the reliable signal: only `STREAMING`
- * entries mean the title is watchable, the rest are official sites and social
- * accounts. `site` is a display name, not an enum.
- */
+// Trust `type`, not `site`: only `STREAMING` means watchable, the rest are official sites and social accounts, and `site` is a display name rather than an enum.
 export interface AniListExternalLinkDto {
   readonly site?: string | null;
   readonly url?: string | null;
@@ -126,7 +118,6 @@ const LIST_STATUS_MAP: Readonly<Record<string, AnimeStatus>> = {
   REPEATING: 'rewatching',
 };
 
-/** Domain status → AniList `MediaListStatus` (null for unsupported values). */
 export function toMediaListStatus(status: AnimeStatus): string | null {
   switch (status) {
     case 'watching':
@@ -146,7 +137,7 @@ export function toMediaListStatus(status: AnimeStatus): string | null {
   }
 }
 
-/** Tags below this relevance rank are noise for taste-profile purposes. */
+// Anything below this tag rank is noise for a taste profile.
 const TAG_MIN_RANK = 20;
 
 export function normalizeAnime(input: AniListMediaDto): Anime {
@@ -155,7 +146,7 @@ export function normalizeAnime(input: AniListMediaDto): Anime {
     id: input.id,
     provider: 'anilist',
     title: {
-      // AniList has no single canonical title; prefer romaji, then english.
+      // No canonical title, so fall back romaji → english → native.
       default: title.romaji ?? title.english ?? title.native ?? `Anime ${input.id}`,
       english: title.english ?? null,
       japanese: title.native ?? null,
@@ -225,7 +216,6 @@ function normalizeStaff(edges: readonly AniListStaffEdgeDto[] | null | undefined
     }));
 }
 
-/** AniList descriptions contain raw HTML (`<br>`, `<i>`, …) — strip it. */
 function stripHtml(value: string | null | undefined): string | null {
   if (value === null || value === undefined) return null;
   const text = value
@@ -238,11 +228,7 @@ function stripHtml(value: string | null | undefined): string | null {
   return text.length > 0 ? text : null;
 }
 
-/**
- * AniList genres are plain names with no stable numeric ID. A deterministic
- * FNV-1a hash gives each genre a stable, positive identifier per session so
- * the domain keeps its numeric `id` contract without cross-provider mapping.
- */
+// Genres are bare names with no stable ID, so an FNV-1a hash keeps the domain's numeric `id` contract satisfied without a cross-provider mapping table.
 export function genreId(name: string): number {
   let hash = 0x811c9dc5;
   for (let index = 0; index < name.length; index += 1) {
@@ -253,16 +239,16 @@ export function genreId(name: string): number {
   return positive === 0 ? 1 : positive;
 }
 
-/** AniList reports community scores as 0-100; convert to the 0-10 scale. */
 function normalizeScore(value: number | null | undefined): number | null {
   if (typeof value !== 'number' || !Number.isFinite(value) || value <= 0) return null;
+  // AniList reports 0-100, the domain works in 0-10.
   const scaled = Math.round(value) / 10;
   return scaled >= 0 && scaled <= 10 ? scaled : null;
 }
 
-/** AniList reports user scores as POINT_100; 0 means unscored. */
 function normalizeUserScore(value: number | null | undefined): number | null {
   if (typeof value !== 'number' || !Number.isFinite(value) || value <= 0) return null;
+  // POINT_100, and 0 means the user never rated it.
   const scaled = value / 10;
   return scaled >= 0 && scaled <= 10 ? scaled : null;
 }
@@ -297,15 +283,13 @@ function normalizeListStatus(value: string | null | undefined): AnimeStatus {
     : 'plan_to_watch';
 }
 
-/** AniList timestamps are unix seconds. */
 function toIsoTimestamp(value: number | null | undefined): string | null {
   if (typeof value !== 'number' || !Number.isFinite(value) || value <= 0) return null;
+  // Seconds, not milliseconds.
   return new Date(value * 1000).toISOString();
 }
 
-// ---------------------------------------------------------------------------
 // Runtime guards for untrusted GraphQL payloads.
-// ---------------------------------------------------------------------------
 
 export function isAniListMedia(value: unknown): value is AniListMediaDto {
   if (typeof value !== 'object' || value === null) return false;

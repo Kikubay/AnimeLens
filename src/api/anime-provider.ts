@@ -12,32 +12,17 @@ export interface AnimeListFetchOptions {
   readonly onProgress?: (progress: AnimeListFetchProgress) => void;
 }
 
-/** Provider-neutral contract consumed by application services and UI adapters. */
 export interface AnimeProvider {
   getCurrentUser(): Promise<UserProfile>;
   getUserAnimeList(options?: AnimeListFetchOptions): Promise<AnimeListEntry[]>;
   getAnime(id: number): Promise<Anime>;
-  /**
-   * Provider-personalized suggestions for the authorized user (MAL's
-   * `/anime/suggestions`). Used to widen the recommendation candidate pool
-   * when the user's plan-to-watch list alone is too small.
-   */
+  // Widen the candidate pool when plan-to-watch alone is too small.
   getAnimeSuggestions?(limit?: number): Promise<Anime[]>;
-  /**
-   * Popular anime used as a non-personalized fallback when MAL has too few
-   * personalized suggestions for the user. `offset` pages deep into the
-   * ranking: far pages surface quality titles with a small audience, which
-   * feed the Hidden Gems and Explore sections.
-   */
+  // Paging deep into the popularity ranking surfaces lesser-known quality titles, which is what feeds Hidden Gems and Explore.
   getAnimeRanking?(limit?: number, offset?: number): Promise<Anime[]>;
   searchAnime(query: string): Promise<Anime[]>;
   addToList(id: number, status?: AnimeStatus): Promise<void>;
-  /**
-   * Must return an empty list rather than throw when it can't answer — the card
-   * is an enhancement, and a thrown error here would take the detail page with
-   * it. Optional because MAL has to scrape its website for this, and a
-   * mock provider has no opinion at all.
-   */
+  // Returns [] instead of throwing when it can't answer, otherwise a failed card would take the whole detail page down.
   getStreamingLinks?(id: number): Promise<readonly StreamingLink[]>;
 }
 

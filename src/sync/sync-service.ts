@@ -14,15 +14,7 @@ import { getCopy, type Language } from '../locales';
 const DEFAULT_MAX_RETRIES = 2;
 const MAX_RETRY_DELAY_MS = 30_000;
 const BASE_RETRY_DELAY_MS = 250;
-/**
- * Fraction of the exponential fallback delay applied as random jitter.
- *
- * Applied only when the server gave no usable `Retry-After`. Clients that hit
- * the same window with no guidance compute the same backoff and retry in
- * lockstep, which is what turns a recoverable failure into a sustained one; a
- * +/-25% spread breaks the synchronisation without meaningfully changing the
- * wait. A server-directed delay is left exact on purpose.
- */
+// +/-25% of the fallback delay, applied only when the server gave no usable Retry-After: clients without guidance compute the same backoff and retry in lockstep, and a spread that small barely changes the wait.
 const RETRY_JITTER_RATIO = 0.25;
 
 export class AnimeListSyncService {
@@ -84,10 +76,7 @@ export class AnimeListSyncService {
         if (!isRetryable(error) || attempt >= maxRetries) throw error;
         const retryAfterSeconds = error instanceof ApiError ? error.retryAfterSeconds : null;
         if (retryAfterSeconds !== null) {
-          // A server-supplied Retry-After is authoritative and is honoured
-          // exactly: shortening it can only retry inside a window the server
-          // has not reopened yet, which turns a recoverable 429 into a
-          // sustained one. Jitter is for the unguided fallback below.
+          // A server-directed delay is honoured exactly; shortening it would retry inside a window the server hasn't reopened yet.
           await this.sleep(Math.min(retryAfterSeconds * 1000, MAX_RETRY_DELAY_MS));
           continue;
         }
@@ -195,14 +184,11 @@ export class AnimeListSyncService {
 function isRetryable(error: unknown): boolean {
   return (
     error instanceof ApiError &&
-    // `network_error` now also covers 5xx and 408 (see http-client's error
-    // mapper), so transient server failures retry instead of surfacing as an
-    // opaque `unknown` on the first attempt.
+    // `network_error` also covers 5xx and 408, so transient server failures retry instead of surfacing as an opaque `unknown`.
     (error.code === 'network_error' || error.code === 'rate_limited')
   );
 }
 
-/** Spreads a delay around its nominal value, clamped to never go negative. */
 function withJitter(milliseconds: number): number {
   const spread = milliseconds * RETRY_JITTER_RATIO;
   return Math.max(0, Math.round(milliseconds - spread + Math.random() * spread * 2));

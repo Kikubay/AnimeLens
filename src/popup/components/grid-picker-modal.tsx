@@ -5,17 +5,11 @@ import { Badge, Button, Modal } from './ui';
 
 interface GridPickerModalProps {
   readonly open: boolean;
-  /** Every rated entry, in rank order, as a starting pool. */
   readonly candidates: readonly TopPickCandidate[];
-  /**
-   * Boxes to pre-fill, in box order. Seeded on open so "Change my picks" lets
-   * the user tweak a grid they already built instead of starting over. Session
-   * state only — nothing is read from storage.
-   */
+  /** Pre-filled on open so "Change my picks" edits the existing grid instead of starting over. */
   readonly initial?: readonly TopPickCandidate[];
   readonly copy: AppCopy;
   readonly onClose: () => void;
-  /** All nine boxes are filled. */
   readonly onComplete: (chosen: readonly TopPickCandidate[]) => void;
 }
 
@@ -24,17 +18,7 @@ const EMPTY_GRID: readonly (TopPickCandidate | null)[] = Array.from(
   () => null,
 );
 
-/**
- * Lets the user fill all nine grid boxes by hand.
- *
- * Box-first: click a box to make it active, then click an anime in the list to
- * place it there. Boxes can be filled in any order and revisited to swap their
- * contents, and the active box advances to the next empty one by itself.
- *
- * Nothing here is persisted — the selection lives in the caller's state for this
- * session only, so the next time the card is opened the user starts fresh. That
- * is deliberate: a 3x3 collage is a personal curation, not a stored ranking.
- */
+// Deliberately not persisted: a 3x3 collage is a personal curation for one card, not a stored ranking, so re-opening always starts fresh.
 export function GridPickerModal({
   open,
   candidates,
@@ -44,7 +28,6 @@ export function GridPickerModal({
   onComplete,
 }: GridPickerModalProps) {
   const mountedRef = useRef(true);
-  /** Sparse by design: any box may be filled before the ones around it. */
   const [slots, setSlots] = useState<readonly (TopPickCandidate | null)[]>(EMPTY_GRID);
   const [activeSlot, setActiveSlot] = useState<number | null>(0);
   const [query, setQuery] = useState('');
@@ -56,9 +39,7 @@ export function GridPickerModal({
     };
   }, []);
 
-  // Opens seeded from `initial` (so an existing grid is preserved), or empty on
-  // a first visit. `initialIds` keeps the identity stable while the user
-  // rearranges boxes, which must not re-seed them mid-edit.
+  // `initialIds` keeps the identity stable while boxes are rearranged, so an edit in progress never re-seeds the grid.
   const initialIds = useMemo(() => (initial ?? []).map((pick) => pick.id).join(','), [initial]);
   useEffect(() => {
     if (!open) return;
@@ -73,7 +54,6 @@ export function GridPickerModal({
     () => slots.filter((slot): slot is TopPickCandidate => slot !== null),
     [slots],
   );
-  /** Anime id -> the box it currently occupies. */
   const placedIn = useMemo(() => {
     const map = new Map<number, number>();
     slots.forEach((slot, index) => {
@@ -94,8 +74,7 @@ export function GridPickerModal({
   const place = (candidate: TopPickCandidate) => {
     if (isComplete || activeSlot === null) return;
     const next = [...slots];
-    // Moving an anime that is already placed vacates its previous box, so a
-    // title can never occupy two boxes at once.
+    // Vacating the old box is what stops one anime occupying two boxes.
     const previous = placedIn.get(candidate.id);
     if (previous !== undefined && previous !== activeSlot) next[previous] = null;
     next[activeSlot] = candidate;
@@ -113,8 +92,7 @@ export function GridPickerModal({
 
   const visible = useMemo(() => {
     const needle = query.trim().toLocaleLowerCase();
-    // Placed entries stay listed whatever the filter, so a box can always be
-    // swapped without clearing the search first.
+    // Placed entries survive the filter so a box can always be swapped without clearing the search.
     const kept = candidates.filter((candidate) => {
       if (placedIn.has(candidate.id)) return true;
       return needle.length === 0 || candidate.title.toLocaleLowerCase().includes(needle);

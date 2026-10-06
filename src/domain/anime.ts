@@ -2,7 +2,6 @@ import type { StreamingLink } from './streaming';
 
 export type AnimeId = number;
 
-/** Provider an anime record originated from (for deep links and labels). */
 export type AnimeProviderId = 'mal' | 'anilist';
 
 export type AnimeContentRating = 'safe' | 'questionable' | 'explicit';
@@ -14,7 +13,7 @@ export type AnimeAiringStatus =
   'currently_airing' | 'finished_airing' | 'not_yet_aired' | 'unknown';
 
 export type AnimeType = 'tv' | 'movie' | 'ova' | 'ona' | 'special' | 'music' | 'unknown';
-/** Backwards-compatible alias for consumers that used the earlier name. */
+/** Old name for `AnimeType`. */
 export type AnimeFormat = AnimeType;
 
 export type AnimeSeason = 'winter' | 'spring' | 'summer' | 'fall';
@@ -31,11 +30,7 @@ export interface AnimeImageSet {
   readonly large: string | null;
 }
 
-/**
- * Provider-neutral identifiers: `id` is the anime's ID within the provider the
- * entry came from (MyAnimeList, AniList, ...). IDs are never compared across
- * providers — the active provider scopes every lookup.
- */
+// An `id` only means anything inside its own provider, so these are never compared across providers.
 export interface Genre {
   readonly id: number;
   readonly name: string;
@@ -59,14 +54,14 @@ export interface StaffMember {
 }
 
 export interface Anime {
-  /** The anime's ID within its originating provider (formerly `malId`). */
+  /** ID within its originating provider (used to be `malId`). */
   readonly id: AnimeId;
-  /** Which provider this record came from; absent in legacy cached data. */
+  /** Absent in records cached before the multi-provider split. */
   readonly provider?: AnimeProviderId;
   readonly title: AnimeTitleSet;
   readonly synopsis: string | null;
   readonly image: AnimeImageSet | null;
-  /** The provider's community score (formerly `malScore`). */
+  /** Community score (used to be `malScore`). */
   readonly score: number | null;
   readonly userScore: number | null;
   readonly genres: readonly Genre[];
@@ -81,11 +76,7 @@ export interface Anime {
   readonly popularity: number | null;
   readonly memberCount: number | null;
   readonly contentRating?: AnimeContentRating;
-  /**
-   * `undefined` means nobody asked yet — cached entries from older builds have no
-   * such key. An empty array means the provider answered and found nothing, which
-   * is a different answer.
-   */
+  // `undefined` = never asked (older cache entries lack the key); `[]` = the provider answered with nothing.
   readonly streamingSites?: readonly StreamingLink[];
 }
 

@@ -5,7 +5,6 @@ import { normalizeLanguage, type Language } from '../locales';
 
 export type RecommendationMode = 'personalized' | 'exploratory';
 
-/** Sign-in/activation state of one provider, shown in the providers panel. */
 export interface ProviderStatusView {
   readonly id: ProviderId;
   readonly displayName: string;
@@ -13,34 +12,21 @@ export interface ProviderStatusView {
   readonly active: boolean;
 }
 
-/** How the Top Rated entries are arranged on the card. */
 export type TasteCardPicksLayout = 'list' | 'triangle' | 'grid';
 
-/**
- * The subset that may be stored.
- *
- * A grid is nine entries the user assembles by hand for a single card, and it
- * is deliberately never persisted — so keeping the *mode* in storage would only
- * restore an empty collage on the next visit.
- */
+// A grid is assembled by hand and never persisted, so storing the *mode* would only restore an empty collage next visit.
 export type PersistedTasteCardPicksLayout = 'list' | 'triangle';
 
-/** Maps a live layout choice onto the value that is safe to store. */
 export function persistableTasteCardPicksLayout(
   layout: TasteCardPicksLayout,
 ): PersistedTasteCardPicksLayout {
   return layout === 'triangle' ? 'triangle' : 'list';
 }
 
-/** Which blocks of the shareable taste card are rendered. */
 export interface TasteCardPreferences {
   readonly showGenres: boolean;
   readonly showPicks: boolean;
-  /**
-   * Multiplier on the anime cover thumbnails. Bounded by
-   * `TASTE_CARD_COVER_SCALE_RANGE`, whose maximum is proven by a layout test to
-   * still fit every export format.
-   */
+  /** Bounded by TASTE_CARD_COVER_SCALE_RANGE, whose max a layout test proves still fits every format. */
   readonly coverScale: number;
   readonly picksLayout: PersistedTasteCardPicksLayout;
 }
@@ -72,7 +58,6 @@ export type SyncFrequency = 'manual' | 'daily' | 'weekly';
 
 export interface SettingsSnapshot {
   readonly preferences: UserPreferences;
-  /** Snapshot of the ACTIVE provider's auth state. */
   readonly auth: AuthSnapshot;
   readonly providers: readonly ProviderStatusView[];
   readonly malClientId: string;
@@ -103,15 +88,7 @@ export type SettingsResponse =
   | { readonly ok: true; readonly snapshot: SettingsSnapshot }
   | { readonly ok: false; readonly message: string };
 
-/**
- * Bounds for the cover-size preference.
- *
- * The minimum is the current design size, so the slider only ever grows the
- * artwork. The maximum is the absolute ceiling: how much of it is reachable
- * depends on what else the card is showing, so the effective limit is computed
- * per configuration by `maxFittingCoverScale` rather than assumed here. Three
- * 5x covers alone would be taller than the whole card.
- */
+// The max is an absolute ceiling (three 5x covers alone are taller than the card); how much of it is reachable depends on what else is shown, so the effective limit comes from `maxFittingCoverScale`.
 export const TASTE_CARD_COVER_SCALE_RANGE: { readonly min: number; readonly max: number } = {
   min: 1,
   max: 5,
@@ -128,8 +105,7 @@ export const DEFAULT_TASTE_CARD_PREFERENCES: TasteCardPreferences = {
 export function clampTasteCardCoverScale(value: unknown): number {
   const { min, max } = TASTE_CARD_COVER_SCALE_RANGE;
   if (typeof value !== 'number' || !Number.isFinite(value)) return DEFAULT_TASTE_CARD_COVER_SCALE;
-  // Rounded to 2dp so dragging the slider cannot accumulate float noise in
-  // storage, and so equal-looking positions compare equal.
+  // Rounded so dragging the slider can't accumulate float noise in storage.
   return Math.min(max, Math.max(min, Math.round(value * 100) / 100));
 }
 

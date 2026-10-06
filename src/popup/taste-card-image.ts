@@ -9,16 +9,10 @@ import {
 import { paintTasteCard } from './taste-card-painter';
 
 const DEFAULT_TIMEOUT_MS = 12000;
-/** Guard against pulling an unexpectedly large asset into a data URL. */
+// Guards against inlining an unexpectedly huge asset.
 const MAX_ASSET_BYTES = 4 * 1024 * 1024;
 
-/**
- * Raster multiplier for the export. The card is drawn with vector primitives
- * at 1080px wide, so 1x is already pixel-exact; 2x supersamples it, which keeps
- * the small type and the rounded bar edges crisp when the PNG is zoomed or
- * opened full-size on a high-DPI display. The cost is roughly 4x the encode
- * work and a 2x-linear-bigger file.
- */
+// 2x supersampling keeps the small type and rounded bar edges crisp when the PNG is zoomed or opened full-size; the cost is ~4x the encode work.
 export const TASTE_CARD_EXPORT_SCALE = 2;
 
 export class TasteCardRenderError extends Error {
@@ -31,16 +25,7 @@ export class TasteCardRenderError extends Error {
   }
 }
 
-/**
- * Downloads a remote image and returns it as a data URL.
- *
- * Provider avatars (cdn.myanimelist.net, s4.anilist.co) are served without
- * CORS headers, so drawing them straight into a canvas would be unreliable.
- * Fetching the bytes first — permitted by the matching `host_permissions` — and
- * decoding the resulting data URL keeps the canvas same-origin. Returns `null`
- * on any failure so the card degrades to the user's monogram instead of failing
- * the whole export.
- */
+// The provider CDNs serve avatars without CORS headers, so the bytes are fetched (allowed by host_permissions) and inlined as a data URL to keep the canvas same-origin. Any failure returns null so the card degrades to a monogram instead of failing the export.
 export async function fetchAssetAsDataUrl(
   url: string | null,
   timeoutMs: number = DEFAULT_TIMEOUT_MS,
@@ -64,7 +49,6 @@ export async function fetchAssetAsDataUrl(
   }
 }
 
-/** Inlines the extension icon so the card carries the AnimeLens brand mark. */
 export function fetchBrandAssetAsDataUrl(): Promise<string | null> {
   return fetchAssetAsDataUrl(chrome.runtime.getURL('icons/icon128.png'));
 }
@@ -73,25 +57,17 @@ export interface RenderTasteCardOptions {
   readonly model: TasteCardModel;
   readonly format: TasteCardFormat;
   readonly copy: AppCopy;
-  /** Decoded avatar, or `null` for the monogram fallback. */
+  /** `null` falls back to the monogram. */
   readonly avatarDataUrl?: string | null;
-  /** Decoded brand mark, or `null` for the fallback tile. */
   readonly brandDataUrl?: string | null;
-  /** Cover art per top pick, positionally aligned with `model.topPicks`. */
+  /** Positionally aligned with `model.topPicks`. */
   readonly pickDataUrls?: readonly (string | null)[];
-  /** Section visibility and cover sizing. */
   readonly options?: TasteCardRenderOptions;
-  /** Raster multiplier; defaults to {@link TASTE_CARD_EXPORT_SCALE}. */
   readonly scale?: number;
   readonly timeoutMs?: number;
 }
 
-/**
- * Renders the card to a PNG blob with the native 2D canvas API.
- *
- * The same function produces the preview shown in the modal and the file handed
- * to the user, so the two can never disagree.
- */
+// Produces both the modal preview and the downloaded file, so the two can never disagree.
 export async function renderTasteCardPng(options: RenderTasteCardOptions): Promise<Blob> {
   const {
     model,
@@ -106,9 +82,7 @@ export async function renderTasteCardPng(options: RenderTasteCardOptions): Promi
   } = options;
   const spec = TASTE_CARD_FORMATS[format];
 
-  // Decode first, then paint: a broken avatar or cover must not abort the export.
-  // Covers are skipped entirely when the section is hidden — no point paying for
-  // three CDN downloads the card will not draw.
+  // Decode before painting so a broken asset can't abort the export, and skip hidden covers entirely rather than paying for CDN downloads nothing will draw.
   const drawsPicks = renderOptions.showPicks && model.topPicks.length > 0;
   const decoded = await Promise.all([
     decodeImage(avatarDataUrl, timeoutMs),
@@ -137,13 +111,12 @@ export async function renderTasteCardPng(options: RenderTasteCardOptions): Promi
     });
     return await canvasToPngBlob(canvas);
   } finally {
-    // Release the backing store; extension popups are memory constrained.
+    // Extension popups are memory constrained, so drop the backing store.
     canvas.width = 0;
     canvas.height = 0;
   }
 }
 
-/** Saves the PNG through a transient object URL and revokes it afterwards. */
 export function downloadPngBlob(blob: Blob, filename: string): void {
   const url = URL.createObjectURL(blob);
   const anchor = document.createElement('a');
@@ -170,8 +143,7 @@ export async function copyPngBlobToClipboard(blob: Blob): Promise<ClipboardOutco
     await navigator.clipboard.write([new ClipboardItem({ 'image/png': blob })]);
     return 'copied';
   } catch {
-    // A rejected write means either a missing user gesture or a policy denial.
-    // Both are recoverable: the caller falls back to the download flow.
+    // Missing user gesture or a policy denial — both recoverable, the caller falls back to downloading.
     return 'denied';
   }
 }

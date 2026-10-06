@@ -12,19 +12,7 @@ import {
   type TasteCardPicksLayout,
 } from '../settings/settings-types';
 
-/**
- * Canvas 2D renderer for the shareable taste card.
- *
- * This is the single source of truth for the card: the modal previews the very
- * PNG that gets downloaded or copied, so the design can never drift between
- * "what you see" and "what you share".
- *
- * Rendering with canvas primitives (instead of snapshotting the DOM into an
- * SVG `<foreignObject>`) removes every failure mode the snapshot approach was
- * exposed to — XML well-formedness of serialized markup, blob-URL SVG
- * rasterization, and canvas origin-cleanliness. The only external input is the
- * avatar, handed over already decoded and same-origin.
- */
+// Painted with canvas primitives rather than a DOM-to-SVG snapshot, which sidesteps XML well-formedness, blob-URL rasterization and canvas origin-cleanliness. The modal previews the very PNG that gets shared, so "what you see" can't drift from "what you share".
 
 const FONT_STACK = 'system-ui, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif';
 
@@ -63,10 +51,8 @@ interface CardMetrics {
   readonly pickTitle: number;
   readonly pickScore: number;
   readonly pickRank: number;
-  /** Cover thumbnail edge length; the row is sized around it. */
   readonly pickCover: number;
   readonly footer: number;
-  /** Vertical rhythm between the stacked blocks. */
   readonly blockGap: number;
   readonly gapIdentity: number;
   readonly gapText: number;
@@ -113,7 +99,7 @@ const BASE_METRICS: CardMetrics = {
   gapPickLabel: 20,
 };
 
-/** Tall (3:4) has 90px more room than portrait, spent on larger type and covers. */
+// Tall has 90px more room than portrait, spent on larger type and covers.
 const TALL_OVERRIDES: Partial<CardMetrics> = {
   padTop: 68,
   padBottom: 56,
@@ -127,7 +113,7 @@ const TALL_OVERRIDES: Partial<CardMetrics> = {
   gapPicks: 14,
 };
 
-/** Square (1:1) is the same composition with a tighter vertical rhythm. */
+// Square is the same composition with a tighter vertical rhythm.
 const SQUARE_OVERRIDES: Partial<CardMetrics> = {
   padX: 64,
   padTop: 46,
@@ -170,23 +156,18 @@ const METRICS: Readonly<Record<TasteCardFormat, CardMetrics>> = {
 };
 
 const GRID_CELL = 60;
-/**
- * Smallest gap the card should ever fall to. The cover-size search stops
- * here rather than at "barely fits", so the slider's maximum still produces a
- * card that reads as composed instead of one where the blocks touch.
- */
+// The cover-size search stops here rather than at "barely fits", so the slider's maximum still looks composed rather than cramped.
 export const MIN_COMFORTABLE_GAP = 6;
-/** Breathing room above and below a pick cover, independent of its size. */
 const COVER_ROW_PADDING = 10;
-/** Visible on a shared image, still far below the content. */
+// Visible on a shared image, still far below the content.
 const GRID_COLOR = 'rgba(255, 255, 255, 0.055)';
 
 export interface TasteCardImages {
-  /** Decoded avatar, or `null` to render the user's monogram instead. */
+  /** `null` renders the user's monogram. */
   readonly avatar: CanvasImageSource | null;
-  /** Decoded brand mark, or `null` to render a fallback glyph tile. */
+  /** `null` renders a fallback glyph tile. */
   readonly brand: CanvasImageSource | null;
-  /** Decoded cover art per top pick, positionally aligned with `model.topPicks`. */
+  /** Positionally aligned with `model.topPicks`. */
   readonly picks: readonly (CanvasImageSource | null)[];
 }
 
@@ -195,9 +176,7 @@ export interface PaintTasteCardInput {
   readonly format: TasteCardFormat;
   readonly images: TasteCardImages;
   readonly copy: AppCopy;
-  /** Section visibility and cover sizing; defaults to everything shown at 1x. */
   readonly options?: TasteCardRenderOptions;
-  /** Raster multiplier on top of the format's nominal size. */
   readonly scale?: number;
 }
 
@@ -207,17 +186,13 @@ interface CardBlock {
 }
 
 export interface TasteCardLayout {
-  /** Sum of the block heights. */
   readonly content: number;
-  /** Height available between the paddings. */
   readonly available: number;
   /** Space shared between consecutive blocks; 0 when the content overflows. */
   readonly gap: number;
-  /** Blocks actually drawn, in order. */
   readonly blocks: readonly string[];
 }
 
-/** Layout inputs that measurement and painting must agree on. */
 interface ResolvedLayout {
   readonly metrics: CardMetrics;
   readonly picks: boolean;
@@ -225,7 +200,6 @@ interface ResolvedLayout {
   readonly picksGeometry: PicksGeometry;
 }
 
-/** Resolved geometry for whichever Top Rated arrangement is active. */
 export interface PicksGeometry {
   readonly layout: TasteCardPicksLayout;
   /** List: cover edge and row pitch. Triangle: podium heights. Grid: cell edge. */
@@ -233,18 +207,16 @@ export interface PicksGeometry {
   readonly row: number;
   readonly top: number;
   readonly side: number;
-  /** Total height of the arrangement, excluding the section label. */
+  /** Excludes the section label. */
   readonly body: number;
 }
 
-/** The 3x3 layout is a full-card composition, not a block in the stack. */
+// The 3x3 layout is a full-card composition, not a block in the stack.
 export const GRID_COLUMNS = 3;
 export const GRID_ROWS = 3;
 const GRID_SLOT_COUNT = GRID_COLUMNS * GRID_ROWS;
-/** Gutters between grid cells, and the margin around the whole grid. */
 const GRID_GUTTER = 10;
 const GRID_MARGIN = 12;
-/** Bottom strip kept clear for the discreet brand mark. */
 const GRID_BRAND_STRIP = 64;
 
 interface GridLayout {
@@ -253,21 +225,11 @@ interface GridLayout {
   readonly originY: number;
 }
 
-/**
- * Solves the grid so it is centred on both axes.
- *
- * Cells stay square, so on a tall card the width is the binding constraint and
- * vertical slack is unavoidable — it is split evenly above and below instead of
- * being dumped at the bottom, and the brand strip is reserved so the mark can
- * never land on top of the last row.
- */
+// Cells stay square, so on a tall card the vertical slack is unavoidable — it's split evenly above and below rather than dumped at the bottom, with the brand strip reserved so the mark can't land on the last row.
 function resolveGridLayout(metrics: CardMetrics, format: TasteCardFormat): GridLayout {
   const { width, height } = TASTE_CARD_FORMATS[format];
   const usableWidth = width - GRID_MARGIN * 2;
-  // The brand strip caps how tall the grid may grow, so it can never reach the
-  // mark. It is deliberately excluded from the centring: reserving it there
-  // would bias the grid upwards by half the strip, which is exactly the
-  // lopsided look this layout is meant to avoid.
+  // The brand strip caps the grid height, but is excluded from the centring: counting it there would bias the grid upward by half the strip, which is the lopsided look this layout avoids.
   const cappedHeight = availableHeight(format, metrics) - GRID_BRAND_STRIP;
   const cell = Math.floor(
     Math.min(
@@ -284,11 +246,7 @@ function resolveGridLayout(metrics: CardMetrics, format: TasteCardFormat): GridL
   };
 }
 
-/**
- * Podium proportions, relative to the list cover size. Chosen so the podium
- * costs roughly the same vertical space as the list at every slider position —
- * it buys much larger artwork by giving up the per-row title text.
- */
+// Ratios are relative to the list cover size, chosen so the podium costs about the same vertical space at every slider position — it buys much bigger artwork by dropping the per-row title.
 const TRIANGLE_TOP_RATIO = 2.0;
 const TRIANGLE_SIDE_RATIO = 1.5;
 const TRIANGLE_GUTTER = 20;
@@ -298,9 +256,7 @@ function resolveLayout(
   format: TasteCardFormat,
   options: TasteCardRenderOptions,
 ): ResolvedLayout {
-  // The preference may ask for more than the card can give; clamp to what
-  // actually fits so a large slider value degrades the spacing rather than
-  // pushing the footer off the canvas.
+  // Clamped to what fits, so a large slider value degrades the spacing instead of pushing the footer off the canvas.
   const effectiveMax = maxFittingCoverScale(model, format, options);
   return buildGeometry(model, format, options, clampCoverScale(options.coverScale, effectiveMax));
 }
@@ -314,9 +270,7 @@ function buildGeometry(
   const metrics = METRICS[format];
   const base = metrics.pickCover * scale;
 
-  // The triangle drops the per-row text, so it needs less vertical room than
-  // the list while showing noticeably larger artwork. Both are measured, never
-  // assumed, so the fit test stays authoritative.
+  // Measured, never assumed, so the fit test stays authoritative.
   const top = Math.round(base * TRIANGLE_TOP_RATIO);
   const side = Math.round(base * TRIANGLE_SIDE_RATIO);
   const listCover = Math.round(base);
@@ -347,7 +301,6 @@ function buildGeometry(
   };
 }
 
-/** Largest square cell that fits three across and three down. */
 function gridCellSize(metrics: CardMetrics, format: TasteCardFormat): number {
   return resolveGridLayout(metrics, format).cell;
 }
@@ -359,15 +312,7 @@ function clampCoverScale(value: number, ceiling: number): number {
   return Math.min(upper, Math.max(min, value));
 }
 
-/**
- * Largest cover scale that still fits this exact configuration — the same
- * format, the same Top Rated arrangement, and the same sections visible.
- *
- * Height is the only binding constraint (the widest podium is still narrower
- * than the content column), and content height grows monotonically with the
- * scale, so a binary search is exact. The UI uses this as the slider's maximum,
- * so hiding a section visibly extends the range instead of silently clipping.
- */
+// Height is the only binding constraint and content height grows monotonically with the scale, so the binary search is exact. Doubles as the UI's slider maximum, which is why hiding a section visibly widens the range instead of silently clipping.
 export function maxFittingCoverScale(
   model: TasteCardModel,
   format: TasteCardFormat,
@@ -400,18 +345,13 @@ export function maxFittingCoverScale(
   return Math.floor(low * 100) / 100;
 }
 
-/**
- * Resolves the vertical layout. Exported so the fit can be asserted in tests
- * without a canvas: a card that overflows silently clips its footer, which is
- * exactly the kind of regression that is invisible until someone shares it.
- */
+// Exported so the fit can be asserted in tests without a canvas: an overflow silently clips the footer, which is invisible until someone shares the card.
 export function measureTasteCardLayout(
   model: TasteCardModel,
   format: TasteCardFormat,
   options: TasteCardRenderOptions = DEFAULT_TASTE_CARD_RENDER_OPTIONS,
 ): TasteCardLayout {
   const { metrics, picks, genres, picksGeometry } = resolveLayout(model, format, options);
-  // Grid mode is a full-card composition: the grid, nothing else.
   if (picksGeometry.layout === 'grid') {
     const available = TASTE_CARD_FORMATS[format].height;
     return {
@@ -447,11 +387,7 @@ function availableHeight(format: TasteCardFormat, metrics: CardMetrics): number 
   return TASTE_CARD_FORMATS[format].height - metrics.padTop - metrics.padBottom;
 }
 
-/**
- * Paints the card at the format's nominal pixel size (1080x1350 or
- * 1080x1080), filling the context. Blocks are stacked with the leftover
- * vertical space shared evenly, mirroring a `space-between` flex layout.
- */
+// Painted at the format's nominal size and scaled by the context, with leftover vertical space shared evenly between blocks, like a `space-between` flex layout.
 export function paintTasteCard(
   context: CanvasRenderingContext2D,
   input: PaintTasteCardInput,
@@ -469,8 +405,7 @@ export function paintTasteCard(
   context.clearRect(0, 0, width, height);
   context.textBaseline = 'middle';
   context.textAlign = 'left';
-  // Raster assets (avatar, covers) are magnified at scale > 1, so ask the
-  // rasterizer for the best resampling it can do.
+  // Raster assets are magnified at scale > 1, so ask for the best resampling available.
   context.imageSmoothingEnabled = true;
   context.imageSmoothingQuality = 'high';
 
@@ -512,14 +447,12 @@ export function paintTasteCard(
     (height - metrics.padTop - metrics.padBottom - content) / (blocks.length - 1),
   );
 
-  // The centre lift tracks the avatar, so the brightest point of the card sits
-  // behind it rather than at a fixed fraction of the height.
+  // Tracks the avatar so the card's brightest point sits behind it.
   const avatarCenterY = metrics.padTop + blocks[0].height + gap + metrics.avatar / 2;
   paintBackground(context, width, height, avatarCenterY);
 
   if (picksGeometry.layout === 'grid') {
-    // A wall of covers: no identity, stats, genres, section label or footer.
-    // Only a discreet brand mark, so the artwork is the whole card.
+    // A wall of covers with only the brand mark: the artwork is the whole card.
     paintPickGrid(context, model, images, format);
     paintGridBrand(context, metrics, width, height);
     context.restore();
@@ -534,11 +467,7 @@ export function paintTasteCard(
   context.restore();
 }
 
-/**
- * Background stack, painted bottom-up: base gradient, corner glows, a faint
- * grid, a centre lift behind the avatar, then an edge vignette that falls to
- * near-black so the card reads as a lit surface rather than a flat fill.
- */
+// Bottom-up: gradient, glows, faint grid, then a vignette falling to near-black so the card reads as a lit surface.
 function paintBackground(
   context: CanvasRenderingContext2D,
   width: number,
@@ -565,7 +494,6 @@ function paintBackground(
     [0.66, 'rgba(0, 0, 0, 0)'],
   ]);
 
-  // Faint grid, matching the weave used by the app banner.
   context.save();
   context.strokeStyle = GRID_COLOR;
   context.lineWidth = 1;
@@ -581,7 +509,6 @@ function paintBackground(
   context.stroke();
   context.restore();
 
-  // Concentric orbit rings in the top-right corner.
   context.save();
   context.lineWidth = 2;
   context.strokeStyle = 'rgba(184, 165, 255, 0.18)';
@@ -594,7 +521,7 @@ function paintBackground(
   context.stroke();
   context.restore();
 
-  // Centre lift behind the avatar, then the vignette over the whole surface.
+  // Centre lift follows the avatar so the brightest point sits behind it.
   paintGlow(context, width * 0.5, avatarCenterY, width * 0.66, height * 0.34, [
     [0, 'rgba(184, 165, 255, 0.20)'],
     [0.55, 'rgba(152, 124, 244, 0.07)'],
@@ -666,8 +593,7 @@ function paintBrand(
   context.fillText('AnimeLens', left + size + 16, centerY);
   setLetterSpacing(context, '0px');
 
-  // Data-source chip. A viewer outside the extension has no way to know whether
-  // these stats came from MAL or AniList, so the source is stated up front.
+  // Stated up front, since someone outside the extension has no other way to know which provider these stats came from.
   const provider = model.providerName;
   if (provider !== null && provider.length > 0) {
     const text = ellipsize(context, provider, width * 0.4);
@@ -704,7 +630,7 @@ function paintIdentity(
   const centerY = top + size / 2;
   const radius = size / 2;
 
-  // Accent bloom first, so it sits behind the portrait rather than over it.
+  // Bloom goes down first so it sits behind the portrait.
   context.save();
   context.shadowColor = 'rgba(152, 124, 244, 0.55)';
   context.shadowBlur = metrics.avatar * 0.28;
@@ -751,7 +677,7 @@ function paintIdentity(
     context.textAlign = 'left';
   }
 
-  // Dark inner stroke plus the accent halo, on top of the portrait edge.
+  // Stroked over the portrait edge, not under it.
   context.save();
   context.lineWidth = 8;
   context.strokeStyle = 'rgba(184, 165, 255, 0.55)';
@@ -786,7 +712,6 @@ function paintIdentity(
   context.textAlign = 'left';
 }
 
-/** The user's highest-rated entries, ranked, above the footer. */
 function paintTopPicks(
   context: CanvasRenderingContext2D,
   model: TasteCardModel,
@@ -807,12 +732,7 @@ function paintTopPicks(
   paintPickList(context, model, metrics, images, width, bodyTop, geometry);
 }
 
-/**
- * The 3x3 cover wall. Cells fill the card edge to edge; a cell with no artwork
- * (the user has not filled all nine yet) stays a dim placeholder rather than
- * being filled with something else, so a partial grid reads as incomplete
- * instead of misleading.
- */
+// A cell with no artwork stays a dim placeholder rather than being filled with something else, so a partial grid reads as incomplete instead of misleading.
 function paintPickGrid(
   context: CanvasRenderingContext2D,
   model: TasteCardModel,
@@ -856,7 +776,6 @@ function paintPickGrid(
   }
 }
 
-/** Discreet attribution: a small dot and the wordmark, bottom-left. */
 function paintGridBrand(
   context: CanvasRenderingContext2D,
   metrics: CardMetrics,
@@ -886,7 +805,6 @@ function paintGridBrand(
   context.restore();
 }
 
-/** Ranked rows: cover, rank badge, title, score. */
 function paintPickList(
   context: CanvasRenderingContext2D,
   model: TasteCardModel,
@@ -934,13 +852,7 @@ function paintPickList(
   });
 }
 
-/**
- * Podium: the #1 cover centred and largest, #2 and #3 flanking it below.
- *
- * Cover art carries the identification, so this trades the titles for markedly
- * bigger thumbnails — which is the point of offering it alongside the list.
- * Rank and score are overlaid on each cover so no vertical space is spent.
- */
+// Trades the titles for markedly bigger thumbnails, with rank and score overlaid on each cover so no vertical space is spent.
 function paintPickTriangle(
   context: CanvasRenderingContext2D,
   model: TasteCardModel,
@@ -954,7 +866,6 @@ function paintPickTriangle(
   const centerX = metrics.padX + contentWidth / 2;
   const { top: topSize, side: sideSize } = geometry;
 
-  // First pick sits on the plinth; the rest share the base row.
   const baseWidth = sideSize * 2 + TRIANGLE_GUTTER;
   const baseLeft = metrics.padX + (contentWidth - baseWidth) / 2;
   const slots: readonly { x: number; y: number; size: number }[] = [
@@ -973,7 +884,7 @@ function paintPickTriangle(
     const isWinner = index === 0;
     drawCover(context, images.picks[index] ?? null, metrics, slot.x, slot.y, slot.size, pick.title);
     if (isWinner) {
-      // Accent halo so the winner reads as the pick, not just the biggest tile.
+      // The halo is what makes the winner read as the pick rather than just the biggest tile.
       context.save();
       context.lineWidth = Math.max(2, Math.round(slot.size * 0.035));
       context.strokeStyle = COLORS.accent;
@@ -1002,7 +913,6 @@ function paintPickTriangle(
   });
 }
 
-/** Small pill overlaid on a cover corner: rank top-left, score bottom-right. */
 function drawPickBadge(
   context: CanvasRenderingContext2D,
   x: number,
@@ -1036,11 +946,7 @@ function drawPickBadge(
   void metrics;
 }
 
-/**
- * Cover thumbnail, cropped square to match `object-fit: cover`. Falls back to a
- * muted tile when the provider had no art or the download failed, so a row
- * never renders as a hole.
- */
+// Falls back to a muted tile when the provider had no art or the download failed, so a row never renders as a hole.
 function drawCover(
   context: CanvasRenderingContext2D,
   image: CanvasImageSource | null,
@@ -1048,11 +954,7 @@ function drawCover(
   left: number,
   top: number,
   size: number,
-  /**
-   * Shown inside the tile when there is no artwork. The list already prints
-   * the title beside the cover; the podium has nowhere else to put it, so
-   * without this a failed download would leave three anonymous squares.
-   */
+  /** Printed inside the tile when there's no artwork — the podium has nowhere else to show the title. */
   fallbackTitle?: string,
 ): void {
   const radius = Math.max(6, Math.round(size * 0.18));
@@ -1081,7 +983,6 @@ function drawCover(
   context.lineWidth = 1;
   context.stroke();
   if (fallbackTitle === undefined) return;
-  // Wrap onto up to three short lines so a long title stays readable.
   const fontSize = Math.max(10, Math.round(size * 0.11));
   setFont(context, 600, fontSize);
   context.fillStyle = COLORS.muted;
@@ -1216,11 +1117,7 @@ function paintGenres(
   }
 }
 
-/**
- * Eyebrow label with an optional muted qualifier and a fading rule, shared by
- * the genre and picks sections. The qualifier is what tells a viewer what the
- * percentages actually measure.
- */
+// The muted qualifier is what tells a viewer what the percentages actually measure.
 function drawSectionLabel(
   context: CanvasRenderingContext2D,
   label: string,
@@ -1275,9 +1172,7 @@ function paintFooter(
   const brand = copy.tasteCardFooter;
   context.fillText(brand, metrics.padX + dot + 12, centerY);
 
-  // The detected-preference tagline takes the free space on the right. With no
-  // tagline to show, the right side simply stays empty rather than falling back
-  // to filler text.
+  // No tagline simply leaves the right side empty rather than falling back to filler text.
   const brandEnd = metrics.padX + dot + 12 + context.measureText(brand).width;
   const available = width - metrics.padX - brandEnd - 24;
   if (model.headline !== null && available > 24) {
@@ -1391,7 +1286,6 @@ function ellipsize(context: CanvasRenderingContext2D, text: string, maxWidth: nu
   return `${text.slice(0, low)}…`;
 }
 
-/** Greedy word wrap, used for the podium's no-artwork fallback. */
 function wrapText(
   context: CanvasRenderingContext2D,
   text: string,
@@ -1425,7 +1319,6 @@ function wrapText(
   return lines;
 }
 
-/** Shrinks the type until the label fits, so a long name never overflows. */
 function fitFontSize(
   context: CanvasRenderingContext2D,
   text: string,

@@ -115,9 +115,7 @@ describe('dashboard recommendation snapshot', () => {
   });
 
   it('enriches plan-to-watch candidates with provider suggestions', async () => {
-    // A realistic small list: a handful of completed entries and only one
-    // plan-to-watch candidate. Provider suggestions widen the pool so the
-    // sections have something to show.
+    // A realistic small list: one plan-to-watch candidate, so suggestions are what give the sections anything to show.
     const fetchSuggestions = async () => [
       anime(50, ['Fantasy', 'Adventure']),
       anime(51, ['Drama', 'Mystery']),
@@ -145,7 +143,6 @@ describe('dashboard recommendation snapshot', () => {
     );
     expect(ids).toContain(50);
     expect(ids).toContain(51);
-    // Watched entries never leak into the recommendation sections.
     expect(ids).not.toContain(1);
     expect(ids).not.toContain(2);
     expect(ids).not.toContain(3);
@@ -234,8 +231,7 @@ describe('dashboard recommendation snapshot', () => {
       (section) => section.id === 'highly-compatible',
     );
     expect(highlyCompatible?.recommendations).toHaveLength(0);
-    // Everything still lands somewhere and no title appears in more than one
-    // section, even when the source candidates are all highly compatible.
+    // Everything lands somewhere, and no title shows up twice, even when every source candidate is highly compatible.
     const sectionItems = snapshot.sections.flatMap((section) => section.recommendations);
     expect(sectionItems.length).toBeGreaterThan(0);
     expect(new Set(sectionItems.map((item) => item.anime.id)).size).toBe(sectionItems.length);

@@ -16,9 +16,7 @@ function toGlob(pattern) {
   return `**/${pattern}`;
 }
 
-// Ignore exactly what Git already ignores. Anything listed in `.gitignore` or in
-// the local-only `.git/info/exclude` is unpublished or generated, so it must
-// never surface as a lint failure.
+// Anything Git already ignores is unpublished or generated, so it must never surface as a lint failure.
 function readIgnoreFile(file) {
   let contents;
   try {

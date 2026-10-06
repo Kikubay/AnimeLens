@@ -1,13 +1,11 @@
 import type { UserProfile } from '../domain/user-profile';
 
-/** Identifier of a supported account/data provider. */
 export type ProviderId = 'mal' | 'anilist';
 
-/** How the provider's OAuth access token is obtained and maintained. */
 export type OAuthTokenStrategy =
-  /** Authorization-code exchange with PKCE and refresh-token rotation (MAL). */
+  /** Authorization code + PKCE, refresh token rotates (MAL). */
   | 'code_exchange'
-  /** Implicit grant: token in the redirect fragment, no refresh (AniList). */
+  /** Token in the redirect fragment, nothing to refresh (AniList). */
   | 'implicit';
 
 export type AuthStatus =
@@ -25,7 +23,8 @@ export type AuthErrorCode =
   | 'session_expired'
   | 'invalid_redirect_uri'
   | 'mal_configuration'
-  | 'provider_configuration' /** AniList pin flow: the authorize tab opened; await the pasted token. */
+  | 'provider_configuration'
+  /** AniList: the authorize tab is open and we're waiting on the pasted token. */
   | 'pin_flow_started'
   | 'unknown';
 
@@ -82,12 +81,12 @@ export interface OAuthClient {
   }): Promise<OAuthTokenResponse>;
 }
 
-/** Deprecated provider-scoped alias; use `OAuthClient`. */
+/** Kept for the old MAL-specific name; prefer `OAuthClient`. */
 export type MalOAuthClient = OAuthClient;
 
 export interface OAuthTokenResponse {
   readonly accessToken: string;
-  /** Empty for implicit-grant providers that issue no refresh token. */
+  /** Blank for implicit-grant providers, which issue none. */
   readonly refreshToken: string;
   readonly expiresIn: number;
 }
@@ -95,11 +94,7 @@ export interface OAuthTokenResponse {
 export type CurrentUserFetcher = (accessToken: string) => Promise<UserProfile>;
 export type AuthDataSynchronizer = (accessToken: string) => Promise<void>;
 
-/**
- * Provider-facing diagnostic for a failed OAuth phase. The service worker
- * exposes the most recent diagnostic via the 'auth.get_token_exchange_diagnostic'
- * message so the popup can show detailed provider errors.
- */
+// Surfaced to the popup via 'auth.get_token_exchange_diagnostic' so it can explain what the provider actually complained about.
 export type TokenExchangeErrorCode =
   | 'network_error'
   | 'token_expired'
@@ -115,10 +110,7 @@ export interface TokenExchangeDiagnostic {
   readonly phase: 'token_exchange' | 'profile_fetch';
 }
 
-/**
- * Canonicalize legacy diagnostic codes: MAL rejects redirect URIs that are not
- * registered on the client, which older builds reported as 'invalid_redirect_uri'.
- */
+// Older builds reported an unregistered redirect URI as 'invalid_redirect_uri'; MAL calls that a configuration problem.
 export function normalizeTokenExchangeDiagnostic(
   diagnostic: TokenExchangeDiagnostic,
 ): TokenExchangeDiagnostic {
@@ -140,11 +132,7 @@ export function isTokenExchangeDiagnostic(value: unknown): value is TokenExchang
   );
 }
 
-/**
- * Runtime validation for a persisted AuthSession. chrome.storage can hold
- * stale or corrupted data (e.g. after a schema change or a partial write),
- * and downstream code assumes the shape is correct.
- */
+// chrome.storage can hand back stale or half-written data after a schema change, and everything downstream trusts this shape.
 export function isAuthSession(value: unknown): value is AuthSession {
   if (typeof value !== 'object' || value === null) return false;
   const candidate = value as Record<string, unknown>;
@@ -159,15 +147,10 @@ export function isAuthSession(value: unknown): value is AuthSession {
   );
 }
 
-/**
- * Returns true when a thrown value represents a transient network failure
- * that must NOT destroy the persisted session.
- */
 export function isTransientNetworkError(error: unknown): boolean {
   if (error instanceof DOMException && error.name === 'NetworkError') return true;
   if (error instanceof TypeError) {
-    // fetch() rejects with TypeError("Failed to fetch") / "NetworkError" in
-    // extension contexts when the network is down; these are NOT auth failures.
+    // Being offline shows up as TypeError("Failed to fetch"), which says nothing about the token.
     return /fetch|network|failed/i.test(error.message);
   }
   return false;

@@ -9,14 +9,7 @@ export type StreamingLinksResponse =
   | { readonly ok: true; readonly links: readonly StreamingLink[] }
   | { readonly ok: false; readonly message: string };
 
-/**
- * Asked on open only when the record we already hold carries no links — the
- * list, suggestions and ranking endpoints aren't required to include them, so
- * relying on the record alone left the card silently empty.
- *
- * Never rejects: no connection, an expired token or a provider with nothing to
- * say all resolve to no links, which renders as no card.
- */
+// Only asked when the record we hold has no links, since list/suggestion/ranking endpoints needn't include them. Never rejects: offline, expired token or nothing to say all render as no card.
 export async function requestStreamingLinks(
   animeId: number,
 ): Promise<readonly StreamingLink[]> {

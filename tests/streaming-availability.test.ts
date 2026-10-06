@@ -118,7 +118,7 @@ describe('normalizeStreamingSites', () => {
 
 describe('AniList integration', () => {
   it('requests externalLinks, the spelling the API accepts', () => {
-    // Wrong spelling 400s every query this fragment is embedded in.
+    // The wrong spelling 400s every query this fragment is embedded in.
     expect(ANIME_MEDIA_FRAGMENT).toContain('externalLinks { site url type }');
     expect(ANIME_MEDIA_FRAGMENT).not.toContain('externalSites');
   });
@@ -161,8 +161,7 @@ describe('AniList integration', () => {
 });
 
 describe('MAL streaming platforms', () => {
-  // Trimmed from myanimelist.net/anime/52991. The Resources section and the
-  // trailing heading are both there to prove neither leaks into the card.
+  // Trimmed from myanimelist.net/anime/52991; the Resources section and the trailing heading prove neither leaks into the card.
   const MAL_PAGE = `<!DOCTYPE html><html><body>
 <div class="js-scrollfix-bottom-rel">
   <h2>Resources</h2>

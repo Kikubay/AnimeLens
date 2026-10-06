@@ -9,7 +9,6 @@ export type { TasteCardPicksLayout };
 import type { UserProfileSummary } from './profile-types';
 import type { TopPickCandidate } from './top-picks';
 
-/** Output formats offered by the shareable taste card. */
 export type TasteCardFormat = 'tall' | 'portrait' | 'square';
 
 export interface TasteCardFormatSpec {
@@ -25,10 +24,8 @@ export const TASTE_CARD_FORMATS: Readonly<Record<TasteCardFormat, TasteCardForma
 
 export const TASTE_CARD_FORMAT_ORDER: readonly TasteCardFormat[] = ['tall', 'portrait', 'square'];
 
-/** Number of genre bars shown on the card. */
 export const TASTE_CARD_GENRE_LIMIT = 3;
 
-/** Number of highest-rated entries shown on the card. */
 export const TASTE_CARD_PICK_LIMIT = 3;
 
 export interface TasteCardGenre {
@@ -36,13 +33,11 @@ export interface TasteCardGenre {
   readonly score: number;
 }
 
-/** A highlighted list entry: title, score, and cover art only. */
 export interface TasteCardPick {
   readonly title: string;
   readonly score: number;
-  /** Remote cover URL, inlined to a data URL before painting. */
+  /** Remote URL, inlined to a data URL before painting. */
   readonly imageUrl: string | null;
-  /** Full-size cover, used when the user enlarges the thumbnails. */
   readonly largeImageUrl: string | null;
 }
 
@@ -52,28 +47,20 @@ export interface TasteCardStats {
   readonly averageScore: number | null;
 }
 
-/**
- * Everything the card is allowed to render. Deliberately aggregate-only: no
- * watch dates, no private notes, no list entries — just signals the user
- * already sees in the profile view, plus their public display name and avatar.
- */
+// Deliberately aggregate-only: no watch dates, no notes, no list entries — just signals already visible in the profile view, plus the public display name and avatar.
 export interface TasteCardModel {
-  /** Provider username, or `''` when the profile has none. */
+  /** `''` when the profile has no username. */
   readonly displayName: string;
-  /** Single fallback glyph used while the avatar is loading or unavailable. */
+  /** Fallback glyph while the avatar loads or is unavailable. */
   readonly monogram: string;
-  /** Display name of the provider the stats came from, e.g. "MyAnimeList". */
   readonly providerName: string | null;
   readonly stats: TasteCardStats;
   readonly topGenres: readonly TasteCardGenre[];
-  /** The user's highest-rated entries, most liked first. */
   readonly topPicks: readonly TasteCardPick[];
-  /** Short label describing the strongest detected preference, if any. */
   readonly headline: string | null;
   readonly hasData: boolean;
 }
 
-/** User-controlled rendering options for the card. */
 export interface TasteCardRenderOptions {
   readonly showGenres: boolean;
   readonly showPicks: boolean;
@@ -99,11 +86,7 @@ export function tasteCardRenderOptions(preferences: TasteCardPreferences): Taste
   };
 }
 
-/**
- * Whether the card draws the Top Rated block at all. The tie-breaker prompt is
- * driven off this too: asking someone to rank anime that will not be drawn is
- * pointless friction.
- */
+// Also gates the tie-breaker prompt, since asking someone to rank anime that won't be drawn is pointless friction.
 export function shouldRenderTopPicks(
   model: TasteCardModel,
   options: TasteCardRenderOptions,
@@ -111,14 +94,7 @@ export function shouldRenderTopPicks(
   return options.showPicks && model.topPicks.length > 0;
 }
 
-/**
- * The layout to persist once the card modal is dismissed.
- *
- * A grid is assembled by hand and never stored, so leaving the mode active
- * would drop the user back onto an empty collage the next time they open the
- * card. Closing the modal therefore falls back to the list, while the other
- * arrangements are left exactly as the user set them.
- */
+// A grid is assembled by hand and never stored, so keeping the mode active would reopen onto an empty collage.
 export function layoutAfterCardClose(options: TasteCardRenderOptions): TasteCardPicksLayout {
   return options.picksLayout === 'grid' ? 'list' : options.picksLayout;
 }
@@ -127,10 +103,7 @@ export function buildTasteCardModel(
   summary: UserProfileSummary,
   profile: UserProfile | null,
   providerName: string | null = null,
-  /**
-   * Top 3 after the user's tie-break choice. Defaults to the plan's own
-   * resolution (locked entries plus the most-recently-updated fill).
-   */
+  /** Defaults to the plan's own resolution (locked entries plus the most-recently-updated fill). */
   picks: readonly TopPickCandidate[] = summary.topPicks.picks,
 ): TasteCardModel {
   const displayName = normalizeDisplayName(profile?.username ?? null);
@@ -146,8 +119,7 @@ export function buildTasteCardModel(
     topGenres: summary.favoriteGenres
       .slice(0, TASTE_CARD_GENRE_LIMIT)
       .map((genre) => ({ name: genre.name, score: clampPercent(genre.score) })),
-    // All resolved picks are carried; each layout takes what it needs (three for
-    // the list and podium, nine for the grid).
+    // All resolved picks ride along; each layout takes what it needs.
     topPicks: picks.map((pick) => ({
       title: pick.title,
       score: pick.score,
@@ -159,7 +131,6 @@ export function buildTasteCardModel(
   };
 }
 
-/** First grapheme of the display name, uppercased; 'A' when nothing is usable. */
 export function monogramFor(displayName: string): string {
   const first = displayName.trim().charAt(0);
   return first === '' ? 'A' : first.toLocaleUpperCase();
@@ -167,14 +138,12 @@ export function monogramFor(displayName: string): string {
 
 function normalizeDisplayName(username: string | null): string {
   const trimmed = username?.trim() ?? '';
-  // An absent name stays empty here so the painter can substitute a localized
-  // one; the monogram is a glyph and must not follow that substitution.
+  // Left empty so the painter can substitute a localized name; the monogram is a glyph and must not follow that substitution.
   if (trimmed.length === 0) return '';
-  // Keep the name on a single line and well inside the card's header.
+  // Keeps the name on one line and inside the card's header.
   return trimmed.length > 24 ? `${trimmed.slice(0, 23)}…` : trimmed;
 }
 
-/** Provider chip label; blank and overlong values are dropped by the painter. */
 function normalizeProviderName(providerName: string | null): string | null {
   const trimmed = providerName?.trim() ?? '';
   return trimmed.length === 0 ? null : trimmed;

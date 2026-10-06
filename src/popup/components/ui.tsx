@@ -272,9 +272,7 @@ interface ModalProps {
   readonly title: string;
   readonly onClose: () => void;
   readonly children: ReactNode;
-  /** Accessible label for the close button. */
   readonly closeLabel: string;
-  /** Extra class on the dialog, for size variants. */
   readonly className?: string;
 }
 
@@ -325,11 +323,7 @@ export function Modal({ open, title, onClose, children, closeLabel, className = 
   }, [open]);
 
   if (!open) return null;
-  // Portalled to <body> so the overlay can never be captured by an ancestor's
-  // transform or overflow. Any ancestor that computes a non-none transform
-  // becomes the containing block for `position: fixed` descendants, and a
-  // `fill-mode: both` animation holding `translateY(0)` does exactly that for
-  // the rest of the session — which pushed this dialog off-centre.
+  // Portalled to <body> because a `fill-mode: both` animation sitting at translateY(0) makes its ancestor the containing block for fixed positioning, which pushed this dialog off-centre.
   return createPortal(
     <div className="modal-backdrop" role="presentation" onMouseDown={onClose}>
       <section
@@ -423,17 +417,15 @@ export function Tooltip({ label, children }: TooltipProps) {
 interface ToastProps {
   readonly message: string;
   readonly onClose: () => void;
-  /** Accessible label for the dismiss button. */
   readonly dismissLabel: string;
-  /** Auto-dismiss delay in milliseconds. `0` disables the timer. */
+  /** `0` disables auto-dismiss. */
   readonly autoDismissMs?: number;
 }
 
 const TOAST_EXIT_ANIMATION_MS = 260;
 
 export function Toast({ message, onClose, dismissLabel, autoDismissMs = 2000 }: ToastProps) {
-  // `closing` keeps the toast mounted while the exit animation plays; the
-  // parent unmounts it only after the animation finishes (onClose).
+  // Stays mounted through the exit animation; the parent unmounts only once `onClose` fires.
   const [closing, setClosing] = useState(false);
   const closeTimer = useRef<number | null>(null);
   const exitTimer = useRef<number | null>(null);
@@ -460,7 +452,7 @@ export function Toast({ message, onClose, dismissLabel, autoDismissMs = 2000 }: 
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [autoDismissMs]);
 
-  // Reset the exit timer if the toast is reused with a new message.
+  // A reused toast with a new message needs a fresh exit timer.
   useEffect(() => {
     setClosing(false);
     if (exitTimer.current !== null) {

@@ -92,17 +92,11 @@ function toApiError(
   return new ApiError(`AniList: ${message}`, {
     code,
     status,
-    // AniList signals its limit with `errors[].status === 429` inside an HTTP
-    // 200 body, so this mapper — not the HTTP status — is the real 429 path.
-    // It still has to honour the HTTP-date form of Retry-After.
+    // A 429 shows up as `errors[].status` inside an HTTP 200 body, so this mapper is the real rate-limit path — it still has to honour the HTTP-date form of Retry-After.
     retryAfterSeconds: parseRetryAfterSeconds(headers.get('Retry-After')),
   });
 }
 
-/**
- * AniList provider implementing the provider-neutral `AnimeProvider`
- * contract against the GraphQL API (https://graphql.anilist.co).
- */
 export class AniListProvider implements AnimeProvider {
   private readonly graphql: AniListGraphQLClient;
 
@@ -147,19 +141,12 @@ export class AniListProvider implements AnimeProvider {
     return normalizeAnime(data.Media);
   }
 
-  /**
-   * AniList has no server-side suggestion endpoint. Returning an empty list
-   * is the documented degradation: the recommendation engine falls back to
-   * the user's plan-to-watch entries plus the ranking pool.
-   */
+  // AniList has no suggestions endpoint; the engine falls back to plan-to-watch plus the ranking pool.
   async getAnimeSuggestions(): Promise<Anime[]> {
     return [];
   }
 
-  /**
-   * Top-scored anime. `offset` (an MAL-style item offset) is converted to the
-   * AniList page number so deep discovery keeps working across providers.
-   */
+  // `offset` arrives MAL-style as an item offset, so translate it to a page number.
   async getAnimeRanking(limit: number = 50, offset: number = 0): Promise<Anime[]> {
     const safeLimit = Math.max(1, Math.min(Math.floor(limit), 50));
     const safeOffset = Math.max(0, Math.floor(offset));

@@ -1,8 +1,7 @@
 const PKCE_MIN_LENGTH = 43;
 const PKCE_MAX_LENGTH = 128;
 const PKCE_ALPHABET = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-._~';
-// Largest multiple of alphabet length that fits in a byte: 66 * 3 = 198 <= 255.
-// Bytes >= 198 are rejected to eliminate modulo bias.
+// Bytes at or above 198 (66 * 3) are dropped, otherwise `% 66` skews the distribution.
 const ALPHABET_MULTIPLE = PKCE_ALPHABET.length * Math.floor(256 / PKCE_ALPHABET.length);
 
 export function createRandomString(length = 64): string {
@@ -30,8 +29,7 @@ export async function createPkceTransaction(): Promise<{
   if (codeVerifier.length < PKCE_MIN_LENGTH || codeVerifier.length > PKCE_MAX_LENGTH) {
     throw new Error('Generated PKCE verifier is outside the OAuth allowed length.');
   }
-  // MAL currently supports only the RFC 7636 plain method. The challenge
-  // must therefore be the verifier itself, not a SHA-256 digest.
+  // MAL only supports the plain method, so the challenge is the verifier verbatim — no SHA-256.
   const codeChallenge = codeVerifier;
   return { state: createRandomString(32), codeVerifier, codeChallenge };
 }

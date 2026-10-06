@@ -14,14 +14,9 @@ import {
 } from '../api/providers/anilist/anilist-queries';
 import { MAL_AUTHORIZATION_URL } from '../auth/runtime-auth';
 
-/** Fallback validity window when the token's JWT `exp` cannot be read. */
 const PIN_TOKEN_FALLBACK_TTL_MS = 90 * 24 * 60 * 60 * 1000;
 
-/**
- * Extracts the expiry from an AniList JWT (`exp` in unix seconds). Returns a
- * conservative fallback when the payload is not decodable — AniList tokens
- * are long-lived (~1 year), and an early expiry only forces re-sign-in.
- */
+// An undecodable payload falls back to a long window: AniList tokens live about a year, and an early expiry only forces a needless re-sign-in.
 export function decodeAniListTokenExpiry(accessToken: string, now: number = Date.now()): number {
   try {
     const payloadPart = accessToken.split('.')[1];
@@ -34,7 +29,7 @@ export function decodeAniListTokenExpiry(accessToken: string, now: number = Date
       }
     }
   } catch {
-    // Fall through to the conservative default.
+    // Unreadable JWT, so the conservative default applies.
   }
   return now + PIN_TOKEN_FALLBACK_TTL_MS;
 }
@@ -48,7 +43,6 @@ export function isProviderId(value: unknown): value is ProviderId {
 }
 
 export const ACTIVE_PROVIDER_STORAGE_KEY = 'activeProvider';
-/** Legacy single-session installs were always MAL. */
 const LEGACY_AUTH_SESSION_KEY = 'authSession';
 
 export interface ProviderStatus {
@@ -58,7 +52,6 @@ export interface ProviderStatus {
   readonly active: boolean;
 }
 
-/** Persists which provider receives sync/recommendation traffic. */
 export class ProviderRegistry {
   private cachedActive: ProviderId | null = null;
 
@@ -83,16 +76,11 @@ export class ProviderRegistry {
   }
 }
 
-/** Minimal storage contract so the registry stays testable without chrome. */
 export interface StorageAdapterShape {
   get(keys: string | string[]): Promise<Record<string, unknown>>;
   set(items: Record<string, unknown>): Promise<void>;
 }
 
-/**
- * Wires both providers: one auth service + one provider factory per
- * `ProviderId`, sharing the injected HTTP client and identity flow.
- */
 export class ProviderRegistryService {
   private readonly authServices: Readonly<Record<ProviderId, MalAuthService>>;
   private readonly sessionStores: Readonly<Record<ProviderId, ChromeAuthSessionStore>>;
@@ -150,15 +138,9 @@ export class ProviderRegistryService {
     };
   }
 
-  /**
-   * Completes an AniList **Auth Pin** sign-in from a token the user pasted
-   * from https://anilist.co/api/v2/oauth/pin. This bypasses
-   * `launchWebAuthFlow` entirely (which cannot complete AniList's implicit
-   * flow) while reusing the standard session store and profile fetch.
-   */
+// Bypasses launchWebAuthFlow, which can't complete AniList's implicit flow, but reuses the standard session store and profile fetch.
   async completeAnilistPinSignIn(rawInput: string): Promise<AuthSnapshot> {
-    // Accept either the bare token or a full redirect/pin URL pasted from
-    // the address bar (…#access_token=…&token_type=Bearer&…).
+    // Either the bare token or the whole pin URL copied from the address bar.
     const accessToken = extractAccessToken(rawInput.trim());
     if (accessToken.length === 0) {
       return {
@@ -171,7 +153,7 @@ export class ProviderRegistryService {
 
     const authService = this.authServices.anilist;
     try {
-      // Validate the token and resolve the user before persisting anything.
+      // Resolve the user before persisting anything.
       const profile = await this.createProvider('anilist', accessToken).getCurrentUser();
 
       const expiresAt = decodeAniListTokenExpiry(accessToken);
@@ -198,7 +180,6 @@ export class ProviderRegistryService {
     }
   }
 
-  /** Builds the authorize URL for the pin flow (opens in a normal tab). */
   async getAniListPinAuthorizeUrl(): Promise<string> {
     const clientId = await this.clientIds.anilist();
     if (clientId.length === 0) {
@@ -207,7 +188,6 @@ export class ProviderRegistryService {
     return buildAnilistPinAuthorizeUrl(clientId);
   }
 
-  /** One-time migration of the legacy single-session key into the MAL slot. */
   async migrateLegacySessions(): Promise<void> {
     if (typeof chrome === 'undefined' || chrome.storage === undefined) return;
     try {
@@ -221,7 +201,7 @@ export class ProviderRegistryService {
       }
       await local.remove(LEGACY_AUTH_SESSION_KEY);
     } catch {
-      // Storage unavailability must never block startup.
+      // Unavailable storage must not block startup.
     }
   }
 
@@ -233,7 +213,6 @@ export class ProviderRegistryService {
     return this.getAuthService(await this.registry.getActiveProvider());
   }
 
-  /** Builds a provider-scoped `AnimeProvider` for the given access token. */
   createProvider(providerId: ProviderId, accessToken: string): AnimeProvider {
     if (providerId === 'anilist') return new AniListProvider(this.httpClient, accessToken);
     return new MalAnimeProvider(this.httpClient, accessToken);

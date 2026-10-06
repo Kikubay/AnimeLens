@@ -2,15 +2,8 @@ import type { ProviderId, AuthSession, AuthSessionStore, OAuthTransaction } from
 import { isAuthSession } from './auth-types';
 
 const LEGACY_SESSION_KEY = 'authSession';
-// Legacy OAuth transactions were ephemeral (session storage); stale ones are
-// simply dropped rather than migrated — a fresh transaction is created on
-// the next connect.
 
-/**
- * Per-provider storage keys. Sessions persist in `chrome.storage.local` so
- * they survive browser restarts; OAuth transactions remain in session
- * storage because they are short-lived.
- */
+// Sessions live in `local` so they survive restarts; transactions stay in `session` because they're short-lived.
 function sessionKey(providerId: ProviderId): string {
   return `authSession:${providerId}`;
 }
@@ -55,10 +48,7 @@ export class ChromeAuthSessionStore implements AuthSessionStore {
       return localValue;
     }
 
-    // Migration: sessions written before per-provider namespacing lived under
-    // the single `authSession` key and always belonged to MAL. Copy it into
-    // the provider-scoped key once, then remove the legacy entry. Other
-    // providers must not inherit MAL's session.
+    // Pre-namespacing sessions shared one `authSession` key and were always MAL's, so only MAL inherits it.
     if (this.providerId === 'mal') {
       const legacyResult = (await chrome.storage.local.get(LEGACY_SESSION_KEY)) as AuthStorageShape;
       const legacyValue = legacyResult[LEGACY_SESSION_KEY];
@@ -71,8 +61,7 @@ export class ChromeAuthSessionStore implements AuthSessionStore {
         await chrome.storage.local.remove(LEGACY_SESSION_KEY);
       }
 
-      // Migrate users who were authenticated by a previous build while the
-      // temporary session storage entry is still available.
+      // Older builds parked the session in session storage; grab it while it's still there.
       const sessionResult = (await chrome.storage.session.get(
         LEGACY_SESSION_KEY,
       )) as AuthStorageShape;

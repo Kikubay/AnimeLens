@@ -121,7 +121,6 @@ export function App() {
   const [pendingDislike, setPendingDislike] = useState<AnimeCardData | null>(null);
   const [update, setUpdate] = useState<UpdateSnapshot | null>(null);
   const [language, setLanguage] = useState<Language>('en');
-  // Held so card-level controls (taste card options) can read and write them.
   const [preferences, setPreferences] = useState<UserPreferences>(DEFAULT_USER_PREFERENCES);
   const [activeProviderName, setActiveProviderName] = useState('MyAnimeList');
   const copy = getCopy(language);
@@ -130,9 +129,7 @@ export function App() {
     copyRef.current = copy;
     document.documentElement.lang = language;
   }, [copy, language]);
-  // Provider-aware copy: track the active provider's display name and refresh
-  // it whenever the auth state changes (connect, disconnect, switch) or a
-  // provider action runs in Settings.
+  // Refreshed on any auth change so a connect, disconnect or provider switch updates the copy.
   const refreshActiveProviderName = () => {
     void requestProviderList()
       .then((providers) => {

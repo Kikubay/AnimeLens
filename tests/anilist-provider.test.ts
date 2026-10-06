@@ -9,7 +9,6 @@ import {
   toMediaListStatus,
 } from '../src/api/providers/anilist/anilist-normalizer';
 
-/** Captures GraphQL bodies and returns canned payloads per operation. */
 class RecordingHttpClient implements HttpClient {
   readonly requests: { readonly query: string; readonly variables: Record<string, unknown> }[] = [];
 
@@ -57,7 +56,7 @@ const MEDIA = {
   tags: [
     { id: 1, name: 'Contemporary', rank: 90 },
     { id: 2, name: 'School', rank: 85 },
-    // Below TAG_MIN_RANK: present in the payload, filtered out of the domain.
+    // Under TAG_MIN_RANK, so the domain drops it.
     { id: 3, name: 'Male Protagonist', rank: 5 },
   ],
   format: 'TV',
@@ -148,10 +147,7 @@ describe('AniListProvider', () => {
   });
 
   it('requests tags on the list query so list entries carry themes', async () => {
-    // Regression guard: tags moved from the detail fragment to the shared one so
-    // `anime.themes` stops being permanently empty on list and candidate records.
-    // Without them the engine's 0.16 themes weight and the genres+themes overlap
-    // Behind-You-Liked provenance both silently do nothing for AniList users.
+    // Guards tags living in the shared fragment: on the detail query alone, `anime.themes` stayed empty for every list and candidate record, so the engine's 0.16 themes weight and the genre+theme overlap provenance silently did nothing.
     const http = new RecordingHttpClient((query) =>
       isViewerQuery(query) ? VIEWER_PAYLOAD : LIST_PAYLOAD,
     );
@@ -294,8 +290,7 @@ describe('AniList enum mapping', () => {
     expect(url.pathname).toBe('/api/v2/oauth/authorize');
     expect(url.searchParams.get('response_type')).toBe('token');
     expect(url.searchParams.get('client_id')).toBe('52110');
-    // AniList rejects implicit authorize requests that carry redirect_uri;
-    // the redirect target is the URL registered in the app settings.
+    // AniList rejects the request outright if redirect_uri is present.
     expect(url.searchParams.has('redirect_uri')).toBe(false);
     expect(ANILIST_PIN_REDIRECT_URL).toBe('https://anilist.co/api/v2/oauth/pin');
   });

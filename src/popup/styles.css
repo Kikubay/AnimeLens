@@ -149,7 +149,7 @@ button:focus-visible {
   border-radius: 999px;
   padding: 3px 7px;
   margin-left: 2px;
-  transform: translate(-2px, 2px); /* X first, then Y | positive = down/right, negative = up/left */
+  transform: translate(-2px, 2px); /* X then Y; positive is down/right */
   user-select: none;
 }
 .brand-icon {
@@ -1449,7 +1449,6 @@ button:focus-visible {
 .delta-sign-up {
   color: var(--success);
 }
-/* A preference cooling off is normal, so it reads as quiet rather than wrong. */
 .delta-sign-down {
   color: var(--muted);
   background: rgb(141 139 144 / 10%);
@@ -1769,7 +1768,6 @@ button:focus-visible {
   border: 0;
 }
 
-/* Providers section: per-provider action buttons. */
 .provider-actions {
   display: flex;
   align-items: center;
@@ -1777,7 +1775,6 @@ button:focus-visible {
   gap: 6px;
 }
 
-/* AniList Auth-Pin paste step, rendered under the AniList provider row. */
 .pin-signin-panel {
   display: grid;
   gap: 9px;
@@ -2259,13 +2256,7 @@ button:focus-visible {
     opacity: 0;
     transform: translateY(4px);
   }
-  /*
-   * Deliberately omits `transform` in the `to` frame. `.page-content` uses
-   * `animation-fill-mode: both`, so a terminal `transform: translateY(0)` would
-   * be persisted forever and — being a non-none transform — would turn the
-   * page into the containing block for any `position: fixed` descendant.
-   * Leaving it off resolves the end state to `none`.
-   */
+/* No `transform` on purpose: fill-mode: both would persist translateY(0), making the page the containing block for fixed descendants. */
   to {
     opacity: 1;
   }
@@ -2333,7 +2324,6 @@ button:focus-visible {
   }
 }
 
-/* Shareable anime taste card */
 /* Title block and its page-level action share a baseline. */
 .profile-header {
   display: flex;
@@ -2358,11 +2348,7 @@ button:focus-visible {
 .modal-taste-card {
   max-width: 452px;
 }
-/*
- * The stage holds the exported PNG itself, so its height follows the chosen
- * aspect ratio and the 1080px card never has to be laid out (or scaled) in the
- * 700px popup.
- */
+/* The stage holds the exported PNG, so the 1080px card is never laid out or scaled inside the 700px popup. */
 .taste-card-stage {
   position: relative;
   width: 100%;
@@ -2415,7 +2401,6 @@ button:focus-visible {
   line-height: 1.5;
 }
 
-/* Top 3 tie-breaker */
 .modal-top-picks {
   max-width: 380px;
 }
@@ -2474,8 +2459,7 @@ button:focus-visible {
 }
 .top-picks-candidates {
   display: grid;
-  /* Without an explicit track the column sizes to the widest nowrap title,
-     which overflows the box and scrolls it sideways. */
+  /* Without an explicit track the column sizes to the widest nowrap title and scrolls sideways. */
   grid-template-columns: minmax(0, 1fr);
   gap: 4px;
   max-height: 190px;
@@ -2541,7 +2525,7 @@ button:focus-visible {
 }
 .top-picks-candidate-score {
   flex: 0 0 auto;
-  /* Fixed width so the scores read as a column down the left edge. */
+  /* So the scores line up as a column. */
   min-width: 20px;
   color: var(--cyan);
   font-size: 10px;
@@ -2561,8 +2545,7 @@ button:focus-visible {
 .top-picks-empty {
   margin: 0;
   padding: 12px 10px;
-  /* Notes read as list content, so they align with the rows they replace
-     rather than floating in the middle of the box. */
+  /* Reads as list content, so it aligns with the rows it replaces. */
   text-align: left;
 }
 .grid-slots {
@@ -2688,9 +2671,7 @@ button:focus-visible {
   text-transform: uppercase;
 }
 .taste-card-option {
-  /* `.setting-toggle-row` supplies `justify-content`, but that only applies
-     inside a flex container — in Settings these labels inherit it from
-     `.setting-row`, whereas here they are a bare child of the options grid. */
+/* `.setting-toggle-row`'s justify-content doesn't reach here, since this is a bare child of the options grid. */
   display: flex;
   align-items: center;
   justify-content: space-between;

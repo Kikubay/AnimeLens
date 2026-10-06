@@ -24,9 +24,9 @@ const EXPIRY_SKEW_MS = 30 * 1000;
 export interface MalAuthConfig {
   readonly clientId: string;
   readonly authorizationUrl: string;
-  /** Provider this service authenticates against. Defaults to `'mal'`. */
+  /** Defaults to `'mal'`. */
   readonly providerId?: ProviderId;
-  /** Token acquisition strategy. Defaults to `'code_exchange'` (MAL). */
+  /** Defaults to `'code_exchange'` (MAL). */
   readonly tokenStrategy?: OAuthTokenStrategy;
 }
 
@@ -38,25 +38,13 @@ export class MalAuthService {
     errorMessage: null,
   };
 
-  /**
-   * Single-flight guard for connect(): prevents a double-click (or a second
-   * connect message while the auth tab is open) from starting two OAuth
-   * flows and two token exchanges.
-   */
+  // Single-flight: a double-click (or a second connect message while the auth tab is open) must not start two OAuth flows.
   private connectInFlight: Promise<AuthSnapshot> | null = null;
 
-  /**
-   * Single-flight guard for token refresh: two concurrent withAccessToken /
-   * getSnapshot calls must not both call MAL's refresh_token endpoint, because
-   * MAL rotates refresh tokens — the second call would invalidate the first.
-   */
+  // Also single-flight, and more urgently: MAL rotates refresh tokens, so two concurrent refreshes would invalidate each other.
   private refreshInFlight: Promise<AuthSession | null> | null = null;
 
-  /**
-   * The most recent OAuth phase failure, exposed so the service worker can
-   * answer 'auth.get_token_exchange_diagnostic' with provider-level detail.
-   * Cleared on the next successful connect.
-   */
+  // Cleared on the next successful connect.
   private lastTokenExchangeDiagnostic: TokenExchangeDiagnostic | null = null;
 
   private readonly providerId: ProviderId;
@@ -81,8 +69,7 @@ export class MalAuthService {
     try {
       session = await this.getValidSession();
     } catch (error) {
-      // A transient network failure while refreshing must surface as an
-      // 'error' snapshot, not propagate and crash the UI layer.
+      // Refresh blips become an 'error' snapshot rather than propagating into the UI layer.
       if (error instanceof ApiError) {
         return this.fail(error.code as AuthErrorCode, error.message);
       }
@@ -119,17 +106,10 @@ export class MalAuthService {
     let transaction: OAuthTransaction;
     try {
       this.snapshot = this.createSnapshot('authorizing');
-      // The MAL app currently registers the extension origin root. The URI must
-      // match that registration exactly; adding a callback path causes MAL to
-      // reject the authorization request.
+// The MAL app registers the extension origin root, so adding a callback path makes MAL reject the request.
       const redirectUri = this.identity.getRedirectURL();
 
-      // MV3 resilience: the service worker can be killed while the user is on
-      // the provider's consent page. If a stored transaction exists and is
-      // still fresh, reuse it so the callback can still be validated;
-      // otherwise create a new one. For the implicit strategy the stored
-      // transaction carries no PKCE state — it exists only to bound callback
-      // age and keep the store contract uniform across providers.
+      // MV3 resilience: the worker can be killed while the user sits on the consent page, so a fresh stored transaction is reused. On the implicit strategy it carries no PKCE state and exists only to bound callback age.
       const stored = await this.sessionStore.getTransaction();
       if (
         stored !== null &&
@@ -169,11 +149,7 @@ export class MalAuthService {
           interactive: true,
         });
       } catch (error) {
-        // chrome.identity reports auth-window failures through a rejection
-        // whose message is Chrome's raw diagnostic (e.g. "Authorization page
-        // could not be loaded", "The user denied the authorization request").
-        // Classify it here while the redirect URI is in scope so the surfaced
-        // error is actionable instead of the generic sign-in fallback.
+        // Chrome's raw rejection text is the only diagnostic here, so classify it while the redirect URI is still in scope.
         throw toAuthWindowError(error, providerLabel, transaction.redirectUri);
       }
       if (callbackUrl === undefined)
@@ -221,7 +197,7 @@ export class MalAuthService {
       try {
         await this.synchronizeData(tokenResponse.accessToken);
       } catch {
-        // OAuth succeeded; list synchronization is retried independently by the sync service.
+        // Sync retries on its own, so a failure here must not fail the sign-in.
       }
       this.lastTokenExchangeDiagnostic = null;
       this.snapshot = this.createSnapshot('authenticated', profile);
@@ -243,10 +219,6 @@ export class MalAuthService {
     }
   }
 
-  /**
-   * Returns the diagnostic for the most recent failed OAuth phase, or null
-   * when the last connect attempt succeeded (or none has failed yet).
-   */
   getTokenExchangeDiagnostic(): TokenExchangeDiagnostic | null {
     return this.lastTokenExchangeDiagnostic;
   }
@@ -260,8 +232,7 @@ export class MalAuthService {
   }
 
   async disconnect(): Promise<AuthSnapshot> {
-    // If a connect() is in flight, let it settle first so its finally-block
-    // does not resurrect state after we clear it.
+    // Let an in-flight connect settle, otherwise its finally-block resurrects state we just cleared.
     if (this.connectInFlight !== null) {
       await this.connectInFlight.catch(() => undefined);
     }
@@ -274,8 +245,7 @@ export class MalAuthService {
     const session = await this.sessionStore.getSession();
     if (session === null) return null;
     if (session.expiresAt > this.now()) return session;
-    // Implicit tokens (AniList) have no refresh path: an expired token always
-    // ends the session and the user must authorize again.
+    // No refresh token to fall back on, so the user has to authorize again.
     if (
       this.tokenStrategy === 'implicit' ||
       session.accessToken.length === 0 ||
@@ -293,7 +263,6 @@ export class MalAuthService {
       return null;
     }
 
-    // Single-flight refresh: concurrent callers share one refresh request.
     if (this.refreshInFlight === null) {
       this.refreshInFlight = this.refreshSession(session).finally(() => {
         this.refreshInFlight = null;
@@ -324,8 +293,7 @@ export class MalAuthService {
       await this.sessionStore.setSession(refreshedSession);
       return refreshedSession;
     } catch (error) {
-      // Transient failures (offline, rate limit) must NOT destroy the session:
-      // the persisted refresh token is still valid and can be retried later.
+      // Being offline or rate-limited isn't the session's fault, so keep the refresh token for a later retry.
       if (
         error instanceof ApiError &&
         (error.code === 'network_error' || error.code === 'rate_limited')
@@ -390,12 +358,7 @@ export class MalAuthService {
     return { status, profile, errorCode, errorMessage, phase };
   }
 
-  /**
-   * Validates an implicit-grant callback: the access token arrives in the URL
-   * **fragment** (`#access_token=…&expires_in=…`). AniList does not echo a
-   * `state` parameter on this flow, so validation relies on the registered
-   * redirect origin/path plus the transaction freshness window.
-   */
+// The token rides in the fragment and AniList echoes no `state`, so the redirect origin plus the freshness window are all we have to validate against.
   private parseImplicitCallback(
     callbackUrl: string,
     transaction: OAuthTransaction,
@@ -499,11 +462,7 @@ function toAuthFailure(error: unknown, providerLabel: string): [AuthErrorCode, s
   return ['unknown', `AnimeLens could not complete the ${providerLabel} sign-in.`];
 }
 
-/**
- * Classifies a `chrome.identity.launchWebAuthFlow` rejection. Chrome surfaces
- * auth-window problems as a generic Error whose message carries the real
- * diagnostic; map the known cases to actionable messages.
- */
+// Chrome's only clue about an auth-window failure is the rejection message, so match the known ones here.
 function toAuthWindowError(
   error: unknown,
   providerLabel: string,

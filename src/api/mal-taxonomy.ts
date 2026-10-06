@@ -1,17 +1,6 @@
-/**
- * MyAnimeList folds genres, themes, demographics and explicit genres into the
- * single `genres` array of its API responses — there is no `themes` field
- * (requests for it are silently ignored). The website, however, maintains
- * separate taxonomies under the shared `/anime/genre/{id}` ID namespace.
- *
- * These ID sets were extracted from the official browse page
- * (myanimelist.net/anime.php, section filters "Genres", "Explicit Genres",
- * "Themes", "Demographics") in September 2026. Splitting by ID restores the
- * real distinction, which the profile ("Thèmes favoris"), the taste scoring
- * and the recommendation reasons all rely on.
- */
+// MAL's API has no `themes` field — it folds everything into `genres` — so we split by ID against the taxonomy on its browse page (extracted September 2026). Taste scoring and recommendation reasons both depend on that distinction.
 
-/** Themes ("Themes" filter on the browse page) — returned by the API inside `genres`. All other IDs (core genres, demographics Kids/Shoujo/Shounen/Seinen/Josei, explicit genres) stay in `genres`. */
+// Browse-page "Themes" IDs; core genres, demographics and explicit genres all stay in `genres`.
 const THEME_IDS: ReadonlySet<number> = new Set([
   3, // Racing
   6, // Mythology
@@ -149,11 +138,7 @@ export interface MalGenreSplit<T> {
   readonly themes: readonly T[];
 }
 
-/**
- * Partitions a flat MAL `genres` array into true genres and themes. Items with
- * unknown IDs (future additions) are conservatively kept as genres so no
- * signal is ever dropped. The result preserves input order within each bucket.
- */
+// Unrecognised IDs (themes MAL adds later) land in `genres` so we never silently drop a signal.
 export function splitMalGenreArray<T extends { readonly id: number }>(
   values: readonly T[] | undefined,
 ): MalGenreSplit<T> {

@@ -68,8 +68,7 @@ describe('planTopPicks', () => {
       { providerId: 'mal' },
     );
 
-    // The third-highest entry is always a boundary candidate, but with distinct
-    // scores there is nothing to decide, so the user is never prompted.
+    // With distinct scores there's nothing to decide at the boundary, so the user is never prompted.
     expect(plan.openSlots).toBe(1);
     expect(plan.needsChoice).toBe(false);
     expect(plan.candidates).toHaveLength(1);
@@ -244,15 +243,14 @@ describe('planTopPicks', () => {
     const pick = (value: AnimeListEntry) => planTopPicks([value], { providerId: 'mal' }).picks[0];
 
     const both = pick(withBoth);
-    // The small variant is the default so three covers stay cheap...
+    // Medium is the default so three covers stay cheap; large is there for enlarged thumbnails.
     expect(both?.imageUrl).toBe('https://cdn.myanimelist.net/medium.jpg');
-    // ...and the full-size one is available for enlarged thumbnails.
     expect(both?.largeImageUrl).toBe('https://cdn.myanimelist.net/large.jpg');
-    // With only one variant, both fields point at it.
+    // Only one variant available, so both fields point at it.
     const onlyLarge = pick(largeOnly);
     expect(onlyLarge?.imageUrl).toBe('https://cdn.myanimelist.net/large.jpg');
     expect(onlyLarge?.largeImageUrl).toBe('https://cdn.myanimelist.net/large.jpg');
-    // The helper's fixture only has a medium image, so both fields fall back to it.
+    // The fixture has only a medium image, so both fields fall back to it.
     expect(pick(rated)?.imageUrl).toBe('https://cdn.test/1.jpg');
     expect(pick(rated)?.largeImageUrl).toBe('https://cdn.test/1.jpg');
   });
@@ -285,7 +283,7 @@ describe('topPickPoolSignature', () => {
     const mal = topPickPoolSignature(candidates, 'mal');
     const anilist = topPickPoolSignature(candidates, 'anilist');
 
-    // MAL id 1 and AniList id 1 would otherwise produce identical payloads.
+    // Without the provider prefix, MAL id 1 and AniList id 1 would collide.
     expect(mal).not.toBe(anilist);
     expect(mal.startsWith('mal_')).toBe(true);
     expect(anilist.startsWith('anilist_')).toBe(true);

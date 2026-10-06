@@ -26,10 +26,7 @@ import {
 
 const DOWNLOAD_FILENAME = 'AnimeLens_TasteCard.png';
 
-/**
- * Above this cover scale the medium variant (~230px wide) would be visibly
- * upscaled, so the full-size image is fetched instead.
- */
+// Past this scale the medium variant (~230px) would be visibly upscaled, so fetch the full-size image instead.
 const LARGE_ART_THRESHOLD = 1.6;
 
 interface TasteCardModalProps {
@@ -39,18 +36,11 @@ interface TasteCardModalProps {
   readonly copy: AppCopy;
   readonly onClose: () => void;
   readonly onFeedback: (message: string) => void;
-  /**
-   * Offered when a saved tie-break ranking exists, so the user can re-open the
-   * picker instead of being stuck with their first answer.
-   */
+  /** Only offered when a saved ranking exists, so the user isn't stuck with their first answer. */
   readonly onChangePicks?: () => void;
-  /** User-controlled section visibility and cover sizing. */
   readonly options: TasteCardRenderOptions;
   readonly onOptionsChange: (options: TasteCardRenderOptions) => void;
-  /**
-   * The 3x3 grid needs nine hand-picked entries, so choosing it here hands
-   * straight over to the picker rather than showing an empty collage.
-   */
+  /** Hands straight over to the picker rather than showing an empty collage. */
   readonly onRequestGridPicker?: () => void;
 }
 
@@ -59,20 +49,18 @@ type ExportAction = 'download' | 'copy';
 interface TasteCardAssets {
   readonly avatar: string | null;
   readonly brand: string | null;
-  /** Cover art per top pick, positionally aligned with `model.topPicks`. */
+  /** Positionally aligned with `model.topPicks`. */
   readonly picks: readonly (string | null)[];
 }
 
 const EMPTY_ASSETS: TasteCardAssets = { avatar: null, brand: null, picks: [] };
 
-/** Format picker labels, kept out of the JSX so adding a format is one entry. */
 const FORMAT_LABELS: Readonly<Record<TasteCardFormat, (copy: AppCopy) => string>> = {
   tall: (copy) => copy.tasteCardFormatTall,
   portrait: (copy) => copy.tasteCardFormatPortrait,
   square: (copy) => copy.tasteCardFormatSquare,
 };
 
-/** Top Rated arrangements offered in the card content panel. */
 const PICK_LAYOUTS: readonly TasteCardPicksLayout[] = ['list', 'triangle', 'grid'];
 const PICK_LAYOUT_LABELS: Readonly<Record<TasteCardPicksLayout, (copy: AppCopy) => string>> = {
   list: (copy) => copy.tasteCardLayoutList,
@@ -80,14 +68,7 @@ const PICK_LAYOUT_LABELS: Readonly<Record<TasteCardPicksLayout, (copy: AppCopy) 
   grid: (copy) => copy.tasteCardLayoutGrid,
 };
 
-/**
- * Shows the shareable card and exports it.
- *
- * The preview is the exported PNG itself, rendered by the canvas painter — no
- * separate DOM card to keep in sync, and no scaled 1080px node fighting the
- * 700px popup for layout. Because the blob already exists, Download and Copy
- * are instant after the first paint.
- */
+// The preview *is* the exported PNG, so there's no second DOM card to keep in sync and Download/Copy are instant once it exists.
 export function TasteCardModal({
   open,
   model,
@@ -116,18 +97,13 @@ export function TasteCardModal({
     };
   }, []);
 
-  // Inline the provider avatar, the brand mark, and the pick covers as data
-  // URLs: a canvas can only paint same-origin bitmaps, and both CDNs answer
-  // without CORS headers. Covers are skipped when the section is hidden.
-  // Only the visibility flag gates the download: depending on the whole
-  // `options` object would re-fetch every cover each time the cover-size slider
-  // moves, which is pure waste since the URLs do not change.
+  // Everything goes in as data URLs because a canvas can only paint same-origin bitmaps and both CDNs answer without CORS headers.
+  // Only the visibility flag gates the asset fetch — depending on all of `options` would re-fetch every cover each time the size slider moves.
   const { showPicks } = options;
   useEffect(() => {
     if (!open) return undefined;
     const avatarUrl = profile?.avatarUrl ?? null;
-    // A cover drawn far larger than the medium variant would be upscaled and
-    // soft, so the resolution follows the size the card actually renders.
+    // Resolution follows the size actually drawn, otherwise a big cover looks soft.
     const useLarge =
       Math.min(options.coverScale, maxFittingCoverScale(model, format, options)) >=
       LARGE_ART_THRESHOLD;
@@ -144,7 +120,6 @@ export function TasteCardModal({
     };
   }, [open, profile?.avatarUrl, model, showPicks, options, format]);
 
-  // Re-render whenever the card content, the format, or the assets change.
   useEffect(() => {
     if (!open) return undefined;
     let disposed = false;
@@ -238,8 +213,7 @@ export function TasteCardModal({
 
   const isReady = previewUrl !== null && !isRendering;
 
-  // A grid is only exportable once all nine boxes hold an anime; an incomplete
-  // collage would download as nine empty placeholders.
+  // A half-filled grid would download as a collage of empty placeholders.
   const gridPicks = model.topPicks.length;
   const isGridIncomplete = options.picksLayout === 'grid' && gridPicks < GRID_SLOT_COUNT;
   const canExport = isReady && !isGridIncomplete && model.hasData;
@@ -249,9 +223,7 @@ export function TasteCardModal({
     if (option === 'grid' && onRequestGridPicker !== undefined) onRequestGridPicker();
   };
 
-  // The ceiling depends on the format, the arrangement, and which sections are
-  // visible, so the slider grows as the user frees up room instead of offering a
-  // range that would silently clip the card.
+  // The ceiling moves with format, layout and visible sections, so the slider grows instead of silently clipping the card.
   const coverCeiling = maxFittingCoverScale(model, format, options);
   const effectiveScale = Math.min(options.coverScale, coverCeiling);
 
@@ -359,7 +331,7 @@ export function TasteCardModal({
                 })
               }
             />
-            {/* Only reachable when a section is taking the space the covers want. */}
+            {/* Only reachable while a section is taking the space the covers want. */}
             {coverCeiling < COVER_SCALE_RANGE.max && (
               <small className="taste-card-slider-note">{copy.tasteCardCoverSizeCapped}</small>
             )}
@@ -403,7 +375,6 @@ export function TasteCardModal({
   );
 }
 
-/** Maps a failure to a specific, actionable message instead of a generic one. */
 function describeFailure(error: unknown, copy: AppCopy): string {
   const reason =
     typeof error === 'object' && error !== null && 'reason' in error

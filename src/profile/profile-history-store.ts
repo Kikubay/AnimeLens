@@ -15,23 +15,15 @@ import type { UserProfileSummary } from './profile-types';
 export const PROFILE_HISTORY_KEY = 'profileHistory';
 
 export interface ProfileHistoryStore {
-  /**
-   * The snapshot to compare against, or `null` when nothing usable exists for
-   * this provider: no history, another shape, or another provider.
-   */
+  /** `null` when there's no history for this provider, or it's another shape or provider. */
   load(providerId: string): Promise<StoredProfileSnapshot | null>;
-  /**
-   * Makes `summary` the new comparison point. A summary identical to the
-   * current one is skipped, so a quiet sync cannot push a real snapshot out.
-   */
+  /** An unchanged summary is skipped, so a quiet sync can't push a real snapshot out. */
   record(providerId: string, summary: UserProfileSummary, capturedAt?: string): Promise<void>;
-  /** Clears one provider's history, or all of it when no provider is given. */
   clear(providerId?: string): Promise<void>;
 }
 
 export function createProfileHistoryStore(storage: StorageAdapter): ProfileHistoryStore {
-  // `record` is a read-modify-write, and a sync completion and a rating can
-  // land together, so writes are serialized like the feedback store's.
+  // A sync completion and a rating can land together, and `record` is a read-modify-write, so writes are serialized like the feedback store's.
   let writeQueue: Promise<void> = Promise.resolve();
 
   return {
@@ -97,7 +89,6 @@ function readEntry(
   return history ?? { snapshots: [] };
 }
 
-/** Storage is untrusted input: anything not shaped like a history map is dropped. */
 async function readHistory(
   storage: StorageAdapter,
 ): Promise<Readonly<Record<string, StoredProfileHistory>>> {

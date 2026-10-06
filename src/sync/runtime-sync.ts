@@ -8,11 +8,7 @@ import type { AnimeCacheStore } from './sync-types';
 import type { StorageAdapter } from '../storage/storage-adapter';
 import type { Language } from '../locales';
 
-/**
- * Sync facade that resolves the **active** provider for every run. Each
- * provider keeps its own cache (`animeData:<providerId>`), so switching the
- * active provider restores its cached list instantly and offline.
- */
+// Resolves the active provider per run; each provider has its own cache, so switching restores that list instantly, even offline.
 export class AuthenticatedAnimeListSyncService {
   constructor(
     private readonly registryService: ProviderRegistryService,
@@ -52,11 +48,7 @@ export class AuthenticatedAnimeListSyncService {
     return service.getCachedResult(language);
   }
 
-  /**
-   * Clears cached list data. Without an argument both providers are cleared
-   * (delete-local-data / clear-cache); with a provider id only that
-   * provider's cache is dropped (disconnect keeps the other provider's data).
-   */
+  // No argument clears both providers (clear-cache / delete-local-data); a provider id clears just that one, so a disconnect keeps the other's data.
   async invalidate(providerId?: ProviderId): Promise<void> {
     if (providerId === undefined) {
       await Promise.all([

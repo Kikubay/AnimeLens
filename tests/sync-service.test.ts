@@ -178,8 +178,7 @@ describe('AnimeListSyncService', () => {
     const jittered: number[] = [];
     const guided: number[] = [];
 
-    // A guided retry must land on the server's number exactly; shortening it
-    // would retry inside a window the provider has not reopened yet.
+    // Shortening a guided delay would retry inside a window the provider hasn't reopened yet.
     let guidedCalls = 0;
     const guidedProvider: AnimeProvider = {
       getCurrentUser: async () => {
@@ -207,9 +206,7 @@ describe('AnimeListSyncService', () => {
     await guidedService.sync({ maxRetries: 1 });
     expect(guided).toEqual([4000]);
 
-    // With no Retry-After the exponential fallback is spread, so concurrent
-    // clients do not all wake at the same instant. Each run needs its own
-    // failing-then-succeeding provider, otherwise only the first one retries.
+    // The unguided fallback is spread so concurrent clients don't all wake together; each run needs its own provider, or only the first would retry.
     for (let run = 0; run < 12; run += 1) {
       let fallbackCalls = 0;
       const fallbackProvider: AnimeProvider = {
@@ -258,8 +255,7 @@ describe('AnimeListSyncService', () => {
       addToList: async () => undefined,
     };
     const service = new AnimeListSyncService(provider, new MemoryCache(), undefined, async () => {
-      // No real waiting in tests.
-    });
+      });
 
     await expect(service.sync({ maxRetries: 1 })).resolves.toMatchObject({ fromCache: false });
     expect(calls).toBe(2);

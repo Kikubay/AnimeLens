@@ -9,31 +9,21 @@ import {
 import { Badge, Button, Modal } from './ui';
 import { fetchAssetAsDataUrl } from '../taste-card-image';
 
-/**
- * Upper bound on cover art fetched for the picker. A user with dozens of tied
- * 10/10s would otherwise fire dozens of parallel CDN requests from a popup; the
- * overflow renders as a monogram tile instead, which is still selectable.
- */
+// Dozens of tied 10/10s would otherwise fire dozens of parallel CDN requests from a popup; the overflow renders as a selectable monogram.
 const MAX_CANDIDATE_COVERS = 24;
 
 interface TopPicksModalProps {
   readonly open: boolean;
   readonly plan: TopPickPlan;
   readonly copy: AppCopy;
-  /** True when re-opening after a saved ranking, so the copy can differ. */
+  /** Lets the copy differ when re-opening a saved ranking. */
   readonly isReranking: boolean;
   readonly onClose: () => void;
-  /** The user filled every open slot. */
   readonly onComplete: (ranking: readonly number[]) => void;
-  /** The user chose the automatic order. */
   readonly onSkip: () => void;
 }
 
-/**
- * Sequential tie-breaker: each click fills the current open slot and advances to
- * the next, mirroring the "Select your #3 anime" flow. Locked slots are shown
- * read-only so it is obvious which anime are decided and why.
- */
+// Each click fills the current slot and advances, and locked slots stay read-only so it's obvious which picks are already decided.
 export function TopPicksModal({
   open,
   plan,
@@ -54,7 +44,7 @@ export function TopPicksModal({
     };
   }, []);
 
-  // Every open starts from scratch: a re-rank must not pre-fill the old answer.
+  // A re-rank must never pre-fill the previous answer.
   useEffect(() => {
     if (open) setChosen([]);
   }, [open]);

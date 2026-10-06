@@ -10,12 +10,7 @@ export interface StoredSession {
 
 export type StoredAnimeData = AnimeCache;
 
-/**
- * The measured half of a preference axis, as persisted between syncs.
- *
- * `positive` and `negative` only exist to rank the live list, so they are
- * dropped rather than stored on every snapshot.
- */
+// `positive` and `negative` only exist to rank the live list, so they aren't stored on every snapshot.
 export interface StoredPreferenceItem {
   readonly name: string;
   readonly score: number;
@@ -23,13 +18,7 @@ export interface StoredPreferenceItem {
   readonly count: number;
 }
 
-/**
- * What the derived profile looked like at one point in time.
- *
- * `detectedPreferences` is deliberately absent: those sentences are already
- * localized, so storing them would make a language switch register as a change
- * in the user's taste.
- */
+// `detectedPreferences` is deliberately absent: those sentences are already localized, so storing them would make a language switch look like a change in taste.
 export interface StoredProfileSnapshot {
   /** Bumped when this shape changes; a mismatch discards the history. */
   readonly version: number;
@@ -44,36 +33,25 @@ export interface StoredProfileSnapshot {
 }
 
 export interface StoredProfileHistory {
-  /** Newest first. */
   readonly snapshots: readonly StoredProfileSnapshot[];
 }
 
 export interface AnimeLensStorage {
   session?: StoredSession;
   profile?: UserProfile;
-  /** Legacy pre-multi-provider cache key (MAL data only). */
+  /** Legacy, always MAL. */
   animeData?: StoredAnimeData;
-  /** Per-provider cache keys (`animeData:mal`, `animeData:anilist`). */
   'animeData:mal'?: StoredAnimeData;
   'animeData:anilist'?: StoredAnimeData;
   feedback?: readonly RecommendationFeedback[];
   preferences?: UserPreferences;
   malClientId?: string;
   anilistClientId?: string;
-  /** Which provider receives sync/recommendation traffic ('mal'|'anilist'). */
   activeProvider?: string;
-  /**
-   * Anime ids the user hand-picked to break a tie in the taste card Top 3.
-   * Only meaningful together with `manual_top_3_pool_signature`; a mismatch
-   * means the list moved on and the ranking is discarded.
-   */
+  /** Only meaningful next to `manual_top_3_pool_signature`; a mismatch discards it. */
   manual_top_3_ranking?: readonly number[];
   manual_top_3_pool_signature?: string;
-  /**
-   * A short ring of derived-profile snapshots per provider, showing what moved
-   * since the last sync. Keyed by provider so switching MAL <-> AniList cannot
-   * diff two different lists against each other.
-   */
+  /** Keyed by provider so switching MAL <-> AniList can't diff two different lists. */
   profileHistory?: Readonly<Record<string, StoredProfileHistory>>;
   updateCheck?: unknown;
 }

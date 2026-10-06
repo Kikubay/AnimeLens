@@ -9,7 +9,7 @@ export interface SyncRunOptions {
   readonly force?: boolean;
   readonly maxRetries?: number;
   readonly onProgress?: (progress: SyncProgress) => void;
-  /** Language for user-facing progress messages. Defaults to English. */
+  /** Defaults to English. */
   readonly language?: Language;
 }
 

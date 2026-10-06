@@ -2,11 +2,7 @@ import { describe, expect, it } from 'vitest';
 import type { AuthErrorCode } from '../src/auth/auth-types';
 import { getCopy, normalizeLanguage } from '../src/locales';
 
-/**
- * Values that are intentionally identical in both languages: brand lines,
- * all-caps eyebrows that read the same in French, and words spelled the same
- * in French and English.
- */
+// Brand lines, all-caps eyebrows and words spelled the same in both languages.
 const INTENTIONALLY_SAME_KEYS = new Set([
   'dashboardEyebrow',
   'genres',
@@ -17,19 +13,14 @@ const INTENTIONALLY_SAME_KEYS = new Set([
   'french',
   'english',
   'genre',
-  // Neutral section title shared by both languages.
   'oauthConfig',
-  // Aspect-ratio label for the taste card: identical in French and English.
   'tasteCardFormatPortrait',
-  // "Triangle" is the same word in French and English.
   'tasteCardLayoutTriangle',
-  // Product name and stage label, identical in both languages.
   'brandWordmark',
   'dailyNotificationTitle',
   'oauthEyebrow',
 ]);
 
-/** Sample arguments for function-valued keys that need real inputs. */
 const FUNCTION_ARGS: Record<string, readonly unknown[]> = {
   authErrorMessage: ['cancelled', 'raw fallback'],
 };
@@ -143,14 +134,7 @@ describe('localization', () => {
   });
 });
 
-/**
- * Exact copy for the taste card and tie-breaker strings.
- *
- * The generic leak check above only catches values that are *identical* across
- * languages, so it is blind to a swapped pair — French text in the English table
- * and English text in the French one both pass, because the two differ. This
- * table pins the wording in both directions instead.
- */
+// The leak check above only catches *identical* values, so a swapped pair (French in the English table, English in the French one) slips through; this pins the wording in both directions.
 const TASTE_CARD_STRINGS: readonly (readonly [string, string, string])[] = [
   ['tasteCardShare', 'Partager ma carte de goûts', 'Share my taste card'],
   ['tasteCardTitle', 'Votre carte de goûts', 'Your taste card'],
@@ -255,7 +239,6 @@ const TASTE_CARD_STRINGS: readonly (readonly [string, string, string])[] = [
   ['topPicksNoCandidates', 'Aucun candidat disponible.', 'No candidates available.'],
 ];
 
-/** Flat string view of a language table, for key-by-key assertions. */
 function strings(language: 'fr' | 'en'): Record<string, string> {
   return getCopy(language) as unknown as Record<string, string>;
 }
@@ -272,7 +255,6 @@ describe('taste card copy', () => {
     for (const [key] of TASTE_CARD_STRINGS) {
       const french = strings('fr')[key];
       const english = strings('en')[key];
-      // Distinct wording, and each language only sees its own script.
       expect(french, key).not.toBe(english);
       expect(english, `en.${key}`).not.toMatch(/[éèêëàâçîïôûœ]/i);
       expect(french, `fr.${key}`).not.toMatch(

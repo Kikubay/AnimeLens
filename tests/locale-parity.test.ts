@@ -12,16 +12,9 @@ import {
 } from '../src/locales';
 
 const FILES: Readonly<Record<Language, typeof en>> = { en, fr };
-/**
- * Every key that must appear in a locale file's `messages` map.
- *
- * `authErrorMessage` is deliberately absent: it is selected by error code, so
- * each locale file carries a separate `authErrors` map, checked by the
- * auth-error test in `i18n.test.ts` instead.
- */
+// `authErrorMessage` is absent on purpose: it's selected by error code and lives in each locale's `authErrors` map, checked by the auth-error test in i18n.test.ts.
 const KEYS = Object.keys(en.messages) as readonly MessageKey[];
 
-/** Message keys whose template placeholders are supplied by a loader transform. */
 const TRANSFORMED = new Set<MessageKey>([
   'tasteCardCoverSizeValue',
   'reasonTheme',
@@ -53,7 +46,7 @@ describe('locale file parity', () => {
 
   it('uses exactly the placeholders the schema declares, in every language', () => {
     for (const key of KEYS) {
-      // A transform renames or computes its argument, so the schema names differ.
+      // A transform renames or computes its argument, so the schema names won't match.
       if (TRANSFORMED.has(key)) continue;
       for (const language of LANGUAGES) {
         const used = [...new Set(placeholdersIn(rawTemplate(language, key)))].sort();
@@ -81,7 +74,6 @@ describe('locale file parity', () => {
   });
 });
 
-/** Renders a templated message with a distinct marker per placeholder. */
 function callTemplate(language: Language, key: MessageKey): string {
   const copy = getCopy(language) as unknown as Record<string, unknown>;
   const fn = copy[key];

@@ -31,11 +31,7 @@ const DEFAULT_GENERATED_AT = '1970-01-01T00:00:00.000Z';
 const MIN_VALID_ID = 1;
 const MAX_REASON_COUNT = 3;
 const COLD_START_COUNT = 3;
-// The Highly Compatible *section* still exposes every unseen title above 50
-// (see recommendation-dashboard.ts), but the category itself must stay a
-// top-of-band signal: a rich profile compresses taste-aligned candidates into
-// the 70-85 range, so a lower gate would route nearly everything here and
-// starve the Hidden Gems and Explore sections.
+// The section still exposes every unseen title above 50, but the category itself has to stay a top-of-band signal: a rich profile compresses taste-aligned candidates into the 70-85 range, so a lower gate would route nearly everything here and starve Hidden Gems and Explore.
 const HIGHLY_COMPATIBLE_MIN_SCORE = 75;
 const STRONG_AFFINITY_THRESHOLD = 0.65;
 const HIDDEN_GEM_MIN_SCORE = 62;
@@ -43,13 +39,9 @@ const HIDDEN_GEM_MAX_MEMBERS = 150_000;
 const HIDDEN_GEM_MIN_POPULARITY_RANK = 400;
 const BECAUSE_YOU_LIKED_MIN_RATING = 7;
 const BECAUSE_YOU_LIKED_MIN_SHARED_FEATURES = 2;
-// Up to this many well-rated entries, overlap with one of them is inherently
-// specific (a tiny cohort cannot saturate the feature space).
+// Below this many liked entries, any overlap is inherently specific — a tiny cohort can't saturate the feature space.
 const BECAUSE_YOU_LIKED_SMALL_COHORT = 3;
-// With a large liked cohort, two shared features is the base rate of the list
-// (measured on realistic lists: ~90% of candidates overlap some liked entry by
-// two features), so provenance needs a deeper match - or a two-feature overlap
-// so uncommon that a single entry plausibly explains it.
+// Above it, two shared features is the base rate (~90% of candidates overlap some liked entry by two), so provenance needs a deeper match.
 const BECAUSE_YOU_LIKED_MIN_DEEP_SHARED_FEATURES = 3;
 const BECAUSE_YOU_LIKED_MAX_SIMILAR_SHARE = 0.25;
 
@@ -144,7 +136,6 @@ export function buildUserPreferenceProfile(
   };
 }
 
-/** Alias with a descriptive name for callers building a taste profile. */
 export const learnUserPreferences = buildUserPreferenceProfile;
 
 export function scoreRecommendation(
@@ -191,7 +182,6 @@ export function scoreRecommendation(
   };
 }
 
-/** Backwards-compatible single-candidate API used by the initial prototype. */
 export function scoreAnime(anime: Anime, profile: UserTasteProfile): Recommendation {
   const score = scoreRecommendation(anime, profile);
   return {
@@ -658,18 +648,11 @@ function categorize(
   watched: readonly AnimeListEntry[],
   profile: RecommendationProfile,
 ): RecommendationCategory {
-  // Specific provenance signals first: a candidate sharing enough features with
-  // a well rated entry is recommended *because* of that entry, even when its
-  // global score would also clear the affinity band.
+  // Provenance first: a candidate sharing enough features with a well-rated entry is recommended *because* of that entry, even when its global score would also clear the affinity band.
   if (becauseYouLikedSource(anime, watched) !== undefined) return 'because-you-liked';
-  // Hidden gems are keyed on popularity, not taste overlap: a low-popularity
-  // title that also matches the user's taste is exactly what the section is
-  // for, so it must be classified before the broad Highly Compatible band
-  // captures it.
+  // Checked before the broad Highly Compatible band, since a taste-matching but low-popularity title is exactly what this section is for.
   if (score.normalized >= HIDDEN_GEM_MIN_SCORE && isHiddenGem(anime)) return 'hidden-gem';
-  // The affinity band needs a genuine taste signal, not only a high composite
-  // score: real lists cluster between 60 and 77, so mid-band candidates stay
-  // available for the discovery sections below.
+  // Needs a real taste signal, not just a high composite score: real lists cluster around 60-77, and those stay available for the discovery sections.
   if (
     score.normalized >= HIGHLY_COMPATIBLE_MIN_SCORE &&
     hasStrongAffinity(anime, profile) &&
@@ -681,13 +664,7 @@ function categorize(
   return 'explore';
 }
 
-/**
- * Finds the well-rated entry a candidate is most similar to, but only when
- * that similarity is actually distinctive. On a large list every candidate
- * shares a couple of features with *some* highly rated entry; treating that
- * base-rate overlap as provenance used to route the entire output to
- * Because You Liked and left Hidden Gems and Explore empty.
- */
+// Only counts as provenance when the similarity is actually distinctive — on a large list everything overlaps *something*, and treating that as a match used to route the whole output here and leave Hidden Gems and Explore empty.
 function becauseYouLikedSource(
   anime: Anime,
   watched: readonly AnimeListEntry[],

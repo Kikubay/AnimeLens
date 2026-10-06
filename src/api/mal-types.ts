@@ -49,10 +49,7 @@ export interface MalAnimeDto {
   readonly media_type?: string;
   readonly status?: string;
   readonly rating?: string;
-  /**
-   * Flat list mixing genres, themes and demographics (MAL has no separate
-   * `themes` field); the normalizer splits it via the official ID taxonomy.
-   */
+  // Genres, themes and demographics all arrive mixed together; the normalizer splits them apart.
   readonly genres?: readonly MalNamedResourceDto[];
   readonly studios?: readonly MalNamedResourceDto[];
   readonly staff?: readonly MalStaffDto[];

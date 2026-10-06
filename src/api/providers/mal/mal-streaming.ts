@@ -1,35 +1,12 @@
 import type { StreamingLink } from '../../../domain/streaming';
 import { normalizeStreamingSites } from '../../../domain/streaming';
 
-/**
- * Where-to-watch data for MyAnimeList.
- *
- * The API can't help us here. Its documented anime fields are `id, title,
- * main_picture, …, related_anime, related_manga, recommendations, studios,
- * statistics` — no streaming links, and it answers `400 Invalid Parameters` for
- * fields it doesn't know, so inventing one breaks sync. The website does render
- * the data though, under a "Streaming Platforms" heading:
- *
- * ```html
- * <h2>Streaming Platforms</h2>
- * <a href="http://www.crunchyroll.com/series-283731" title="Crunchyroll"
- *    class="broadcast-item available" data-available="1" …>
- * ```
- *
- * So we read the page. Two things make that workable:
- *
- * - MAL obfuscates its CSS classes, so we find the section by its heading *text*
- *   and pick entries out by `broadcast-item`, which is stable and semantic.
- * - MV3 service workers have no `DOMParser`, so it's a tag scanner, not a parser.
- *
- * It's a scrape, so treat it as the fragile part of this feature: when MAL
- * redesigns, it breaks by rendering no card, never by throwing.
- */
+// MAL's API has no streaming-links field and rejects unknown ones with 400, so we scrape the website instead — the section is found by its heading text (class names are obfuscated) and picked apart by `broadcast-item`. MV3 workers have no DOMParser, hence the tag scanner rather than a parser. When MAL redesigns this breaks by rendering no card, never by throwing.
 
 // Already covered by the `myanimelist.net` host permission.
 export const MAL_WEB_ANIME_URL = 'https://myanimelist.net/anime';
 
-// Anime pages are ~200KB; we only ever need the section itself.
+// Anime pages are ~200KB and we only ever need the section itself.
 const SECTION_WINDOW_CHARS = 12_000;
 
 const REQUEST_TIMEOUT_MS = 8_000;
@@ -39,8 +16,7 @@ const STREAMING_HEADING = /streaming\s*platform/i;
 const ANCHOR = /<a\b([^>]*)>([\s\S]*?)<\/a>/gi;
 const CAPTION = /<div[^>]*class="[^"]*caption[^"]*"[^>]*>([\s\S]*?)<\/div>/i;
 
-// No section means an unstreamed title or a layout change. Either way the caller
-// renders no card, which is the honest outcome.
+// No section means unstreamed or a layout change — either way the caller renders no card.
 export function parseMalStreamingPlatforms(html: string): readonly StreamingLink[] {
   const section = streamingSection(html);
   if (section === null) return [];
@@ -98,10 +74,7 @@ function decodeEntities(value: string): string {
     .replace(/&amp;/gi, '&');
 }
 
-/**
- * No cookies and no Authorization header, on purpose: that's the public website
- * and the user's MAL API token has no business being handed to it.
- */
+// No cookies and no Authorization header on purpose: it's the public website, and the user's MAL token has no business going there.
 export async function fetchMalStreamingPlatforms(
   animeId: number,
 ): Promise<readonly StreamingLink[]> {

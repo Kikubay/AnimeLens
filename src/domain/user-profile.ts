@@ -1,7 +1,7 @@
 import type { AnimeFormat, AnimeSeason, AnimeType } from './anime';
 
 export interface UserProfile {
-  /** The user's ID within their provider (formerly `malId`). */
+  /** ID within their provider (used to be `malId`). */
   readonly id: number;
   readonly username: string;
   readonly avatarUrl: string | null;

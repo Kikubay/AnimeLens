@@ -63,9 +63,7 @@ describe('FetchHttpClient', () => {
   });
 
   it('parses the HTTP-date form of Retry-After into a relative delay', async () => {
-    // MAL and GitHub send the date form as readily as delta-seconds; a
-    // numeric-only parser dropped it and fell back to a sub-second backoff
-    // against a rate-limit window measured in tens of seconds.
+    // Both CDNs send the date form, and a numeric-only parser would fall back to a sub-second backoff against a window measured in tens of seconds.
     const now = Date.parse('2026-10-21T07:00:00Z');
     vi.useFakeTimers();
     vi.setSystemTime(now);

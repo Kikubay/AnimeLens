@@ -55,10 +55,7 @@ export async function buildDashboardRecommendationSnapshot(
   const planToWatch = entries
     .filter((entry) => entry.status === 'plan_to_watch')
     .map((entry) => entry.anime);
-  // The user's plan-to-watch list alone is usually tiny (it *is* the list of
-  // things they already queued), which starves every recommendation section.
-  // MAL's personalized suggestions widen the pool with titles the user has
-  // not listed yet; failures degrade gracefully to plan-to-watch only.
+  // Plan-to-watch alone is usually tiny (it *is* the list of things already queued), which starves every section; suggestions widen the pool with unlisted titles.
   let candidates = planToWatch;
   try {
     const suggestions = (await fetchExtraCandidates?.()) ?? [];
@@ -70,13 +67,12 @@ export async function buildDashboardRecommendationSnapshot(
       candidates = [...planToWatch, ...suggestions.filter((anime) => !knownIds.has(anime.id))];
     }
   } catch {
-    // Suggestions are an enhancement, never a hard dependency.
+    // Never a hard dependency.
   }
   const recommendations = generateRecommendations(
     { watched, candidates, feedback },
     {
-      // Keep every eligible candidate so Highly Compatible can expose every
-      // unseen title scoring above its section threshold.
+      // No cap here, so Highly Compatible can surface every unseen title over its threshold.
       limit: candidates.length,
       discovery: toRecommendationDiscoveryPreferences(preferences),
       generatedAt,

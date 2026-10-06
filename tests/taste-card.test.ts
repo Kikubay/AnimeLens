@@ -91,8 +91,7 @@ describe('buildTasteCardModel', () => {
   it('falls back gracefully when no account is connected', () => {
     const model = buildTasteCardModel(summary(), null);
 
-    // The name stays empty so the painter can substitute a localized one; the
-    // monogram is a glyph and must not follow that substitution.
+    // The name stays empty so the painter can substitute a localized one; the monogram is a glyph and must not follow that substitution.
     expect(model.displayName).toBe('');
     expect(getCopy('en').tasteCardDefaultName).toBe('Anime fan');
     expect(model.monogram).toBe('A');
@@ -121,8 +120,7 @@ describe('buildTasteCardModel', () => {
 
 describe('taste card layout after dismissing the card', () => {
   it('falls back to the list when the grid is dismissed', () => {
-    // A grid is never persisted, so leaving the mode on would reopen onto an
-    // empty collage.
+    // A grid is never persisted, so leaving the mode on would reopen onto an empty collage.
     expect(
       layoutAfterCardClose({ ...DEFAULT_TASTE_CARD_RENDER_OPTIONS, picksLayout: 'grid' }),
     ).toBe('list');
@@ -170,11 +168,7 @@ describe('monogramFor', () => {
 });
 
 describe('taste card painter', () => {
-  /**
-   * Minimal recording stand-in for a 2D context. The painter only needs
-   * gradients, paths, and text metrics, so a stub is enough to assert the
-   * geometry that ends up in the exported pixels.
-   */
+  // The painter only needs gradients, paths and text metrics, so a stub is enough to assert the geometry that reaches the exported pixels.
   function recordingContext() {
     const texts: { text: string; x: number; y: number }[] = [];
     const rects: { x: number; y: number; width: number; height: number }[] = [];
@@ -330,8 +324,7 @@ describe('taste card painter', () => {
   it('paints a square cover thumbnail for every pick that has art', () => {
     const recorded = recordingContext();
     paint(recorded, {}, 'portrait', { picks: [cover, null, cover] });
-    // `object-fit: cover` paints the image at cover scale and clips the box, so
-    // the drawn height is at least the thumbnail edge.
+    // Cover scale means the image is drawn at least as tall as the thumbnail edge.
     const covers = recorded.drawn.filter(
       (image) => Math.round(image.width) === 56 && image.height >= 56,
     );
@@ -508,8 +501,7 @@ describe('taste card painter', () => {
   });
 
   it('insets the brand row to the same content padding as everything else', () => {
-    // The brand mark used to be painted at x = 0, which shoved the whole top
-    // row 72px left of the content column. Pin the invariant in every format.
+    // The mark used to be painted at x = 0, shoving the top row 72px left of the content column.
     const padX: Record<TasteCardFormat, number> = { tall: 72, portrait: 72, square: 64 };
     for (const format of TASTE_CARD_FORMAT_ORDER) {
       const recorded = recordingContext();
@@ -530,8 +522,7 @@ describe('taste card painter', () => {
   });
 
   it('starts every primary element on one shared content line', () => {
-    // Section labels, genre names, cover thumbnails, and the stat tiles all
-    // hang off the same inset, so the column reads as a single grid.
+    // Section labels, genre names, covers and stat tiles all hang off the same inset, so the column reads as one grid.
     for (const format of TASTE_CARD_FORMAT_ORDER) {
       const recorded = recordingContext();
       paint(recorded, {}, format, { picks: [cover, cover, cover] });
@@ -562,8 +553,7 @@ describe('taste card painter', () => {
         expect(rect.x).toBeGreaterThanOrEqual(padX);
         expect(Math.round(rect.x + rect.width)).toBeLessThanOrEqual(spec.width - padX);
       }
-      // Right-aligned text is anchored on the content edge, so its origin is
-      // the rightmost point; nothing may start before the inset.
+// Right-aligned text is anchored on the content edge, so its origin is the rightmost point.
       for (const entry of recorded.texts) {
         expect(entry.x).toBeGreaterThanOrEqual(padX);
         expect(entry.x).toBeLessThanOrEqual(spec.width - padX);
@@ -581,9 +571,7 @@ describe('taste card painter', () => {
   });
 
   it('fits every format, layout, and cover size without clipping the footer', () => {
-    // Worst case: three genres, three picks, a tagline, and a long name. Every
-    // user-reachable combination is checked, so a new layout or a wider slider
-    // cannot quietly overflow the card.
+    // Worst case: three genres, three picks, a tagline and a long name. Every reachable combination is checked, so a new layout or a wider slider can't quietly overflow.
     const worst: TasteCardModel = {
       ...model,
       displayName: 'A_very_long_anime_lovers_handle_2026',
@@ -734,8 +722,7 @@ describe('taste card painter', () => {
         images: { avatar: null, brand: null, picks: Array.from({ length: 9 }, () => cover) },
         options: { ...DEFAULT_TASTE_CARD_RENDER_OPTIONS, picksLayout: 'grid' },
       });
-      // The cell boxes are the rounded rects used as clip paths; the images
-      // themselves are painted larger on purpose, to crop like `cover`.
+// The cell boxes are the rounded rects used as clip paths; the images are deliberately painted larger to crop like `cover`.
       const cells = contentRects(recorded, spec.width).filter(
         (rect) => Math.round(rect.width) === Math.round(rect.height),
       );
@@ -794,24 +781,20 @@ describe('taste card painter', () => {
       const cell = Math.round(cells[0]?.width ?? 0);
       const left = cells[0]?.x ?? 0;
       const top = cells[0]?.y ?? 0;
-      // Cells run left-to-right, top-to-bottom, so index 8 is the last column
-      // and index 6 the last row.
+// Cells run left-to-right, top-to-bottom, so index 8 ends the last column and index 6 the last row.
       const rightGap = spec.width - (cells[8]!.x + cell);
       const bottomGap = spec.height - (cells[6]!.y + cell);
 
       // Columns are balanced within a pixel.
       expect(Math.abs(left - rightGap)).toBeLessThanOrEqual(1);
-      // Rows are balanced too, which is what the old top-anchored origin broke:
-      // a tall card has unavoidable vertical slack, and it must be split.
+// Rows balance too: a tall card has unavoidable vertical slack and it has to be split.
       expect(Math.abs(top - bottomGap)).toBeLessThanOrEqual(2);
       expect(top).toBeGreaterThan(0);
     }
   });
 
   it('still fits at the largest cover size the slider allows', () => {
-    // The slider maximum is only safe if the layout holds at that value; if a
-    // future metrics change breaks this, TASTE_CARD_COVER_SCALE_RANGE is too
-    // generous and must be tightened rather than the card silently clipping.
+    // The slider max is only safe while the layout holds there; if this breaks, tighten TASTE_CARD_COVER_SCALE_RANGE rather than let the card clip.
     const worst: TasteCardModel = {
       ...model,
       displayName: 'A_very_long_anime_lovers_handle_2026',
@@ -922,8 +905,7 @@ describe('taste card painter', () => {
       showGenres: false,
     });
 
-    // Freeing the genre bars is what buys bigger artwork, so the slider
-    // visibly grows when the user turns that section off.
+    // Freeing the genre bars buys the bigger artwork, so the slider visibly grows when that section is off.
     expect(noGenres).toBeGreaterThan(all);
     expect(all).toBeLessThanOrEqual(COVER_SCALE_RANGE.max);
   });
@@ -1016,15 +998,12 @@ describe('taste card painter', () => {
     expect(rendered).not.toContain('Taste for rich worlds');
   });
 
-  /** Genre tracks and fills are the only short, wide rounded rects. */
+  // Genre tracks and fills are the only short, wide rounded rects.
   function genreBars(recorded: ReturnType<typeof recordingContext>) {
     return recorded.rects.filter((rect) => rect.height > 8 && rect.height < 24 && rect.width > 100);
   }
 
-  /**
-   * Rounded boxes inside the content column, excluding the full-bleed base
-   * background fill that is painted first.
-   */
+  // Rounded boxes inside the content column, excluding the full-bleed base fill painted first.
   function contentRects(recorded: ReturnType<typeof recordingContext>, cardWidth: number) {
     return recorded.rects.filter((rect) => Math.round(rect.width) < cardWidth);
   }

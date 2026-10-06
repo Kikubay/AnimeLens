@@ -56,8 +56,7 @@ describe('settings preferences', () => {
   });
 
   it('only ever persists List or Triangle, never the grid', () => {
-    // The grid depends on nine hand-picked entries that are deliberately not
-    // stored, so persisting the mode would restore an empty collage.
+    // The grid's nine hand-picked entries aren't stored, so persisting the mode would restore an empty collage.
     for (const layout of ['list', 'triangle'] as const) {
       expect(
         normalizeUserPreferences({ tasteCard: { picksLayout: layout } }).tasteCard.picksLayout,
@@ -65,7 +64,7 @@ describe('settings preferences', () => {
       expect(persistableTasteCardPicksLayout(layout)).toBe(layout);
     }
     expect(persistableTasteCardPicksLayout('grid')).toBe('list');
-    // A value written by an older build is repaired on read.
+    // A value from an older build gets repaired on read.
     expect(
       normalizeUserPreferences({ tasteCard: { picksLayout: 'grid' } }).tasteCard.picksLayout,
     ).toBe('list');
@@ -94,7 +93,6 @@ describe('settings preferences', () => {
     expect(normalizeUserPreferences({ tasteCard: { coverScale: -5 } }).tasteCard.coverScale).toBe(
       min,
     );
-    // Rounded so dragging the slider cannot accumulate float noise.
     expect(
       normalizeUserPreferences({ tasteCard: { coverScale: 1.23456 } }).tasteCard.coverScale,
     ).toBe(1.23);

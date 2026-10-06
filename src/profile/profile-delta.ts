@@ -1,25 +1,17 @@
 import type { StoredPreferenceItem, StoredProfileSnapshot } from '../storage/storage-types';
 import type { UserProfileSummary } from './profile-types';
 
-/** Bumped whenever `StoredProfileSnapshot` changes shape. */
 export const PROFILE_HISTORY_VERSION = 1;
 
-/** Only the newest snapshot is diffed; the rest are spare room. */
 export const PROFILE_HISTORY_CAPACITY = 4;
 
-/**
- * A score is `positive / count`, so an item backed by one or two entries swings
- * by 30-50 points on a single addition. That is arithmetic, not taste.
- */
+// A score is `positive / count`, so an item backed by one or two entries swings 30-50 points on a single addition — that's arithmetic, not taste.
 export const MIN_SAMPLE_COUNT = 3;
 
-/** Percentage points a score must move before it is worth a line of copy. */
 export const MIN_SCORE_DELTA = 5;
 
-/** How many changes the card shows. The rest are dropped, not queued. */
 export const MAX_CHANGES = 4;
 
-/** Average scores are 0-10, so a tenth of a point is the noise floor. */
 export const MIN_AVERAGE_DELTA = 0.3;
 
 export type ProfileAxis = 'genres' | 'themes' | 'studios';
@@ -44,12 +36,7 @@ export interface ProfileAverageChange {
   readonly direction: 'up' | 'down';
 }
 
-/**
- * - `baseline`    nothing to compare against yet
- * - `ready`       something crossed a threshold
- * - `stable`      a snapshot exists but nothing meaningful moved
- * - `unavailable` the stored history is another shape or provider
- */
+// 'baseline' = nothing to compare against, 'ready' = something crossed a threshold, 'stable' = nothing meaningful moved, 'unavailable' = the stored history is another shape or provider.
 export type ProfileDeltaStatus = 'baseline' | 'ready' | 'stable' | 'unavailable';
 
 export interface ProfileDelta {
@@ -61,7 +48,7 @@ export interface ProfileDelta {
 
 const AXES: readonly ProfileAxis[] = ['genres', 'themes', 'studios'];
 
-/** Most newsworthy first: joining the top five beats a rank move beats a nudge. */
+// Most newsworthy first: joining the top five beats a rank move beats a nudge.
 const SIGNIFICANCE: Readonly<Record<ProfileChangeKind, number>> = {
   entered: 0,
   left: 1,
@@ -71,7 +58,6 @@ const SIGNIFICANCE: Readonly<Record<ProfileChangeKind, number>> = {
   score_down: 5,
 };
 
-/** Drops the localized half of a summary, keeping only what can be compared. */
 export function toStoredProfileSnapshot(
   summary: UserProfileSummary,
   providerId: string,
@@ -96,12 +82,7 @@ function toItems(
   return items.map((item) => ({ name: item.name, score: item.score, count: item.count }));
 }
 
-/**
- * Compares the profile as it is now against the last recorded snapshot.
- *
- * Pure: the store advances the baseline, and only when the list or feedback
- * actually changed, so the delta survives repeated popup reopenings.
- */
+// Pure, because the store advances the baseline and only when the list or feedback really changed — otherwise the first popup to open would eat the delta.
 export function diffProfileSnapshots(
   previous: StoredProfileSnapshot | null,
   current: StoredProfileSnapshot,
@@ -110,8 +91,7 @@ export function diffProfileSnapshots(
   if (previous.version !== current.version || previous.providerId !== current.providerId) {
     return { status: 'unavailable', previousAt: null, changes: [], averageChange: null };
   }
-  // Same entries, same ratings: nothing derived from them moved. The common
-  // case, e.g. an entry only shifted from "plan to watch" to "watching".
+  // Same counts means nothing derived moved, e.g. an entry only shifted from "plan to watch" to "watching".
   if (
     previous.analyzedAnimeCount === current.analyzedAnimeCount &&
     previous.ratedAnimeCount === current.ratedAnimeCount
@@ -134,7 +114,6 @@ function baselineDelta(): ProfileDelta {
   return { status: 'baseline', previousAt: null, changes: [], averageChange: null };
 }
 
-/** The delta to report when there is no profile to measure at all. */
 export function baselineProfileDelta(): ProfileDelta {
   return baselineDelta();
 }
@@ -171,8 +150,7 @@ function diffAxis(
       });
       continue;
     }
-    // A rank move is the legible form of whatever score change caused it, so
-    // it is reported alone rather than alongside a score line.
+    // A rank move already says what the score change did, so it isn't paired with a score line.
     if (was.index !== index) {
       changes.push({
         kind: was.index > index ? 'rank_up' : 'rank_down',
@@ -227,8 +205,7 @@ function compareChanges(left: ProfileChange, right: ProfileChange): number {
   if (bySignificance !== 0) return bySignificance;
   const byMagnitude = scoreSwing(right) - scoreSwing(left);
   if (byMagnitude !== 0) return byMagnitude;
-  // Equal weight still needs a stable order, or the same profile would render
-  // differently on each open.
+  // Ties still need a stable order, or the same profile renders differently on every open.
   return left.name.localeCompare(right.name) || left.axis.localeCompare(right.axis);
 }
 
@@ -237,7 +214,6 @@ function scoreSwing(change: ProfileChange): number {
   return Math.abs(change.toScore - change.fromScore);
 }
 
-/** True when both snapshots would produce the same delta. */
 export function sameProfileMeasurement(
   left: StoredProfileSnapshot,
   right: StoredProfileSnapshot,

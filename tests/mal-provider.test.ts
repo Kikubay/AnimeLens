@@ -49,9 +49,7 @@ describe('MalAnimeProvider', () => {
   });
 
   it('requests list_status (not my_list_status) on the user animelist endpoint', async () => {
-    // The list endpoint exposes the user's status under `list_status`; asking
-    // for `my_list_status` there silently yields nodes without any status or
-    // score, freezing the profile stats at zero.
+    // `list_status`, not `my_list_status`: asking for the latter here silently yields nodes with no status or score, freezing the profile stats at zero.
     const client = new StubHttpClient([{ data: [] }]);
     const provider = new MalAnimeProvider(client, 'test-token', 'https://mal.test/v2');
 

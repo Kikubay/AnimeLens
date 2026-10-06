@@ -35,11 +35,6 @@ export function createRuntimeAuthDependencies(): RuntimeAuthDependencies {
   };
 }
 
-/**
- * Builds the full provider stack: the registry, both provider auth services
- * (MAL: authorization-code + PKCE; AniList: implicit grant) and the
- * provider-scoped `AnimeProvider` factory.
- */
 export function createRuntimeProviderRegistryService(
   dependencies: RuntimeAuthDependencies = createRuntimeAuthDependencies(),
 ): ProviderRegistryService {
@@ -68,7 +63,6 @@ export function createRuntimeProviderRegistryService(
   });
 }
 
-/** Back-compat helper: the MAL auth service alone. */
 export function createRuntimeAuthService(
   dependencies: RuntimeAuthDependencies = createRuntimeAuthDependencies(),
 ): MalAuthService {
