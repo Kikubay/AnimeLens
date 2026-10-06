@@ -15,8 +15,16 @@
     "isolatedModules": true,
     "noEmit": true,
     "jsx": "react-jsx",
-    "types": ["vite/client", "chrome"]
+    "types": ["vite/client", "chrome", "node"]
   },
-  "include": ["src", "tests", "vite.config.ts", "eslint.config.js"],
+  "include": [
+    "src",
+    "tests",
+    "electron",
+    "vite.config.ts",
+    "vite.electron.node.config.ts",
+    "vite.electron.renderer.config.ts",
+    "eslint.config.js"
+  ],
   "exclude": ["node_modules", "dist", "docs", "MAL-API_doc", "public/icons"]
 }

@@ -45,13 +45,21 @@ jobs:
       - name: Run tests
         run: npm run test
 
-      - name: Build extension
+      - name: Build extension and desktop app
         run: npm run build
 
-      - name: Upload build artifact
+      - name: Upload extension artifact
         uses: actions/upload-artifact@v4
         if: success()
         with:
-          name: animelens-build
-          path: dist/
+          name: animelens-extension
+          path: dist/extension/
+          retention-days: 7
+
+      - name: Upload desktop app artifact
+        uses: actions/upload-artifact@v4
+        if: success()
+        with:
+          name: animelens-desktop
+          path: dist/electron/release/
           retention-days: 7

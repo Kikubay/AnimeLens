@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { isDesktopHost } from '../platform/desktop-bridge';
 import type { AuthSnapshot } from '../auth/auth-types';
 import type { UserProfile } from '../domain/user-profile';
 import { addAnimeToMalList } from '../api/mal-list-messages';
@@ -1418,6 +1419,15 @@ export function SettingsPage({
   const [isSavingAnilistClientId, setIsSavingAnilistClientId] = useState(false);
   const [providerActionInFlight, setProviderActionInFlight] = useState<ProviderId | null>(null);
   const [pinTabToken, setPinTabToken] = useState<string | null>(null);
+  // Only the extension can read browser tabs, so only the extension can lift
+  // the token off the pin redirect. The desktop app must be handed it.
+  const canAutoDetectPinToken = !isDesktopHost();
+  // The pin page opens outside the popup, so hosts that cannot inspect browser
+  // tabs — the desktop app — have no auto-detect and rely on this instead.
+  const [pinTokenDraft, setPinTokenDraft] = useState('');
+  // True from the moment the pin flow starts, so the panel is reachable even
+  // when no token has been detected (or auto-detection is impossible).
+  const [pinFlowActive, setPinFlowActive] = useState(false);
   const [isVerifyingPin, setIsVerifyingPin] = useState(false);
   const anilistProvider = providers.find((provider) => provider.id === 'anilist');
   const anilistSignedIn = anilistProvider?.signedIn ?? false;
@@ -1585,6 +1595,7 @@ export function SettingsPage({
       .then((authSnapshot) => {
         // The authorize tab is open; the pin-tab watcher above completes the sign-in.
         if (action === 'connect' && authSnapshot.errorCode === 'pin_flow_started') {
+          setPinFlowActive(true);
           onFeedback(copy.pinInstructions);
           return undefined;
         }
@@ -1630,7 +1641,10 @@ export function SettingsPage({
   };
 
   const submitPinToken = () => {
-    const token = pinTabToken?.trim() ?? '';
+    // A token the user typed wins over one lifted from a tab URL: it is the more
+    // deliberate of the two, and it is the only option on hosts that cannot see
+    // browser tabs at all.
+    const token = pinTokenDraft.trim() || pinTabToken?.trim() || '';
     if (token.length === 0 || isVerifyingPin) return;
     setIsVerifyingPin(true);
     void completeAniListPinSignIn(token)
@@ -1643,6 +1657,8 @@ export function SettingsPage({
           return;
         }
         setPinTabToken(null);
+        setPinTokenDraft('');
+        setPinFlowActive(false);
         return requestSettingsSnapshot().then((value) => {
           if (disposed.current) return;
           setProviders(value.providers ?? []);
@@ -1843,15 +1859,32 @@ export function SettingsPage({
             }
           />
         ))}
-        {/* Shown only while a tab sits on the pin redirect; the token comes straight from that tab's URL. */}
-        {pinTabToken !== null && !anilistSignedIn && (
+        {/* Extension: shown only once a token is lifted from the pin tab, so the panel
+            never appears with a dead button. Desktop: the tab is invisible to
+            the app, so the panel opens with the flow and takes a pasted token. */}
+        {(canAutoDetectPinToken ? pinTabToken !== null : pinFlowActive || pinTabToken !== null) &&
+          !anilistSignedIn && (
           <div className="pin-signin-panel">
-            <p>{copy.pinDetected}</p>
+            <p>{pinTabToken !== null ? copy.pinDetected : copy.pinPastePrompt}</p>
+            {!canAutoDetectPinToken && (
+              <input
+                className="mal-client-id-input"
+                type="text"
+                value={pinTokenDraft}
+                placeholder={copy.pinTokenPlaceholder}
+                autoComplete="off"
+                spellCheck={false}
+                aria-label={copy.pinTokenLabel}
+                onChange={(event) => setPinTokenDraft(event.target.value)}
+              />
+            )}
             <div className="provider-actions">
               <Button
                 size="sm"
                 variant="secondary"
-                disabled={isVerifyingPin}
+                disabled={
+                  isVerifyingPin || (pinTokenDraft.trim().length === 0 && pinTabToken === null)
+                }
                 onClick={submitPinToken}
               >
                 {isVerifyingPin ? copy.saving : copy.pinSubmit}

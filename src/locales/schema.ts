@@ -361,6 +361,9 @@ export interface AppCopy {
   readonly viewAnilist: string;
   readonly pinInstructions: string;
   readonly pinDetected: string;
+  readonly pinPastePrompt: string;
+  readonly pinTokenLabel: string;
+  readonly pinTokenPlaceholder: string;
   readonly pinSubmit: string;
   readonly providerSynced: (name: string) => string;
   readonly providerListConnected: (name: string) => string;

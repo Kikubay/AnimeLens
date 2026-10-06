@@ -69,11 +69,11 @@ npm run dev
 
 ### Loading the extension in Chrome
 
-The manifest lives in `public/` and Vite copies it into `dist/` at build time, so
-the folder to load is always the build output — not the repository root.
+The manifest lives in `public/` and Vite copies it into `dist/extension` at build
+time, so the folder to load is always the build output — not the repository root.
 
 ```bash
-npm run build
+npm run build:extension   # or just `npm run build`, which also builds the app
 ```
 
 Then in Chrome:
@@ -81,21 +81,48 @@ Then in Chrome:
 1. Open `chrome://extensions`.
 2. Enable **Developer mode**.
 3. Click **Load unpacked**.
-4. Select the **`dist/`** folder (the one containing `manifest.json`).
+4. Select the **`dist/extension`** folder (the one containing `manifest.json`).
 
-Re-run `npm run build` after each change and press **Reload** on the AnimeLens
-card in `chrome://extensions`. Chrome does not hot-reload unpacked extensions, so
-this rebuild-and-reload cycle is the normal inner loop.
+Re-run the build after each change and press **Reload** on the AnimeLens card in
+`chrome://extensions`. Chrome does not hot-reload unpacked extensions, so this
+rebuild-and-reload cycle is the normal inner loop.
 
 `npm run dev` starts Vite with hot module replacement for the React UI, which
-speeds up iteration once `dist/` is already loaded. Because the manifest and the
-service worker are copied at build time, changes to those still require the
-rebuild above.
+speeds up iteration once `dist/extension` is already loaded. Because the manifest
+and the service worker are copied at build time, changes to those still require
+the rebuild above.
 
 > **Unpacked extension IDs differ per machine.** Chrome assigns a new extension
 > ID for each installation, so the OAuth redirect URI shown in Settings will not
 > match on another computer. Register a separate OAuth application per install
 > you use for development, or expect to reconfigure after switching machines.
+
+### Running the desktop app
+
+`npm run build` also produces an installable desktop app, built by
+[electron-builder](https://www.electron.build):
+
+```bash
+npm run build          # extension + desktop app
+npm run build:electron # desktop app only
+npm run start:electron # run the unpacked build without installing it
+```
+
+Output lands in `dist/electron`:
+
+| Path                    | Contents                                                    |
+| ----------------------- | ----------------------------------------------------------- |
+| `app/`                  | The unpacked app: `main.mjs`, `preload.mjs`, `background.mjs`, `renderer/`. |
+| `release/`              | The installer and the unpacked tree electron-builder produced. |
+
+On Windows that means `release/AnimeLens-<version>-x64.exe`. Packaging only
+produces artifacts for the platform you build on, so a macOS `.dmg` or a Linux
+`AppImage` has to be built on that OS.
+
+> **Desktop builds are not code-signed.** Windows SmartScreen will warn on first
+> launch. That is expected for an unsigned build and not a packaging bug.
+
+See [below](#the-two-build-targets) for how the two targets share one codebase.
 
 ### Environment variables
 
@@ -125,7 +152,7 @@ You can also skip the environment entirely and enter client IDs in
 npm run lint       # ESLint, including react-hooks rules
 npm run typecheck  # tsc --noEmit
 npm test           # Vitest, single run
-npm run build      # typecheck, then a production build into dist/
+npm run build      # typecheck, then the extension and the desktop app
 npm run format     # Prettier, writing changes
 ```
 
@@ -156,6 +183,8 @@ npx vitest tests/recommendation-engine.test.ts   # a single file
 | `src/popup`        | The React UI: pages, components, and the taste-card canvas painter.             |
 | `src/locales`      | All user-facing text. See [below](#adding-a-user-facing-string).                |
 | `src/background`   | The MV3 service worker that owns all message handling.                          |
+| `src/platform`     | Target wiring that both builds share. See [below](#the-two-build-targets).       |
+| `electron`         | The desktop shell: main process, preload, and the `chrome.*` adapter.           |
 | `src/providers`    | The provider registry that ties the above together.                             |
 
 Two structural rules matter:
@@ -165,6 +194,50 @@ Two structural rules matter:
   message handler in `src/background/service-worker.ts`.
 - **`src/domain` stays pure.** If a module in `src/domain` needs `fetch` or
   `chrome`, it belongs somewhere else.
+
+## The two build targets
+
+AnimeLens ships as a Chrome extension and as a desktop app from one codebase.
+They are not two implementations — the extension's service worker *is* the
+Electron main process.
+
+| Concern     | Extension                          | Desktop                                                    |
+| ----------- | ---------------------------------- | ---------------------------------------------------------- |
+| Background  | MV3 service worker                 | Electron main process                                      |
+| UI          | Popup document                     | `BrowserWindow` over `app://animelens`                     |
+| Messaging   | `chrome.runtime.sendMessage`       | The same message types, routed over `ipcMain`              |
+| Storage     | `chrome.storage`                   | JSON file in `app.getPath('userData')`                     |
+| Scheduling  | `chrome.alarms`                    | Persisted timers                                           |
+| OAuth       | `chrome.identity.launchWebAuthFlow`| Loopback HTTP server + the system browser                  |
+
+The rules that keep this working:
+
+- **Never branch on the host inside `src/`.** Add to the adapter instead
+  (`electron/shim/`). The only shared-module exception is
+  `src/platform/desktop-bridge.ts`, which installs the preload bridge and is a
+  no-op in the extension.
+- **`electron/main.ts` must import `background.mjs` dynamically**, after the
+  `chrome.*` adapter is installed. The service worker registers its message
+  handler at module-evaluation time.
+- **The preload exposes `window.__animelens`, not `window.chrome`.** Chromium
+  already owns the `chrome` name in every renderer and `contextBridge` will not
+  overwrite it.
+- **Never add a `chrome.*` call the adapter does not implement.** The shim only
+  provides what the extension actually uses, so a new call fails loudly instead
+  of silently resolving `undefined`.
+
+Two behaviours differ by design, because the desktop host genuinely cannot
+reproduce them:
+
+- **AniList sign-in needs the token pasted on the desktop.** The consent page
+  opens in the user's own browser, so the app cannot read the callback URL the
+  way it can from a Chrome tab. The pin panel therefore carries a token field on
+  both targets: the extension fills it automatically when it spots the redirect
+  tab, and the user can type or overwrite it at any time. Auto-detect is the
+  fast path, not the only path — never gate the submit button on detection.
+- **MAL sign-in needs `http://127.0.0.1:8976/` registered** as the redirect URI
+  on the MAL developer app, because that is the loopback address the desktop
+  sign-in server listens on.
 
 ## Code style
 

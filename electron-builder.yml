@@ -1,0 +1,46 @@
+appId: com.animelens.desktop
+productName: AnimeLens
+copyright: Copyright © Kikubay
+
+directories:
+  # The unpacked source tree lives in dist/electron/app; electron-builder owns the rest.
+  output: dist/electron/release
+
+files:
+  # Where vite puts main.mjs, preload.mjs, background.mjs and the renderer.
+  - dist/electron/app/**/*
+  - package.json
+  # Everything is bundled, so shipping node_modules would only bloat the asar.
+  - '!node_modules/**/*'
+
+extraMetadata:
+  main: dist/electron/app/main.mjs
+
+asar: true
+
+win:
+  target:
+    - target: nsis
+      arch: [x64]
+  # Ship an unpacked tree too, so the app can be smoke-tested without installing.
+  artifactName: ${productName}-${version}-${arch}.${ext}
+
+nsis:
+  oneClick: false
+  perMachine: false
+  allowToChangeInstallationDirectory: true
+  createDesktopShortcut: true
+  createStartMenuShortcut: true
+  shortcutName: AnimeLens
+
+mac:
+  target:
+    - dmg
+    - zip
+  category: public.app-category.entertainment
+
+linux:
+  target:
+    - AppImage
+    - deb
+  category: Network

@@ -64,9 +64,16 @@ export default tseslint.config(
     },
   },
   {
-    files: ['vite.config.ts'],
+    files: ['vite.config.ts', 'vite.electron.node.config.ts', 'vite.electron.renderer.config.ts'],
     languageOptions: {
       globals: globals.node,
+    },
+  },
+  {
+    // Electron's main process and the preload run in Node, not the browser.
+    files: ['electron/**/*.ts'],
+    languageOptions: {
+      globals: { ...globals.node, ...globals.browser },
     },
   },
 );

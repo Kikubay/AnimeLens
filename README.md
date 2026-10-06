@@ -119,11 +119,16 @@ If AnimeLens is already installed, replace the old extension files with the new 
    ```bash
    npm install
    ```
-3. Build the extension:
+3. Build the extension and the desktop app:
    ```bash
    npm run build
    ```
-4. Load the generated output folder (`dist`) into Chrome using the steps in **Option 1**.
+4. Load the generated extension output folder (`dist/extension`) into Chrome using the steps in **Option 1**.
+
+> `npm run build` produces both targets. The extension lands in `dist/extension`
+> (loadable unpacked in Chrome) and the desktop app in `dist/electron`, where
+> `release/` holds the installer for your platform. Build each on its own OS —
+> `npm run build:extension` and `npm run build:electron` respectively.
 
 ___
 
