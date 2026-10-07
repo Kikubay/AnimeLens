@@ -14,6 +14,7 @@ self-contained task we can hand you.
 - [Development setup](#development-setup)
 - [Running the checks](#running-the-checks)
 - [Project layout](#project-layout)
+- [The three build targets](#the-three-build-targets)
 - [Code style](#code-style)
 - [Adding a user-facing string](#adding-a-user-facing-string)
 - [Testing](#testing)
@@ -56,7 +57,9 @@ MyAnimeList or AniList. Please do not open issues against them on our behalf.
 | ---------- | -------- | ------------------------------------------------- |
 | Node.js    | 20 or 22 | Use the current LTS.                              |
 | npm        | 10+      | Any package manager works; the commands below are npm. |
-| Chrome     | 100+     | Manifest V3 is required. Chrome or Chromium-based browsers work. |
+| Chromium browser | 100+ | Manifest V3 is required. Chrome, Edge, Brave and Opera all work. |
+| Firefox    | 128+     | Needed to load `dist/gecko`. Anything older refuses the manifest. |
+| Git        | any      | Required to clone.                                 |
 
 ### Install and run
 
@@ -67,35 +70,61 @@ npm install
 npm run dev
 ```
 
-### Loading the extension in Chrome
+### Loading the extension in a Chromium browser
 
-The manifest lives in `public/` and Vite copies it into `dist/extension` at build
-time, so the folder to load is always the build output — not the repository root.
+The manifest lives in `public/` and Vite copies it into `dist/chromium` at build time, so
+the folder to load is always the build output — not the repository root.
 
 ```bash
 npm run build:extension   # or just `npm run build`, which also builds the app
 ```
 
-Then in Chrome:
+Then in Chrome, Edge, Brave or Opera:
 
-1. Open `chrome://extensions`.
+1. Open `chrome://extensions` (`edge://extensions` on Edge).
 2. Enable **Developer mode**.
 3. Click **Load unpacked**.
-4. Select the **`dist/extension`** folder (the one containing `manifest.json`).
+4. Select the **`dist/chromium`** folder (the one containing `manifest.json`).
 
-Re-run the build after each change and press **Reload** on the AnimeLens card in
-`chrome://extensions`. Chrome does not hot-reload unpacked extensions, so this
-rebuild-and-reload cycle is the normal inner loop.
+Re-run the build after each change and press **Reload** on the AnimeLens card. Browsers do
+not hot-reload unpacked extensions, so this rebuild-and-reload cycle is the normal inner loop.
 
-`npm run dev` starts Vite with hot module replacement for the React UI, which
-speeds up iteration once `dist/extension` is already loaded. Because the manifest
-and the service worker are copied at build time, changes to those still require
-the rebuild above.
+`npm run dev` starts Vite with hot module replacement for the React UI, which speeds up
+iteration once `dist/chromium` is already loaded. Because the manifest and the background
+script are copied at build time, changes to those still require the rebuild above.
 
-> **Unpacked extension IDs differ per machine.** Chrome assigns a new extension
-> ID for each installation, so the OAuth redirect URI shown in Settings will not
-> match on another computer. Register a separate OAuth application per install
-> you use for development, or expect to reconfigure after switching machines.
+### Loading the extension in Firefox
+
+Firefox needs its own build: it has no background service worker, so `dist/chromium` will
+not run there.
+
+```bash
+npm run build:extension:gecko
+```
+
+Then in Firefox:
+
+1. Open `about:debugging#/runtime/this-firefox`.
+2. Click **Load Temporary Add-on…**.
+3. Select the **`dist/gecko`** folder's `manifest.json`.
+
+Temporary add-ons disappear when Firefox closes, which is fine for development.
+
+> **Unpacked extension IDs differ per machine on Chromium browsers.** Chrome assigns a new
+> extension ID for each installation, so the OAuth redirect URI shown in Settings will not
+> match on another computer. Register a separate OAuth application per install you use for
+> development, or expect to reconfigure after switching machines. Firefox is the exception:
+> this build pins its extension ID in `browser_specific_settings.gecko.id`, so its redirect
+> URI is stable everywhere.
+
+### Packaging for the stores
+
+```bash
+npm run build:extension:package
+```
+
+This writes a `.zip` per target under `dist/chromium/release` and `dist/gecko/release`,
+with `manifest.json` at the archive root as both the Chrome Web Store and AMO require.
 
 ### Running the desktop app
 
@@ -122,7 +151,7 @@ produces artifacts for the platform you build on, so a macOS `.dmg` or a Linux
 > **Desktop builds are not code-signed.** Windows SmartScreen will warn on first
 > launch. That is expected for an unsigned build and not a packaging bug.
 
-See [below](#the-two-build-targets) for how the two targets share one codebase.
+See [below](#the-three-build-targets) for how the three targets share one codebase.
 
 ### Environment variables
 
@@ -156,8 +185,8 @@ npm run build      # typecheck, then the extension and the desktop app
 npm run format     # Prettier, writing changes
 ```
 
-All four should pass before you open a pull request. `npm run build` runs
-`typecheck` itself, so it covers the TypeScript check.
+All four checks — `lint`, `typecheck`, `test` and `build` — should pass before you open a
+pull request. `npm run build` runs `typecheck` itself, so it covers the TypeScript check.
 
 To re-run tests as you edit:
 
@@ -183,7 +212,7 @@ npx vitest tests/recommendation-engine.test.ts   # a single file
 | `src/popup`        | The React UI: pages, components, and the taste-card canvas painter.             |
 | `src/locales`      | All user-facing text. See [below](#adding-a-user-facing-string).                |
 | `src/background`   | The MV3 service worker that owns all message handling.                          |
-| `src/platform`     | Target wiring that both builds share. See [below](#the-two-build-targets).       |
+| `src/platform`     | Target wiring that all builds share. See [below](#the-three-build-targets).      |
 | `electron`         | The desktop shell: main process, preload, and the `chrome.*` adapter.           |
 | `src/providers`    | The provider registry that ties the above together.                             |
 
@@ -195,20 +224,34 @@ Two structural rules matter:
 - **`src/domain` stays pure.** If a module in `src/domain` needs `fetch` or
   `chrome`, it belongs somewhere else.
 
-## The two build targets
+## The three build targets
 
-AnimeLens ships as a Chrome extension and as a desktop app from one codebase.
-They are not two implementations — the extension's service worker *is* the
+AnimeLens ships as a Chromium extension, a Firefox extension and a desktop app from one
+codebase. They are not three implementations — the extension's background script *is* the
 Electron main process.
 
-| Concern     | Extension                          | Desktop                                                    |
-| ----------- | ---------------------------------- | ---------------------------------------------------------- |
-| Background  | MV3 service worker                 | Electron main process                                      |
-| UI          | Popup document                     | `BrowserWindow` over `app://animelens`                     |
-| Messaging   | `chrome.runtime.sendMessage`       | The same message types, routed over `ipcMain`              |
-| Storage     | `chrome.storage`                   | JSON file in `app.getPath('userData')`                     |
-| Scheduling  | `chrome.alarms`                    | Persisted timers                                           |
-| OAuth       | `chrome.identity.launchWebAuthFlow`| Loopback HTTP server + the system browser                  |
+| Concern     | Extension                            | Desktop                                                    |
+| ----------- | ------------------------------------ | ---------------------------------------------------------- |
+| Background  | MV3 service worker (Chromium), MV3 event page (Firefox) | Electron main process                        |
+| UI          | Popup document                       | `BrowserWindow` over `app://animelens`                     |
+| Messaging   | `chrome.runtime.sendMessage`         | The same message types, routed over `ipcMain`              |
+| Storage     | `chrome.storage`                     | JSON file in `app.getPath('userData')`                     |
+| Scheduling  | `chrome.alarms`                      | Persisted timers                                           |
+| OAuth       | `chrome.identity.launchWebAuthFlow`  | Loopback HTTP server + the system browser                  |
+
+The two extension builds compile the same sources and differ only where the platforms
+force it. `vite.manifest.ts` generates the manifest per target, and
+`geckoScrollbarPlugin` adds the one CSS override Firefox needs; everything else is
+identical.
+
+| Difference | Why it exists |
+| ---------- | ------------- |
+| `background.scripts` instead of `background.service_worker` | Firefox does not support background service workers at all. |
+| `browser_specific_settings.gecko` | AMO requires an explicit extension ID to sign MV3, and Firefox derives its OAuth redirect host from it. |
+| A hidden popup scrollbar | Firefox's scrollbar takes layout width instead of overlaying, which would force a horizontal scrollbar. |
+
+Keep this list short. A difference that can be handled with a feature check or an optional
+call belongs in the code, not in the build.
 
 The rules that keep this working:
 
@@ -231,8 +274,8 @@ reproduce them:
 
 - **AniList sign-in needs the token pasted on the desktop.** The consent page
   opens in the user's own browser, so the app cannot read the callback URL the
-  way it can from a Chrome tab. The pin panel therefore carries a token field on
-  both targets: the extension fills it automatically when it spots the redirect
+  way an extension can from a browser tab. The pin panel therefore carries a token field on
+  all three targets: the extension fills it automatically when it spots the redirect
   tab, and the user can type or overwrite it at any time. Auto-detect is the
   fast path, not the only path — never gate the submit button on detection.
 - **MAL sign-in needs `http://127.0.0.1:8976/` registered** as the redirect URI
@@ -395,9 +438,11 @@ Please be patient with review. Comments are about the code, not about you.
 Use the bug report template if one is offered in the issue picker, or open a
 plain issue. Either way, it is much easier to help when a report includes:
 
-- Your Chrome version and OS.
+- Your browser and version, plus your OS. Name the browser explicitly: the Chromium and
+  Firefox builds differ.
 - The AnimeLens version, shown in **Settings**.
-- The browser console output from `chrome://extensions` → AnimeLens → Service worker.
+- The background console output: `chrome://extensions` → AnimeLens → Service worker on
+  Chromium browsers, or `about:debugging` → AnimeLens → Inspect on Firefox.
 - Exact steps to reproduce, and what you expected instead.
 
 **Never include your access tokens, client secrets, or personal list data** in

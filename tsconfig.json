@@ -24,6 +24,8 @@
     "vite.config.ts",
     "vite.electron.node.config.ts",
     "vite.electron.renderer.config.ts",
+    "vite.extension.gecko.config.ts",
+    "vite.manifest.ts",
     "eslint.config.js"
   ],
   "exclude": ["node_modules", "dist", "docs", "MAL-API_doc", "public/icons"]

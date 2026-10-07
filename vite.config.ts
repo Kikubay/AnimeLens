@@ -2,19 +2,16 @@ import { resolve } from 'node:path';
 import { loadEnv } from 'vite';
 import { defineConfig } from 'vitest/config';
 import react from '@vitejs/plugin-react';
+import { extensionManifestPlugin } from './vite.manifest';
 
-/**
- * Extension build. `base: './'` matters for both targets: Chrome resolves
- * extension pages against the package root, and the Electron renderer is served
- * from `app://animelens/index.html`, where a leading slash would escape the
- * bundle and 404 every asset.
- */
+/** `base: './'` matters for both targets: a leading slash 404s every asset under the Electron renderer's `app://animelens/` origin. */
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), 'VITE_');
 
   return {
     base: './',
-    plugins: [react()],
+// No-op for Chromium, but it keeps both targets on the same transform so a Firefox-only key can't sneak into a store build.
+    plugins: [react(), extensionManifestPlugin('chromium')],
     define: {
       __APP_ENV__: JSON.stringify(env.VITE_APP_ENV ?? mode),
     },
@@ -22,7 +19,7 @@ export default defineConfig(({ mode }) => {
       include: ['tests/**/*.test.{ts,tsx}'],
     },
     build: {
-      outDir: 'dist/extension',
+      outDir: 'dist/chromium',
       emptyOutDir: true,
       rollupOptions: {
         input: {

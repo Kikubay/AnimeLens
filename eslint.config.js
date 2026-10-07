@@ -16,6 +16,13 @@ function toGlob(pattern) {
   return `**/${pattern}`;
 }
 
+/**
+ * Always ignored, whether or not a `.gitignore` is present. This project keeps its
+ * `.gitignore` out of version control, so a fresh clone and CI both arrive without one, and
+ * without this floor ESLint would try to lint `node_modules` and the build output.
+ */
+const BASELINE_IGNORES = ['node_modules/**', 'dist/**', 'release/**', 'coverage/**'];
+
 // Anything Git already ignores is unpublished or generated, so it must never surface as a lint failure.
 function readIgnoreFile(file) {
   let contents;
@@ -32,9 +39,12 @@ function readIgnoreFile(file) {
 }
 
 const ignores = [
-  ...new Set(
-    [join(rootDir, '.gitignore'), join(rootDir, '.git', 'info', 'exclude')].flatMap(readIgnoreFile),
-  ),
+  ...new Set([
+    ...BASELINE_IGNORES,
+    ...[join(rootDir, '.gitignore'), join(rootDir, '.git', 'info', 'exclude')].flatMap(
+      readIgnoreFile,
+    ),
+  ]),
 ];
 
 export default tseslint.config(
@@ -64,8 +74,23 @@ export default tseslint.config(
     },
   },
   {
-    files: ['vite.config.ts', 'vite.electron.node.config.ts', 'vite.electron.renderer.config.ts'],
+    files: [
+      'vite.config.ts',
+      'vite.electron.node.config.ts',
+      'vite.electron.renderer.config.ts',
+      'vite.extension.gecko.config.ts',
+      'vite.manifest.ts',
+    ],
     languageOptions: {
+      globals: globals.node,
+    },
+  },
+  {
+    // Build tooling that runs under Node directly, outside any bundler.
+    files: ['scripts/**/*.mjs'],
+    languageOptions: {
+      ecmaVersion: 2022,
+      sourceType: 'module',
       globals: globals.node,
     },
   },

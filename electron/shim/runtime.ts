@@ -67,8 +67,7 @@ export class RuntimeShim {
         if (keepOpen === true) awaiting = true;
       }
 
-      // No listener claimed the message, so the channel closes immediately and
-      // the caller sees `undefined`.
+// Nothing claimed the message, so the channel closes right away and the caller sees `undefined`.
       if (!awaiting && !settled) resolve(undefined);
     });
   }

@@ -1,13 +1,11 @@
 name: CI
 
-# Trigger the workflow on pushes to main and on all pull requests
 on:
   push:
     branches: [ "main" ]
   pull_request:
     branches: [ "main" ]
 
-# Allow only one concurrent deployment per workflow, skipping intermediate runs
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
@@ -21,7 +19,6 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      # Set up Node.js with npm caching for faster installs
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
@@ -31,7 +28,6 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      # Optional: Check for vulnerabilities without modifying files or breaking the build
       - name: Audit dependencies
         run: npm audit --audit-level=high
         continue-on-error: true
@@ -45,20 +41,25 @@ jobs:
       - name: Run tests
         run: npm run test
 
-      # Signing is intentionally skipped: a certificate would have to be a
-      # repository secret, and unsigned artifacts are what the extension already
-      # ships. Users will see a SmartScreen warning on Windows.
       - name: Build extension and desktop app
         run: npm run build
         env:
           CSC_IDENTITY_AUTO_DISCOVERY: "false"
 
-      - name: Upload extension artifact
+      - name: Upload Chromium extension artifact
         uses: actions/upload-artifact@v4
         if: success()
         with:
-          name: animelens-extension
-          path: dist/extension/
+          name: animelens-extension-chromium
+          path: dist/chromium/
+          retention-days: 7
+
+      - name: Upload Gecko extension artifact
+        uses: actions/upload-artifact@v4
+        if: success()
+        with:
+          name: animelens-extension-gecko
+          path: dist/gecko/
           retention-days: 7
 
       - name: Upload desktop app artifact

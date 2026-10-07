@@ -64,6 +64,14 @@ import {
 } from '../api/streaming-links-messages';
 import { ANILIST_PIN_REDIRECT_URL } from '../api/providers/anilist/anilist-queries';
 import {
+  ANILIST_HOME_URL,
+  ANILIST_PIN_TOKEN_KEY,
+  ANILIST_PIN_URL_MATCH,
+  extractAnilistPinToken,
+  readAnilistPinTokenRecord,
+  type AnilistPinTokenRecord,
+} from '../auth/anilist-pin';
+import {
   GITHUB_LATEST_RELEASE_URL,
   UPDATE_CHECK_INTERVAL_MS,
   UPDATE_CHECK_STORAGE_KEY,
@@ -142,9 +150,10 @@ const syncService = new AuthenticatedAnimeListSyncService(providerRegistry, stor
 void providerRegistry.migrateLegacySessions().catch(reportBackgroundFailure);
 
 void hydrateCachedSync().catch(reportBackgroundFailure);
-void chrome.storage.session
-  .setAccessLevel({ accessLevel: 'TRUSTED_CONTEXTS' })
-  .catch(reportBackgroundFailure);
+// `setAccessLevel` is Chrome-only, so an unguarded call throws synchronously at module scope and takes the whole background script with it.
+chrome.storage.session.setAccessLevel?.({ accessLevel: 'TRUSTED_CONTEXTS' })?.catch(
+  reportBackgroundFailure,
+);
 
 function reportBackgroundFailure(error: unknown): void {
   console.warn(
@@ -162,6 +171,51 @@ chrome.alarms?.onAlarm.addListener((alarm) => {
   }
 });
 
+async function rememberAnilistPinToken(token: string, tabId?: number): Promise<void> {
+  const record: AnilistPinTokenRecord = tabId === undefined ? { token } : { token, tabId };
+  await chrome.storage.session.set({ [ANILIST_PIN_TOKEN_KEY]: record });
+}
+
+/** Clears the stashed token and navigates its tab off the pin URL, which still holds the token in its address bar for the next scan to find. */
+async function forgetAnilistPinToken(): Promise<void> {
+  const stored = await chrome.storage.session.get(ANILIST_PIN_TOKEN_KEY);
+  const record = readAnilistPinTokenRecord(stored[ANILIST_PIN_TOKEN_KEY]);
+  await chrome.storage.session.remove(ANILIST_PIN_TOKEN_KEY);
+  if (record?.tabId === undefined) return;
+  await chrome.tabs?.update?.(record.tabId, { url: ANILIST_HOME_URL }).catch(() => {
+    // A closed tab is the common case, and nothing depends on the redirect landing.
+  });
+}
+
+/** A tab already parked on the pin page is invisible to `tabs.onUpdated` after a worker restart, so ask the open tabs directly. */
+async function readStoredAnilistPinToken(): Promise<string | null> {
+  const stored = await chrome.storage.session.get(ANILIST_PIN_TOKEN_KEY);
+  const record = readAnilistPinTokenRecord(stored[ANILIST_PIN_TOKEN_KEY]);
+  if (record !== null) return record.token;
+
+  const tabs = await chrome.tabs.query({ url: ANILIST_PIN_URL_MATCH });
+  for (const tab of tabs) {
+    const found = extractAnilistPinToken(tab.url);
+    if (found !== null) {
+      await rememberAnilistPinToken(found, tab.id);
+      return found;
+    }
+  }
+  return null;
+}
+
+// Optional because the desktop shim implements neither, and a top-level registration that throws is nothing a `catch` can rescue.
+chrome.tabs?.onUpdated?.addListener((tabId, changeInfo) => {
+  const token = extractAnilistPinToken(changeInfo.url);
+  if (token === null) return;
+  void rememberAnilistPinToken(token, tabId).catch(reportBackgroundFailure);
+});
+
+chrome.runtime.onStartup?.addListener(() => {
+// Firefox drops alarms on browser restart, unlike Chromium, so the daily recommendation would quietly stop firing.
+  void configureScheduledTasks().catch(reportBackgroundFailure);
+});
+
 void configureScheduledTasks().catch(reportBackgroundFailure);
 
 type AuthMessage =
@@ -175,12 +229,14 @@ type AuthMessage =
       readonly providerId: ProviderId;
       readonly token: string;
     }
-  | { readonly type: 'auth.get_token_exchange_diagnostic' };
+  | { readonly type: 'auth.get_token_exchange_diagnostic' }
+  | { readonly type: 'auth.get_pin_token' };
 
 type AuthResponse =
   | { readonly ok: true; readonly snapshot: AuthSnapshot }
   | { readonly ok: true; readonly diagnostic: TokenExchangeDiagnostic | null }
   | { readonly ok: true; readonly providers: ProviderStatus[] }
+  | { readonly ok: true; readonly pinToken: string | null }
   | { readonly ok: false; readonly message: string };
 
 type WorkerResponse =
@@ -372,12 +428,17 @@ async function handleAuthMessage(message: AuthMessage): Promise<AuthResponse> {
   if (message.type === 'auth.get_providers') {
     return { ok: true, providers: await providerRegistry.listProviderStatuses() };
   }
+  if (message.type === 'auth.get_pin_token') {
+    return { ok: true, pinToken: await readStoredAnilistPinToken() };
+  }
   if (message.type === 'auth.complete_pin_connect') {
     if (message.providerId !== 'anilist') {
       return { ok: false, message: 'The pin flow is only available for AniList.' };
     }
     const snapshot = await providerRegistry.completeAnilistPinSignIn(message.token);
     if (snapshot.status === 'authenticated') {
+// The pin tab is still sitting on its URL, so without this the same token would be handed out again on every later popup open.
+      await forgetAnilistPinToken();
       void configureScheduledTasks().catch(reportBackgroundFailure);
       // The pin flow doesn't switch the active provider, so only sync if AniList is already the one taking traffic.
       const activeProvider = await providerRegistry.registry.getActiveProvider();
@@ -1006,7 +1067,8 @@ function isAuthMessage(value: unknown): value is AuthMessage {
     value.type === 'auth.disconnect' ||
     value.type === 'auth.get_providers' ||
     value.type === 'auth.set_active_provider' ||
-    value.type === 'auth.get_token_exchange_diagnostic'
+    value.type === 'auth.get_token_exchange_diagnostic' ||
+    value.type === 'auth.get_pin_token'
   );
 }
 

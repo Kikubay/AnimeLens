@@ -4,8 +4,7 @@ import { installDesktopBridge } from '../platform/desktop-bridge';
 import { App } from './App';
 import './styles.css';
 
-// Must precede the first render: on the desktop build this is where the
-// renderer gets its `chrome.*` implementation. No-op in the extension.
+// Must precede the first render, since this is where the desktop build picks up its `chrome.*` implementation.
 installDesktopBridge();
 
 const rootElement = document.getElementById('root');

@@ -10,7 +10,7 @@
   Because choosing an anime shouldn't take longer than watching it.
 </h3>
 <p align="center">
-  AnimeLens is a privacy-first Chrome extension that saves anime fans hours of searching by delivering personalized, clearly explained recommendations and beautiful profile insights, securely synced across MyAnimeList and AniList.
+  AnimeLens is a privacy-first browser extension that saves anime fans hours of searching by delivering personalized, clearly explained recommendations and beautiful profile insights, securely synced across MyAnimeList and AniList. It runs on Chrome, Edge, Brave and Opera, and on Firefox.
 </p>
 <br>
 
@@ -34,7 +34,7 @@
 </p>
 <br />
 
-> *Note: Once AnimeLens launches on the Chrome Web Store, installation will be a single click, and the manual OAuth setup will be handled automatically in the background.*
+> *Note: Once AnimeLens launches on the Chrome Web Store and addons.mozilla.org, installation will be a single click, and the manual OAuth setup will be handled automatically in the background.*
 
 ___
 
@@ -47,9 +47,10 @@ ___
 - [Switching accounts](#switching-accounts)
 - [Update](#update)
 - [Troubleshooting](#troubleshooting)
-- [Privacy and security](#privacy-and-security)
 - [Issues and feedback](#issues--feedback)
+- [Privacy and security](#privacy-and-security)
 - [License](#license)
+- [Support](#support)
 
 ___
 
@@ -61,7 +62,7 @@ ___
 - 📊 **Profile Analysis & Taste Cards**: Visualize your anime journey! Generate beautiful, shareable "Taste Cards" showcasing your top genres, completion stats, and highest-rated anime (with smart tie-breaking for your absolute favorites).
 - 📺 **"Where to Watch"**: Open any recommendation to see which platforms stream it, with a direct link to each one.
 - 🎬 **Unified "Add-to-List"**: Whether you are browsing recommendations or using quick-add features, all actions automatically target your currently active provider.
-- 🔒 **Privacy-First Architecture**: AnimeLens never asks for your passwords or Client Secrets. All OAuth sessions, preferences, and synchronized data are stored securely and locally in your Chrome extension storage.
+- 🔒 **Privacy-First Architecture**: AnimeLens never asks for your passwords or Client Secrets. All OAuth sessions, preferences, and synchronized data are stored securely and locally in your browser's extension storage.
 
 ___
 
@@ -94,13 +95,15 @@ ___
 ## Install
 
 ### Option 1: Pre-compiled Release (Recommended)
+
 1. Download the latest `AnimeLens.zip` file from the [GitHub Releases page](https://github.com/Kikubay/AnimeLens/releases).
 2. Extract the ZIP file to a folder on your computer.
-3. Open Google Chrome.
+3. Open Google Chrome, Edge, Brave or Opera.
 4. Go to:
    ```text
    chrome://extensions
    ```
+   On Edge, Brave and Opera use `edge://extensions` instead.
 5. Enable **Developer mode**.
 6. Click **Load unpacked**.
 7. Select the extracted extension folder containing `manifest.json`.
@@ -108,6 +111,29 @@ ___
 *Do not select the `ZIP` file itself. Select the folder containing `manifest.json`.*
 
 If AnimeLens is already installed, replace the old extension files with the new release files and click **Reload** on the AnimeLens card in `chrome://extensions`.
+
+### Option 1b: Firefox
+
+Firefox cannot load the Chromium build, so it uses its own package from the same release.
+
+1. Download the latest `AnimeLens-firefox.zip` from the [GitHub Releases page](https://github.com/Kikubay/AnimeLens/releases).
+2. Extract it to a folder.
+3. Open Firefox and go to:
+   ```text
+   about:debugging#/runtime/this-firefox
+   ```
+4. Click **Load Temporary Add-on…**.
+5. Select the `manifest.json` inside the extracted folder.
+
+Temporary add-ons are removed when Firefox closes. For a permanent install, use the signed build from [addons.mozilla.org](https://addons.mozilla.org/) once it is published.
+
+### Option 1c: Desktop app
+
+The same dashboard also ships as a desktop app for Windows, macOS and Linux. Download the installer for your platform from the [GitHub Releases page](https://github.com/Kikubay/AnimeLens/releases) and run it.
+
+The desktop app talks to MyAnimeList and AniList directly and keeps your data in a local file. It is **not** code-signed, so expect a Windows SmartScreen warning on first launch.
+
+See [CONTRIBUTING.md](CONTRIBUTING.md) for how the desktop app and the two extension builds share one codebase.
 
 ### Option 2: Build from Source
 1. Clone this repository:
@@ -123,12 +149,18 @@ If AnimeLens is already installed, replace the old extension files with the new 
    ```bash
    npm run build
    ```
-4. Load the generated extension output folder (`dist/extension`) into Chrome using the steps in **Option 1**.
+4. Load the generated extension output folder (`dist/chromium`) into Chrome using the steps in **Option 1**.
 
-> `npm run build` produces both targets. The extension lands in `dist/extension`
-> (loadable unpacked in Chrome) and the desktop app in `dist/electron`, where
-> `release/` holds the installer for your platform. Build each on its own OS —
-> `npm run build:extension` and `npm run build:electron` respectively.
+> `npm run build` produces all three targets. Extension output is named for the engine rather
+> than the browser, because one build serves a whole family: `dist/chromium` covers Chrome, Edge,
+> Brave and Opera (loadable unpacked in any of them), and `dist/gecko` is Firefox. The desktop app
+> lands in `dist/electron`, where `release/` holds the installer for your platform. Build each on
+> its own OS — `npm run build:extension` and `npm run build:electron` respectively.
+>
+> The two extension builds differ in two places: `manifest.json`, because Firefox has no background
+> service worker and so runs the same bundle as an event page plus a pinned Gecko extension ID; and
+> one CSS override, because Firefox's popup scrollbar takes width away from the content instead of
+> overlaying it. Run `npm run build:extension:package` to produce a store-ready `.zip` for each target.
 
 ___
 
@@ -151,11 +183,16 @@ ___
   10. Click **Save Client ID**.
   11. Click **Connect** next to MyAnimeList in the **Providers** section (or **Connect MAL** from the dashboard).
 
-- The redirect URI normally looks like this:
+- The redirect URI is generated by the browser and differs per store. Copy whatever the
+  **MAL configuration** panel shows you; the shapes are:
 
 ```text
-https://<your-extension-id>.chromiumapp.org/
+Chromium (Chrome, Edge, Brave, Opera):  https://<extension-id>.chromiumapp.org/
+Firefox:                                 https://<hash>.extensions.allizom.org/
 ```
+
+  On Firefox the hash is derived from the extension ID, which this build pins to
+  `animelens@kikubay.github.io`, so the value stays the same across reinstalls and updates.
 
 - The redirect URI must match exactly, including the trailing slash. Do not add a path, query string, or extra spaces.
 - A MAL Client Secret is not required by AnimeLens. Never enter your MAL password or Client Secret into the extension.
@@ -164,7 +201,7 @@ https://<your-extension-id>.chromiumapp.org/
 <details>
 <summary>AniList</summary>
 
-- AniList uses a **copy/paste authorization flow** (Auth Pin). Chrome cannot complete AniList's token redirect inside the extension's auth window, so AniList displays the access token on its own site and the extension picks it up from the open tab — no manual copying needed.
+- AniList uses a **copy/paste authorization flow** (Auth Pin). A browser extension cannot complete AniList's token redirect inside its own auth window, so AniList displays the access token on its own site and AnimeLens picks it up from the open tab — no manual copying needed.
 
   1. Open the AnimeLens popup.
   2. Open **Settings**.
@@ -183,7 +220,7 @@ https://<your-extension-id>.chromiumapp.org/
   12. AniList opens in a new tab — sign in and click **Authorize**.
   13. Return to the AnimeLens popup: a panel appears under AniList saying the authorization was detected. Click **Finish connecting**.
 
-> An AniList Client Secret is never required. If AniList shows you a "Copy & Paste the following text" page, that is expected — leave the tab open and click **Finish connecting** in AnimeLens; the token is read automatically.
+> An AniList Client Secret is never required. If AniList shows you a "Copy & Paste the following text" page, that is expected — leave the tab open and click **Finish connecting** in AnimeLens; the token is read automatically. You may close the popup while you authorize: AnimeLens remembers the token, so it is still there when you come back.
 
 - AniList access tokens are long-lived (about one year). When it expires, AniList shows as disconnected and you simply authorize again.
 </details>
@@ -205,12 +242,16 @@ ___
 When a newer version is available:
 
 1. Click **Update** in the AnimeLens update banner.
-2. Download the latest release ZIP.
+2. Download the latest release ZIP for your browser.
 3. Extract it to a new folder, or replace the existing extension files.
-4. Open `chrome://extensions`.
-5. Click **Reload** on AnimeLens.
+4. Reload the extension:
+   - Chromium browsers: open `chrome://extensions` (`edge://extensions` on Edge) and click **Reload** on AnimeLens.
+   - Firefox: open `about:debugging#/runtime/this-firefox`, select AnimeLens and click **Reload**.
+   - Desktop app: download and run the new installer over the old one.
 
-Chrome does not automatically update extensions installed with **Load unpacked**.
+Browsers do not automatically update extensions installed from an unpacked folder, so this
+is a manual step. A signed build installed from the Chrome Web Store or addons.mozilla.org
+updates itself.
 
 ___
 
@@ -221,8 +262,9 @@ ___
 
   - Confirm that you selected the extracted folder, not the ZIP file.
   - Confirm that the selected folder contains `manifest.json`.
+  - On Firefox, confirm you loaded `manifest.json` from **about:debugging**, and that you downloaded the Firefox package rather than the Chromium one.
   - Download the latest release again if files are missing.
-  - Open `chrome://extensions` and check the error details on the AnimeLens card.
+  - Open `chrome://extensions` (or `about:debugging`) and check the error details on the AnimeLens card.
 
 </details>
 
@@ -271,9 +313,9 @@ ___
 <details>
 <summary>The AniList “Finish connecting” panel does not appear</summary>
 
-  - Keep the AniList tab open after authorizing — the panel only shows while that tab is open.
+  - Keep the AniList tab open after authorizing — the token is lifted from that tab's URL.
   - Make sure AniList is not already shown as connected in the Providers section.
-  - Reload the extension and reopen Settings; the detection polls once per second while Settings is open.
+  - Reload the extension and reopen Settings; the panel polls once per second while Settings is open, and the token is remembered, so closing the popup mid-authorization is fine.
   - If it still fails, disconnect AniList, click Connect again, and authorize once more.
 
 </details>
@@ -309,7 +351,7 @@ ___
 - AnimeLens does not require a Client Secret for either provider.
 - Client IDs are public OAuth configuration.
 - AniList authorization is read from the pin-page tab URL and stored locally; it is never sent anywhere except to AniList's own API.
-- OAuth sessions, preferences, synchronized anime data, and recommendation feedback are stored locally in Chrome extension storage.
+- OAuth sessions, preferences, synchronized anime data, and recommendation feedback are stored locally in your browser's extension storage.
 - Requests are made directly from the extension to MyAnimeList, AniList, and GitHub.
 
 ___

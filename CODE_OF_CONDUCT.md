@@ -50,7 +50,7 @@ representative at an online or offline event.
 Instances of abusive, harassing, or otherwise unacceptable behavior may be
 reported to the project maintainer by opening a confidential report through
 [GitHub's private vulnerability and abuse reporting](https://docs.github.com/en/communities/maintaining-your-safety-on-github/reporting-abuse-or-spam),
-or by contacting the maintainer directly. All complaints will be reviewed and
+or by messaging the maintainer, [@Kikubay](https://github.com/Kikubay). All complaints will be reviewed and
 investigated promptly and fairly.
 
 All community leaders are obligated to respect the privacy and security of the

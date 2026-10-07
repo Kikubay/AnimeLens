@@ -193,8 +193,7 @@ export function TasteCardModal({
           onFeedback(copy.tasteCardCopied);
           return;
         }
-        // Clipboard images are unavailable or denied: fall back to a download so
-        // the user still gets the image instead of a dead end.
+// Clipboard images can be unavailable or denied, so fall back to a download rather than a dead end.
         downloadPngBlob(blob, DOWNLOAD_FILENAME);
         onFeedback(
           outcome === 'unsupported' ? copy.tasteCardCopyUnsupported : copy.tasteCardCopyFailed,

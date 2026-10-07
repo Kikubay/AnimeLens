@@ -35,8 +35,7 @@ registerAppScheme();
 
 const runtime = new RuntimeShim();
 
-// One area for the whole process: two instances over the same file would each
-// keep their own cache and silently drop the other's writes.
+// One area for the whole process: two instances over the same file would each keep their own cache and silently drop the other's writes.
 const localStorage = new FileStorageArea(join(app.getPath('userData'), 'animelens-storage.json'));
 const alarms = new AlarmsShim(localStorage);
 const identity = new IdentityShim();
@@ -67,14 +66,12 @@ async function startWorker(): Promise<void> {
 
 function createWindow(): void {
   mainWindow = new BrowserWindow({
-    // Opens at the minimum rather than relying on Electron to clamp a smaller
-    // default up to it, so the size the app launches at is stated here.
+// Opens at the minimum rather than trusting Electron to clamp a smaller default up to it.
     width: WINDOW_MIN_WIDTH,
     height: WINDOW_MIN_HEIGHT,
     minWidth: WINDOW_MIN_WIDTH,
     minHeight: WINDOW_MIN_HEIGHT,
-    // A normal app window, not a chrome-less popup: the desktop build is the
-    // full dashboard, so it wants the standard frame and title bar.
+// A normal app window, not a chrome-less popup: the desktop build is the full dashboard.
     title: 'AnimeLens',
     backgroundColor: '#0b0d14',
     show: false,
@@ -82,8 +79,7 @@ function createWindow(): void {
       preload: join(here, 'preload.mjs'),
       contextIsolation: true,
       nodeIntegration: false,
-      // ES-module preloads require the sandbox to be off. The renderer still
-      // gets no Node access: contextIsolation is on and nodeIntegration is off.
+// ES-module preloads need the sandbox off, but contextIsolation is still on and nodeIntegration off, so the renderer gets no Node access.
       sandbox: false,
       spellcheck: false,
     },
@@ -94,14 +90,12 @@ function createWindow(): void {
     mainWindow = null;
   });
 
-  // Without this a preload that fails to evaluate just leaves a renderer with
-  // no `chrome.*` and no window to click on.
+// Without this a preload that fails to evaluate just leaves a renderer with no `chrome.*` and no window to click on.
   mainWindow.webContents.on('preload-error', (_event, preloadPath, error) => {
     console.error(`[AnimeLens] Preload failed (${preloadPath}):`, error);
   });
 
-  // The dashboard is one scrollable surface; nothing should navigate away from
-  // it or spawn a second window.
+// The dashboard is one scrollable surface, so nothing should navigate away or spawn a second window.
   mainWindow.webContents.setWindowOpenHandler(() => ({ action: 'deny' }));
   mainWindow.webContents.on('will-navigate', (event) => event.preventDefault());
 
@@ -135,14 +129,12 @@ if (!app.requestSingleInstanceLock()) {
       if (BrowserWindow.getAllWindows().length === 0) createWindow();
     });
   }).catch((error: unknown) => {
-    // Without this the process would sit there with no window and no clue why,
-    // because a rejected promise in `whenReady` is otherwise swallowed silently.
+// Otherwise a rejected promise in `whenReady` is swallowed silently and the process just sits there.
     console.error('[AnimeLens] Startup failed:', error);
     app.quit();
   });
 
-  // macOS apps conventionally stay resident so `activate` can reopen the window.
-  // Elsewhere, closing the last window means the user is done.
+// macOS apps conventionally stay resident so `activate` can reopen the window; elsewhere closing the last window means the user is done.
   app.on('window-all-closed', () => {
     if (process.platform !== 'darwin') app.quit();
   });

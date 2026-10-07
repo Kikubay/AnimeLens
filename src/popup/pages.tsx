@@ -48,6 +48,7 @@ import {
   completeAniListPinSignIn,
   connectProvider,
   disconnectProvider,
+  requestAnilistPinToken,
   setActiveProvider,
 } from '../auth/auth-messages';
 import type { ProviderId } from '../auth/auth-types';
@@ -980,8 +981,7 @@ function ProfileSummary({
     (next: TasteCardRenderOptions) => {
       if (onPreferencesChange === undefined) return;
       setSessionLayout(next.picksLayout);
-      // The grid is a session-only choice, so it is never written to storage —
-      // otherwise the next visit would open onto an empty collage.
+// Session-only, so persisting it would open the next visit onto an empty collage.
       const tasteCard = { ...next, picksLayout: persistableTasteCardPicksLayout(next.picksLayout) };
       onPreferencesChange({ ...preferences, tasteCard });
       void updateSettings({ ...preferences, tasteCard }).catch(() => undefined);
@@ -1419,14 +1419,11 @@ export function SettingsPage({
   const [isSavingAnilistClientId, setIsSavingAnilistClientId] = useState(false);
   const [providerActionInFlight, setProviderActionInFlight] = useState<ProviderId | null>(null);
   const [pinTabToken, setPinTabToken] = useState<string | null>(null);
-  // Only the extension can read browser tabs, so only the extension can lift
-  // the token off the pin redirect. The desktop app must be handed it.
+// Only the extension can read tabs, so only the extension can lift the token off the pin redirect.
   const canAutoDetectPinToken = !isDesktopHost();
-  // The pin page opens outside the popup, so hosts that cannot inspect browser
-  // tabs — the desktop app — have no auto-detect and rely on this instead.
+// Hosts that can't inspect tabs — the desktop app — have no auto-detect and rely on this instead.
   const [pinTokenDraft, setPinTokenDraft] = useState('');
-  // True from the moment the pin flow starts, so the panel is reachable even
-  // when no token has been detected (or auto-detection is impossible).
+// Set as soon as the flow starts, so the panel is reachable before any token shows up.
   const [pinFlowActive, setPinFlowActive] = useState(false);
   const [isVerifyingPin, setIsVerifyingPin] = useState(false);
   const anilistProvider = providers.find((provider) => provider.id === 'anilist');
@@ -1485,34 +1482,17 @@ export function SettingsPage({
 
   useEffect(() => applyThemePreference(snapshot.preferences.theme), [snapshot.preferences.theme]);
 
-// Watches for the pin redirect tab while the popup is open, so the token can be lifted straight out of the URL instead of pasted by hand. Needs the anilist.co host permission for the fragment.
-  useEffect(() => {
-    if (anilistSignedIn) {
+// The background owns the tab watching, because clicking into the authorize tab is what closes this popup.
+useEffect(() => {
+    if (anilistSignedIn || !canAutoDetectPinToken) {
       setPinTabToken(null);
       return;
     }
     let disposed = false;
-    const PIN_TAB_URL_PREFIX = 'https://anilist.co/api/v2/oauth/pin#access_token=';
     const detectPinTab = () => {
-      void chrome.tabs
-        .query({ url: 'https://anilist.co/api/v2/oauth/pin*' })
-        .then((tabs) => {
-          if (disposed) return;
-          const match = tabs.find(
-            (tab) => typeof tab.url === 'string' && tab.url.startsWith(PIN_TAB_URL_PREFIX),
-          );
-          const url = match?.url;
-          if (url === undefined) {
-            setPinTabToken(null);
-            return;
-          }
-          try {
-            const params = new URLSearchParams(url.slice(url.indexOf('#') + 1));
-            const token = params.get('access_token');
-            setPinTabToken(token !== null && token.length > 0 ? token : null);
-          } catch {
-            setPinTabToken(null);
-          }
+      void requestAnilistPinToken()
+        .then((token) => {
+          if (!disposed) setPinTabToken(token);
         })
         .catch(() => {
           if (!disposed) setPinTabToken(null);
@@ -1524,7 +1504,7 @@ export function SettingsPage({
       disposed = true;
       window.clearInterval(timer);
     };
-  }, [anilistSignedIn]);
+  }, [anilistSignedIn, canAutoDetectPinToken]);
 
   const saveMalClientId = () => {
     const clientId = malClientIdDraft.trim();
@@ -1641,9 +1621,7 @@ export function SettingsPage({
   };
 
   const submitPinToken = () => {
-    // A token the user typed wins over one lifted from a tab URL: it is the more
-    // deliberate of the two, and it is the only option on hosts that cannot see
-    // browser tabs at all.
+// A typed token wins over one lifted from a tab URL: it's the more deliberate of the two.
     const token = pinTokenDraft.trim() || pinTabToken?.trim() || '';
     if (token.length === 0 || isVerifyingPin) return;
     setIsVerifyingPin(true);
@@ -1859,9 +1837,7 @@ export function SettingsPage({
             }
           />
         ))}
-        {/* Extension: shown only once a token is lifted from the pin tab, so the panel
-            never appears with a dead button. Desktop: the tab is invisible to
-            the app, so the panel opens with the flow and takes a pasted token. */}
+        {/* Extension: waits for a lifted token so the panel never shows a dead button. Desktop: opens with the flow and takes a pasted token. */}
         {(canAutoDetectPinToken ? pinTabToken !== null : pinFlowActive || pinTabToken !== null) &&
           !anilistSignedIn && (
           <div className="pin-signin-panel">

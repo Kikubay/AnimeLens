@@ -1,6 +1,4 @@
-// The preload's bridge shape. It lives under `window.__animelens` rather than
-// `window.chrome` because Chromium already owns that name and `contextBridge`
-// silently refuses to overwrite it.
+// Lives under `window.__animelens` rather than `window.chrome`, which Chromium already owns and `contextBridge` refuses to overwrite.
 interface DesktopBridge {
   readonly runtime: {
     sendMessage(message: unknown): Promise<unknown>;

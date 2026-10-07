@@ -101,6 +101,17 @@ export async function completeAniListPinSignIn(token: string): Promise<AuthSnaps
   throw new Error(response.message);
 }
 
+/** Null whenever no pin tab is open, which is the normal state outside an in-flight AniList sign-in. */
+export async function requestAnilistPinToken(): Promise<string | null> {
+  const response = (await chrome.runtime.sendMessage({ type: 'auth.get_pin_token' })) as
+    | { readonly ok: boolean; readonly pinToken?: unknown }
+    | undefined;
+  if (response === undefined || !response.ok) return null;
+  return typeof response.pinToken === 'string' && response.pinToken.length > 0
+    ? response.pinToken
+    : null;
+}
+
 async function requestAuthMessage(message: {
   readonly type: 'auth.connect' | 'auth.disconnect' | 'auth.set_active_provider';
   readonly providerId?: ProviderId;

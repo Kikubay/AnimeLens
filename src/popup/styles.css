@@ -17,6 +17,8 @@
   --cyan: #86c8c5;
   --warning: #e2b37c;
   --success: #88c69e;
+  /* The design width of the dashboard, and so the popup window width — one place for the three uses of 700px to agree. */
+  --popup-content-width: 700px;
 }
 
 :root[data-theme='light'] {
@@ -41,7 +43,7 @@
   box-sizing: border-box;
 }
 body {
-  min-width: 700px;
+  min-width: var(--popup-content-width);
   min-height: 600px;
   margin: 0;
   background: var(--bg);
@@ -71,7 +73,7 @@ button:focus-visible {
 .app-shell {
   position: relative;
   width: 100%;
-  max-width: 700px;
+  max-width: var(--popup-content-width);
   min-height: 600px;
   margin: 0 auto;
   overflow: hidden;
@@ -1042,7 +1044,7 @@ button:focus-visible {
   bottom: 0;
   left: 50%;
   display: grid;
-  width: min(100%, 700px);
+  width: min(100%, var(--popup-content-width));
   transform: translateX(-50%);
   grid-template-columns: repeat(3, 1fr);
   height: 40px;
