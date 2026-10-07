@@ -25,8 +25,8 @@
   <a href="https://github.com/Kikubay/AnimeLens/releases/latest">
     <img alt="GitHub release (latest)" src="https://img.shields.io/github/v/release/Kikubay/AnimeLens?label=Version&color=blue">
   </a>
-  <a href="https://chromewebstore.google.com/">
-    <img alt="Soon" src="https://img.shields.io/badge/Chrome-Extension-4285F4?logo=googlechrome&logoColor=white">
+  <a href="https://github.com/Kikubay/AnimeLens/actions/">
+    <img alt="CI Status" src="https://github.com/Kikubay/AnimeLens/actions/workflows/ci.yml/badge.svg">
   </a>
   <a href="https://github.com/Kikubay/AnimeLens?tab=License-1-ov-file">
     <img alt="License" src="https://img.shields.io/badge/License-Non--Commercial%20Copyleft-blue">
