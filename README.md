@@ -22,7 +22,7 @@
   <a href="https://github.com/Kikubay/AnimeLens/releases">
     <img alt="Downloads count" src="https://img.shields.io/github/downloads/Kikubay/AnimeLens/total?color=green">
   </a>
-  <a href="https://github.com/Kikubay/AnimeLens/releases/latest">
+  <a href="/releases/latest">
     <img alt="GitHub release (latest)" src="https://img.shields.io/github/v/release/Kikubay/AnimeLens?label=Version&color=blue">
   </a>
   <a href="https://github.com/Kikubay/AnimeLens/actions/">
@@ -93,49 +93,73 @@ ___
 ___
 
 ## Install
+<details>
+<summary>Option 1a: Chromium (Chrome, Brave, Edge, Opera)</summary>
 
-### Option 1: Pre-compiled Release (Recommended)
-
-1. Download the latest `AnimeLens.zip` file from the [GitHub Releases page](https://github.com/Kikubay/AnimeLens/releases).
+1. Download the latest `Animelens-<version>-chromium.zip` file from the [GitHub Releases page](https://github.com/Kikubay/AnimeLens/releases).
 2. Extract the ZIP file to a folder on your computer.
 3. Open Google Chrome, Edge, Brave or Opera.
-4. Go to:
-   ```text
-   chrome://extensions
-   ```
-   On Edge, Brave and Opera use `edge://extensions` instead.
-5. Enable **Developer mode**.
-6. Click **Load unpacked**.
-7. Select the extracted extension folder containing `manifest.json`.
+4. Go to your browser's extensions page:
+> - **Chrome / Brave:** `chrome://extensions`
+> - **Edge:** `edge://extensions`
+> - **Opera:** `opera://extensions`
+6. Enable **Developer mode**.
+7. Click **Load unpacked**.
+8. Select the extracted extension folder containing `manifest.json`.
 
 *Do not select the `ZIP` file itself. Select the folder containing `manifest.json`.*
 
-If AnimeLens is already installed, replace the old extension files with the new release files and click **Reload** on the AnimeLens card in `chrome://extensions`.
+If AnimeLens is already installed, replace the old extension files with the new release files and click **Reload** on the AnimeLens card in your browser's extensions page.
+</details>
 
-### Option 1b: Firefox
+<details>
+<summary>Option 1b: Firefox (Standard Release - Temporary)</summary>
 
-Firefox cannot load the Chromium build, so it uses its own package from the same release.
+> Standard Firefox enforces strict extension signing. Local builds can only be loaded temporarily and **will be removed when the browser closes**.
 
-1. Download the latest `AnimeLens-firefox.zip` from the [GitHub Releases page](https://github.com/Kikubay/AnimeLens/releases).
-2. Extract it to a folder.
+1. Download the latest `AnimeLens-<version>-gecko.zip` from the [GitHub Releases page](https://github.com/Kikubay/AnimeLens/releases).
+2. Extract the ZIP file to a folder on your computer.
 3. Open Firefox and go to:
    ```text
    about:debugging#/runtime/this-firefox
    ```
 4. Click **Load Temporary Add-on…**.
-5. Select the `manifest.json` inside the extracted folder.
+5. Navigate to the extracted folder and select the `manifest.json` file.
 
-Temporary add-ons are removed when Firefox closes. For a permanent install, use the signed build from [addons.mozilla.org](https://addons.mozilla.org/) once it is published.
+> **Note:** You will need to repeat these steps every time you restart Firefox. For a permanent install on standard Firefox, wait for the official signed build to be published on [addons.mozilla.org](https://addons.mozilla.org/).
+</details>
 
-### Option 1c: Desktop app
+<details>
+<summary>Option 1c: Firefox Developer Edition (Permanent Install)</summary>
+
+> If you want to keep the extension permanently without waiting for the Mozilla Store release, **Firefox Developer Edition** is the most reliable and recommended method. It allows you to disable signature checks and install local builds permanently.
+
+1. Download and install [Firefox Developer Edition](https://www.mozilla.org/en-US/firefox/developer/) (it runs independently from your standard Firefox).
+2. Open a new tab, go to `about:config`, and click **Accept the Risk and Continue**.
+3. Search for `xpinstall.signatures.required` and double-click it to change the value to **`false`**.
+4. Download the latest `AnimeLens-<version>-gecko.zip` from the [GitHub Releases page](https://github.com/Kikubay/AnimeLens/releases).
+5. **Rename** the downloaded `.zip` file to exactly:  
+   `animelens@kikubay.github.io.xpi`  
+   *(This matches the extension ID pinned in the AnimeLens build).*
+6. In Firefox Developer Edition, go to `about:support` and click the **Open Folder** button next to "Profile Folder".
+7. Inside that profile folder, create a new folder named `extensions` (if it does not already exist).
+8. Move the renamed `animelens@kikubay.github.io.xpi` file into this `extensions` folder.
+9. **Restart Firefox Developer Edition.** 
+
+The extension will now be permanently installed, fully functional, and will survive all future computer and browser restarts.
+</details>
+
+<details>
+<summary>Option 1d: Desktop app</summary>
 
 The same dashboard also ships as a desktop app for Windows, macOS and Linux. Download the installer for your platform from the [GitHub Releases page](https://github.com/Kikubay/AnimeLens/releases) and run it.
 
 The desktop app talks to MyAnimeList and AniList directly and keeps your data in a local file. It is **not** code-signed, so expect a Windows SmartScreen warning on first launch.
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) for how the desktop app and the two extension builds share one codebase.
+</details>
 
-### Option 2: Build from Source
+#### Option 2: Build from Source
 1. Clone this repository:
    ```bash
    git clone https://github.com/Kikubay/AnimeLens.git
@@ -161,6 +185,7 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for how the desktop app and the two exten
 > service worker and so runs the same bundle as an event page plus a pinned Gecko extension ID; and
 > one CSS override, because Firefox's popup scrollbar takes width away from the content instead of
 > overlaying it. Run `npm run build:extension:package` to produce a store-ready `.zip` for each target.
+</details>
 
 ___
 
@@ -243,7 +268,7 @@ When a newer version is available:
 
 1. Click **Update** in the AnimeLens update banner.
 2. Download the latest release ZIP for your browser.
-3. Extract it to a new folder, or replace the existing extension files.
+3. Replace the existing extension files.
 4. Reload the extension:
    - Chromium browsers: open `chrome://extensions` (`edge://extensions` on Edge) and click **Reload** on AnimeLens.
    - Firefox: open `about:debugging#/runtime/this-firefox`, select AnimeLens and click **Reload**.
