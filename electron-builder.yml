@@ -3,14 +3,11 @@ productName: AnimeLens
 copyright: Copyright © Kikubay
 
 directories:
-  # The unpacked source tree lives in dist/electron/app; electron-builder owns the rest.
   output: dist/electron/release
 
 files:
-  # Where vite puts main.mjs, preload.mjs, background.mjs and the renderer.
   - dist/electron/app/**/*
   - package.json
-  # Everything is bundled, so shipping node_modules would only bloat the asar.
   - '!node_modules/**/*'
 
 extraMetadata:
@@ -19,10 +16,10 @@ extraMetadata:
 asar: true
 
 win:
+  icon: build/icon.png
   target:
     - target: nsis
       arch: [x64]
-  # Ship an unpacked tree too, so the app can be smoke-tested without installing.
   artifactName: ${productName}-${version}-${arch}.${ext}
 
 nsis:
@@ -34,19 +31,19 @@ nsis:
   shortcutName: AnimeLens
 
 mac:
+  icon: build/icon.icns
   target:
     - dmg
     - zip
   category: public.app-category.entertainment
 
 linux:
+  icon: build/icon-512.png
   target:
     - AppImage
     - deb
   category: Network
   synopsis: MyAnimeList and AniList recommendations
-  # Without a desktopName, window managers cannot link running windows to the
-  # .desktop entry, so the taskbar icon goes missing.
   desktop:
     entry:
       Name: AnimeLens

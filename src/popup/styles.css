@@ -1634,10 +1634,9 @@ button:focus-visible {
   background: rgb(184 165 255 / 8%);
   box-shadow: 0 10px 24px rgb(0 0 0 / 14%);
 }
-.settings-header-icon img {
-  width: 28px;
-  height: 28px;
-  border-radius: 8px;
+/* The gear is a stroked icon, so it needs a colour of its own rather than inheriting page text. */
+.settings-header-icon svg {
+  color: #b8a5ff;
 }
 .settings-overview {
   display: flex;

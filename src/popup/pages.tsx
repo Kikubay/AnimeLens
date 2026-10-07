@@ -1724,7 +1724,7 @@ useEffect(() => {
     <div className="page-content settings-page">
       <div className="settings-header">
         <div className="settings-header-icon" aria-hidden="true">
-          <img src="icons/icon32.png" alt="" />
+          <Icon name="settings" size={22} />
         </div>
         <div className="page-title">
           <p className="eyebrow">{copy.settingsEyebrow}</p>

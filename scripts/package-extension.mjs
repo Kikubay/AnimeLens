@@ -7,10 +7,7 @@ import { ZipArchive } from 'archiver';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 
-/** Matches `directories.output` in electron-builder.yml, so artifacts land in one place. */
 const RELEASE_DIR = 'release';
-
-/** Directories follow the engine (`chromium` covers Chrome, Edge, Brave and Opera; `gecko` is Firefox), but the filename keeps the browser name a store would recognise. */
 const TARGETS = [
   { id: 'chromium', dir: 'dist/chromium' },
   { id: 'firefox', dir: 'dist/gecko' },

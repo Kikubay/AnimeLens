@@ -73,6 +73,8 @@ function createWindow(): void {
     minHeight: WINDOW_MIN_HEIGHT,
 // A normal app window, not a chrome-less popup: the desktop build is the full dashboard.
     title: 'AnimeLens',
+// Windows and macOS take the icon from the packaged executable, but on Linux nothing supplies one unless the window asks for it.
+    icon: join(rendererRoot, 'icons/icon32.png'),
     backgroundColor: '#0b0d14',
     show: false,
     webPreferences: {
