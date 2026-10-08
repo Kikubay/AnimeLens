@@ -1,6 +1,6 @@
 {
   "name": "animelens",
-  "version": "0.1.9",
+  "version": "0.2.0",
   "private": true,
   "license": "SEE LICENSE IN LICENSE.md",
   "description": "Recommendation dashboard for MyAnimeList and AniList, as a Chrome extension and a desktop app.",
