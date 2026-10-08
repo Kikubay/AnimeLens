@@ -2,7 +2,11 @@ import type { Anime, AnimeListEntry, AnimeStatus } from '../../../domain/anime';
 import type { StreamingLink } from '../../../domain/streaming';
 import type { UserProfile } from '../../../domain/user-profile';
 import { ApiError } from '../../api-errors';
-import type { AnimeListFetchOptions, AnimeProvider } from '../../anime-provider';
+import type {
+  AnimeListFetchOptions,
+  AnimeProvider,
+  CandidatePoolConfig,
+} from '../../anime-provider';
 import type { HttpClient } from '../../http-client';
 import { MAL_API_BASE_URL, MAL_FIELDS, MAL_LIMITS, MAL_LIST_FIELDS } from './mal-config';
 import {
@@ -19,6 +23,12 @@ import { fetchMalStreamingPlatforms } from './mal-streaming';
 const MAX_PAGES = 100;
 
 export class MalAnimeProvider implements AnimeProvider {
+  readonly candidatePoolConfig: CandidatePoolConfig = {
+    suggestionLimit: 50,
+    rankingLimit: 100,
+    rankingOffset: 2000,
+  };
+
   constructor(
     private readonly httpClient: HttpClient,
     private readonly accessToken: string,

@@ -22,6 +22,8 @@ import { ChromeAnimeCacheStore } from '../sync/sync-cache';
 import type { AnimeCache } from '../domain/sync';
 import type { Anime } from '../domain/anime';
 import { AuthenticatedAnimeListSyncService } from '../sync/runtime-sync';
+import { toSyncErrorCode as toProviderSyncErrorCode } from '../sync/sync-service';
+import { StorageQuotaError } from '../storage/storage-adapter';
 import type { SyncMessage, SyncMessageResponse, SyncSnapshot } from '../sync/sync-messages';
 import { isSyncMessage } from '../sync/sync-messages';
 import type { SyncMetadata, SyncProgress } from '../domain/sync';
@@ -29,7 +31,15 @@ import { buildUserPreferenceProfile } from '../recommendations/recommendation-en
 import {
   buildDashboardRecommendationSnapshot,
   createEmptyDashboardRecommendationSnapshot,
+  withCurrentSync,
 } from '../recommendations/recommendation-dashboard';
+import { createCandidatePoolStore } from '../recommendations/candidate-pool-store';
+import {
+  createDashboardSnapshotStore,
+  dashboardSignature,
+} from '../recommendations/recommendation-snapshot-store';
+import { createSessionStorageArea } from '../storage/session-area';
+import { ChromeStorageAdapter } from '../storage/storage-adapter';
 import { emptyProfileSummary, profileSummaryFromModel } from '../profile/profile-types';
 import type { UserProfileSummary } from '../profile/profile-types';
 import type { ProfileMessage, ProfileMessageResponse } from '../profile/profile-messages';
@@ -55,8 +65,15 @@ import type {
 } from '../recommendations/recommendation-messages';
 import { isRecommendationMessage } from '../recommendations/recommendation-messages';
 import type { MalListMessage, MalListMessageResponse } from '../api/mal-list-messages';
+import type { CandidatePoolConfig } from '../api/anime-provider';
 import type { ProviderStatus } from '../providers/provider-registry';
 import { isMalListMessage } from '../api/mal-list-messages';
+import {
+  ANIME_SEARCH_MAX_LENGTH,
+  isAnimeSearchMessage,
+  type AnimeSearchMessage,
+  type AnimeSearchResponse,
+} from '../api/anime-search-messages';
 import {
   isStreamingLinksMessage,
   type StreamingLinksMessage,
@@ -94,49 +111,35 @@ async function activeAuthService() {
 }
 
 // Deep enough to skip the mega-popular head, but MAL starts returning empty pages further down than you'd expect.
-const RANKING_DISCOVERY_OFFSET = 2000;
+const DEFAULT_CANDIDATE_POOL_CONFIG: CandidatePoolConfig = {
+  suggestionLimit: 50,
+  rankingLimit: 100,
+  rankingOffset: 2000,
+};
 const DAILY_RECOMMENDATION_ALARM = 'animelens-daily-recommendation';
 const SYNC_ALARM = 'animelens-sync';
+const ANIME_SEARCH_RESULT_LIMIT = 24;
 let updateCheckInFlight: Promise<UpdateSnapshot> | null = null;
 
-// Every rating, add, preference change and sync re-requests the pool, and each request costs two provider calls for byte-identical results. The pool depends only on the account, so a short TTL kills the amplification without making recommendations feel stale.
-const CANDIDATE_POOL_TTL_MS = 10 * 60 * 1000;
-const CANDIDATE_POOL_SUGGESTION_LIMIT = 50;
-const CANDIDATE_POOL_RANKING_LIMIT = 100;
-
-interface CandidatePoolEntry {
-  readonly providerId: ProviderId;
-  readonly fetchedAt: number;
-  readonly pool: readonly Anime[];
-}
-
-// Memory only on purpose: the request burst happens inside one live popup, and a disk-backed pool would go stale across sessions and need invalidating on disconnect too.
-let candidatePoolCache: CandidatePoolEntry | null = null;
+// Every rating, add, preference change and sync re-requests the pool, and each request costs two provider calls for byte-identical results.
+const candidatePoolStore = createCandidatePoolStore(createSessionStorageArea());
+const dashboardSnapshotStore = createDashboardSnapshotStore(createSessionStorageArea());
 let candidatePoolInFlight: {
   readonly providerId: ProviderId;
   readonly request: Promise<readonly Anime[]>;
 } | null = null;
 
 /** Drop the pool when the account, or the data it was drawn from, changes. */
-function invalidateCandidatePool(): void {
-  candidatePoolCache = null;
+async function invalidateCandidatePool(): Promise<void> {
   candidatePoolInFlight = null;
+  await candidatePoolStore.clear();
+  await dashboardSnapshotStore.clear();
 }
 
 type Storage = ConstructorParameters<typeof ChromeAnimeCacheStore>[0];
 
-const storage = {
-  async get<T>(key: string): Promise<T | undefined> {
-    const result = await chrome.storage.local.get(key);
-    return result[key] as T | undefined;
-  },
-  async set<T>(key: string, value: T): Promise<void> {
-    await chrome.storage.local.set({ [key]: value });
-  },
-  async remove(key: string): Promise<void> {
-    await chrome.storage.local.remove(key);
-  },
-} as Storage;
+// The shared adapter rather than a local copy, so a failed write raises the same typed error everywhere instead of vanishing into a generic sync error.
+const storage: Storage = new ChromeStorageAdapter();
 
 const feedbackService = new RecommendationFeedbackService(new ChromeFeedbackStore(storage));
 const topPicksStore = createTopPicksStore(storage);
@@ -151,9 +154,9 @@ void providerRegistry.migrateLegacySessions().catch(reportBackgroundFailure);
 
 void hydrateCachedSync().catch(reportBackgroundFailure);
 // `setAccessLevel` is Chrome-only, so an unguarded call throws synchronously at module scope and takes the whole background script with it.
-chrome.storage.session.setAccessLevel?.({ accessLevel: 'TRUSTED_CONTEXTS' })?.catch(
-  reportBackgroundFailure,
-);
+chrome.storage.session
+  .setAccessLevel?.({ accessLevel: 'TRUSTED_CONTEXTS' })
+  ?.catch(reportBackgroundFailure);
 
 function reportBackgroundFailure(error: unknown): void {
   console.warn(
@@ -212,7 +215,7 @@ chrome.tabs?.onUpdated?.addListener((tabId, changeInfo) => {
 });
 
 chrome.runtime.onStartup?.addListener(() => {
-// Firefox drops alarms on browser restart, unlike Chromium, so the daily recommendation would quietly stop firing.
+  // Firefox drops alarms on browser restart, unlike Chromium, so the daily recommendation would quietly stop firing.
   void configureScheduledTasks().catch(reportBackgroundFailure);
 });
 
@@ -248,6 +251,7 @@ type WorkerResponse =
   | SettingsResponse
   | RecommendationMessageResponse
   | MalListMessageResponse
+  | AnimeSearchResponse
   | UpdateResponse;
 
 chrome.runtime.onInstalled.addListener(() => {
@@ -322,6 +326,14 @@ chrome.runtime.onMessage.addListener(
     }
     if (isMalListMessage(message)) {
       void handleMalListMessage(message)
+        .then(sendResponse)
+        .catch(async (error: unknown) =>
+          sendResponse({ ok: false, message: await toMessage(error) }),
+        );
+      return true;
+    }
+    if (isAnimeSearchMessage(message)) {
+      void handleAnimeSearchMessage(message)
         .then(sendResponse)
         .catch(async (error: unknown) =>
           sendResponse({ ok: false, message: await toMessage(error) }),
@@ -433,11 +445,11 @@ async function handleAuthMessage(message: AuthMessage): Promise<AuthResponse> {
   }
   if (message.type === 'auth.complete_pin_connect') {
     if (message.providerId !== 'anilist') {
-      return { ok: false, message: 'The pin flow is only available for AniList.' };
+      return { ok: false, message: (await currentCopy()).pinFlowAniListOnly };
     }
     const snapshot = await providerRegistry.completeAnilistPinSignIn(message.token);
     if (snapshot.status === 'authenticated') {
-// The pin tab is still sitting on its URL, so without this the same token would be handed out again on every later popup open.
+      // The pin tab is still sitting on its URL, so without this the same token would be handed out again on every later popup open.
       await forgetAnilistPinToken();
       void configureScheduledTasks().catch(reportBackgroundFailure);
       // The pin flow doesn't switch the active provider, so only sync if AniList is already the one taking traffic.
@@ -451,11 +463,11 @@ async function handleAuthMessage(message: AuthMessage): Promise<AuthResponse> {
   if (message.type === 'auth.set_active_provider') {
     const providerId = message.providerId;
     if (!isProviderId(providerId)) {
-      return { ok: false, message: 'Unknown provider.' };
+      return { ok: false, message: (await currentCopy()).unknownProvider };
     }
     await providerRegistry.registry.setActiveProvider(providerId);
     // Reset the visible sync state; the new provider's cache hydrates on the next snapshot read, then a background re-sync refreshes it.
-    invalidateCandidatePool();
+    await invalidateCandidatePool();
     syncSnapshot = { metadata: createIdleMetadata(), progress: null };
     void hydrateCachedSync().catch(reportBackgroundFailure);
     const auth = await (await activeAuthService()).getSnapshot();
@@ -512,7 +524,7 @@ async function handleAuthMessage(message: AuthMessage): Promise<AuthResponse> {
       targetProviderId === undefined || targetProviderId === activeProvider || !activeStillSignedIn;
     if (shouldActivate && targetProviderId !== undefined && targetProviderId !== activeProvider) {
       await providerRegistry.registry.setActiveProvider(targetProviderId);
-      invalidateCandidatePool();
+      await invalidateCandidatePool();
       syncSnapshot = { metadata: createIdleMetadata(), progress: null };
       void hydrateCachedSync().catch(reportBackgroundFailure);
     }
@@ -529,7 +541,7 @@ async function handleAuthMessage(message: AuthMessage): Promise<AuthResponse> {
     const disconnectedProviderId =
       targetProviderId ?? (await providerRegistry.registry.getActiveProvider());
     await syncService.invalidate(disconnectedProviderId);
-    invalidateCandidatePool();
+    await invalidateCandidatePool();
     const anySignedIn = await providerRegistry
       .listProviderStatuses()
       .then((statuses) => statuses.some((status) => status.signedIn));
@@ -574,7 +586,7 @@ async function handleSettingsMessage(message: SettingsMessage): Promise<Settings
   }
   if (message.type === 'settings.clear_cache') {
     await syncService.invalidate();
-    invalidateCandidatePool();
+    await invalidateCandidatePool();
     // The history is derived from the cache, so keeping it would make the next sync diff against data that's already gone.
     await profileHistoryStore.clear();
     syncSnapshot = { metadata: createIdleMetadata(), progress: null };
@@ -600,7 +612,7 @@ async function handleSettingsMessage(message: SettingsMessage): Promise<Settings
     ];
     await Promise.all(LOCAL_DATA_KEYS.map((key) => storage.remove(key)));
     await profileHistoryStore.clear();
-    invalidateCandidatePool();
+    await invalidateCandidatePool();
     syncSnapshot = { metadata: createIdleMetadata(), progress: null };
     await configureScheduledTasks();
     return settingsSnapshot();
@@ -618,7 +630,7 @@ async function handleSettingsMessage(message: SettingsMessage): Promise<Settings
       await Promise.all([storage.remove('feedback'), storage.remove('profile')]);
       await profileHistoryStore.clear();
     }
-    invalidateCandidatePool();
+    await invalidateCandidatePool();
     syncSnapshot = { metadata: createIdleMetadata(), progress: null };
     void hydrateCachedSync().catch(reportBackgroundFailure);
     await configureScheduledTasks();
@@ -626,7 +638,7 @@ async function handleSettingsMessage(message: SettingsMessage): Promise<Settings
   }
 
   // Unreachable today, but keeping it explicit means a new SettingsMessage variant is a type error instead of a destructive fall-through.
-  return { ok: false, message: 'Unknown settings action.' };
+  return { ok: false, message: (await currentCopy()).unknownSettingsAction };
 }
 
 async function settingsSnapshot(): Promise<SettingsResponse> {
@@ -692,10 +704,7 @@ async function updateDailyRecommendationAlarm(enabled: boolean): Promise<void> {
 async function updateSyncAlarm(
   frequency: ReturnType<typeof normalizeUserPreferences>['syncFrequency'],
 ): Promise<void> {
-  await reconcileAlarm(
-    SYNC_ALARM,
-    frequency === 'manual' ? null : SYNC_PERIOD_MINUTES[frequency],
-  );
+  await reconcileAlarm(SYNC_ALARM, frequency === 'manual' ? null : SYNC_PERIOD_MINUTES[frequency]);
 }
 
 async function showDailyRecommendationNotification(): Promise<void> {
@@ -754,6 +763,22 @@ async function handleMalListMessage(message: MalListMessage): Promise<MalListMes
   }
 }
 
+async function handleAnimeSearchMessage(message: AnimeSearchMessage): Promise<AnimeSearchResponse> {
+  try {
+    const query = message.query.trim().slice(0, ANIME_SEARCH_MAX_LENGTH);
+    const results = await (
+      await activeAuthService()
+    ).withAccessToken(async (accessToken) => {
+      const provider = await providerRegistry.createActiveProvider(accessToken);
+      return provider.searchAnime(query);
+    });
+    return { ok: true, results: results.slice(0, ANIME_SEARCH_RESULT_LIMIT) };
+  } catch (error) {
+    reportBackgroundFailure(error);
+    return { ok: false, message: await toUserFacingSearchError(error) };
+  }
+}
+
 // Suggestions are the primary source; the deep ranking page is what widens it with quality-but-obscure titles, since the top of the ranking is already known to heavy users. Each source is fetched independently so a failure in one can't discard the other — they used to run sequentially behind an unguarded await, which meant the fallback never ran in the one case it existed for.
 async function fetchCandidatePool(): Promise<readonly Anime[]> {
   const pool = await (
@@ -761,7 +786,7 @@ async function fetchCandidatePool(): Promise<readonly Anime[]> {
   ).withAccessToken(async (accessToken) => {
     const provider = await providerRegistry.createActiveProvider(accessToken);
 
-    const degrade = async <T,>(
+    const degrade = async <T>(
       load: () => Promise<readonly T[]> | undefined,
     ): Promise<readonly T[]> => {
       try {
@@ -772,11 +797,10 @@ async function fetchCandidatePool(): Promise<readonly Anime[]> {
       }
     };
 
+    const config = provider.candidatePoolConfig ?? DEFAULT_CANDIDATE_POOL_CONFIG;
     const [suggested, ranked] = await Promise.all([
-      degrade<Anime>(() => provider.getAnimeSuggestions?.(CANDIDATE_POOL_SUGGESTION_LIMIT)),
-      degrade<Anime>(() =>
-        provider.getAnimeRanking?.(CANDIDATE_POOL_RANKING_LIMIT, RANKING_DISCOVERY_OFFSET),
-      ),
+      degrade<Anime>(() => provider.getAnimeSuggestions?.(config.suggestionLimit)),
+      degrade<Anime>(() => provider.getAnimeRanking?.(config.rankingLimit, config.rankingOffset)),
     ]);
     const seen = new Set(suggested.map((anime) => anime.id));
     return [...suggested, ...ranked.filter((anime) => !seen.has(anime.id))];
@@ -787,10 +811,8 @@ async function fetchCandidatePool(): Promise<readonly Anime[]> {
 // Keyed on the active provider so switching accounts can't serve the previous account's pool.
 async function loadCandidatePool(): Promise<readonly Anime[]> {
   const providerId = await providerRegistry.registry.getActiveProvider();
-  const cached = candidatePoolCache;
-  if (cached !== null && cached.providerId === providerId) {
-    if (Date.now() - cached.fetchedAt < CANDIDATE_POOL_TTL_MS) return cached.pool;
-  }
+  const cached = await candidatePoolStore.load(providerId, Date.now());
+  if (cached !== null) return cached;
 
   // A provider switch mid-flight must not be served the previous account's pool.
   if (candidatePoolInFlight !== null && candidatePoolInFlight.providerId === providerId) {
@@ -812,7 +834,7 @@ async function loadCandidatePool(): Promise<readonly Anime[]> {
     const pool = await request;
     // An empty pool is a degraded failure, not an answer, so don't cache it and lock the dashboard to it for the whole TTL.
     if (pool.length > 0) {
-      candidatePoolCache = { providerId, fetchedAt: Date.now(), pool };
+      await candidatePoolStore.save(providerId, pool, Date.now());
     }
     return pool;
   } finally {
@@ -833,17 +855,32 @@ async function handleRecommendationMessage(
     };
   }
 
-  return {
-    ok: true,
-    snapshot: await buildDashboardRecommendationSnapshot(
-      stored.entries,
-      stored.sync,
-      preferences,
-      feedback,
-      new Date().toISOString(),
-      loadCandidatePool,
-    ),
-  };
+  const providerId = await providerRegistry.registry.getActiveProvider();
+  const pool = await loadCandidatePool();
+  const signature = dashboardSignature({
+    providerId,
+    cacheVersion: stored.version,
+    cachedAt: stored.cachedAt,
+    pool,
+    preferences,
+    feedback,
+  });
+
+  const cached = await dashboardSnapshotStore.load(signature, Date.now());
+  if (cached !== null) {
+    return { ok: true, snapshot: withCurrentSync(cached, stored.sync) };
+  }
+
+  const snapshot = await buildDashboardRecommendationSnapshot(
+    stored.entries,
+    stored.sync,
+    preferences,
+    feedback,
+    new Date().toISOString(),
+    async () => pool,
+  );
+  await dashboardSnapshotStore.save(signature, snapshot, Date.now());
+  return { ok: true, snapshot };
 }
 
 async function buildCurrentProfileSummary(): Promise<{
@@ -1089,23 +1126,40 @@ async function toUserFacingMalListError(error: unknown): Promise<string> {
   return copy.providerListError(providerName);
 }
 
+async function toUserFacingSearchError(error: unknown): Promise<string> {
+  const copy = getCopy(await currentLanguage());
+  const providerName =
+    (await providerRegistry.registry.getActiveProvider()) === 'anilist' ? 'AniList' : 'MyAnimeList';
+  if (error instanceof AuthServiceError) return copy.searchAuthRequired(providerName);
+  if (error instanceof ApiError && error.code === 'unauthorized') {
+    return copy.searchSessionExpired(providerName);
+  }
+  if (
+    error instanceof ApiError &&
+    (error.code === 'network_error' || error.code === 'rate_limited')
+  ) {
+    return copy.searchUnavailable(providerName);
+  }
+  return copy.backgroundActionFailed;
+}
+
 function toSyncErrorCode(error: unknown): SyncMetadata['errorCode'] {
   if (error instanceof AuthServiceError) return 'unauthorized';
-  if (error instanceof ApiError) {
-    if (error.code === 'network_error') return 'network_error';
-    if (error.code === 'rate_limited') return 'rate_limited';
-    if (error.code === 'unauthorized') return 'unauthorized';
-    if (error.code === 'invalid_response') return 'invalid_response';
-  }
-  return 'unknown';
+  return toProviderSyncErrorCode(error);
 }
 
 async function toMessage(error: unknown): Promise<string> {
+  const copy = getCopy(await currentLanguage());
+  if (error instanceof StorageQuotaError) return copy.syncStorageFull;
   if (error instanceof Error) return error.message;
-  return getCopy(await currentLanguage()).backgroundActionFailed;
+  return copy.backgroundActionFailed;
 }
 
 async function currentLanguage(): Promise<Language> {
   const preferences = normalizeUserPreferences(await storage.get('preferences'));
   return preferences.language;
+}
+
+async function currentCopy() {
+  return getCopy(await currentLanguage());
 }

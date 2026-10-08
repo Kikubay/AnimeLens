@@ -20,7 +20,7 @@ export default defineConfig(({ mode }) => {
       rollupOptions: {
         input: { popup: resolve(__dirname, 'index.html') },
         output: {
-// The popup reaches `chrome.runtime.sendMessage` through the preload bridge, which needs a real module graph to code-split against.
+          // The popup reaches `chrome.runtime.sendMessage` through the preload bridge, which needs a real module graph to code-split against.
           format: 'es',
           assetFileNames: 'assets/[name]-[hash][extname]',
         },

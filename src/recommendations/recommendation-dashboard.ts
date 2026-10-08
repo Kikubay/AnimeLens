@@ -13,6 +13,9 @@ import type {
   RecommendationSectionId,
 } from './recommendation-messages';
 
+const MAX_DASHBOARD_RECOMMENDATIONS = 100;
+const MAX_SECTION_RECOMMENDATIONS = 24;
+
 const SECTION_DEFINITIONS: readonly {
   readonly id: RecommendationSectionId;
   readonly categories: readonly RecommendationCategory[];
@@ -72,8 +75,8 @@ export async function buildDashboardRecommendationSnapshot(
   const recommendations = generateRecommendations(
     { watched, candidates, feedback },
     {
-      // No cap here, so Highly Compatible can surface every unseen title over its threshold.
-      limit: candidates.length,
+      // Every section is capped below anyway, so asking the engine for one full candidate list per section is what keeps the payload and the diversification pass bounded.
+      limit: MAX_DASHBOARD_RECOMMENDATIONS,
       discovery: toRecommendationDiscoveryPreferences(preferences),
       generatedAt,
       language: preferences.language,
@@ -114,12 +117,25 @@ export function createEmptyDashboardRecommendationSnapshot(
   };
 }
 
+export function withCurrentSync(
+  snapshot: DashboardRecommendationSnapshot,
+  sync: SyncMetadata,
+): DashboardRecommendationSnapshot {
+  const status =
+    sync.status === 'offline'
+      ? 'offline'
+      : snapshot.status === 'offline'
+        ? 'ready'
+        : snapshot.status;
+  return { ...snapshot, status, sync };
+}
+
 function createSections(recommendations: readonly Recommendation[]): RecommendationSection[] {
   return SECTION_DEFINITIONS.map((definition) => ({
     id: definition.id,
     title: definition.title,
-    recommendations: recommendations.filter((item) =>
-      definition.categories.includes(item.category),
-    ),
+    recommendations: recommendations
+      .filter((item) => definition.categories.includes(item.category))
+      .slice(0, MAX_SECTION_RECOMMENDATIONS),
   }));
 }

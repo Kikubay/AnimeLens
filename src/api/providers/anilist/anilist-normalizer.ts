@@ -171,7 +171,7 @@ export function normalizeAnime(input: AniListMediaDto): Anime {
     status: normalizeAiringStatus(input.status),
     type: normalizeAnimeType(input.format),
     popularity: normalizeNonNegativeInteger(input.popularity),
-    memberCount: normalizeNonNegativeInteger(input.popularity),
+    memberCount: null,
     contentRating: input.isAdult === true ? 'explicit' : 'safe',
     streamingSites: normalizeStreamingSites(input.externalLinks),
   };

@@ -2,8 +2,6 @@ export {
   buildUserPreferenceProfile,
   extractFeatures,
   generateRecommendations,
-  learnUserPreferences,
-  scoreAnime,
   scoreRecommendation,
 } from './recommendation-engine';
 export type {

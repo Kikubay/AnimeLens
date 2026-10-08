@@ -12,6 +12,13 @@ export interface AnimeListFetchOptions {
   readonly onProgress?: (progress: AnimeListFetchProgress) => void;
 }
 
+/** Where a provider's discovery endpoints should be sampled. */
+export interface CandidatePoolConfig {
+  readonly suggestionLimit: number;
+  readonly rankingLimit: number;
+  readonly rankingOffset: number;
+}
+
 export interface AnimeProvider {
   getCurrentUser(): Promise<UserProfile>;
   getUserAnimeList(options?: AnimeListFetchOptions): Promise<AnimeListEntry[]>;
@@ -20,6 +27,7 @@ export interface AnimeProvider {
   getAnimeSuggestions?(limit?: number): Promise<Anime[]>;
   // Paging deep into the popularity ranking surfaces lesser-known quality titles, which is what feeds Hidden Gems and Explore.
   getAnimeRanking?(limit?: number, offset?: number): Promise<Anime[]>;
+  readonly candidatePoolConfig?: CandidatePoolConfig;
   searchAnime(query: string): Promise<Anime[]>;
   addToList(id: number, status?: AnimeStatus): Promise<void>;
   // Returns [] instead of throwing when it can't answer, otherwise a failed card would take the whole detail page down.

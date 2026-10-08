@@ -67,7 +67,7 @@ export class RuntimeShim {
         if (keepOpen === true) awaiting = true;
       }
 
-// Nothing claimed the message, so the channel closes right away and the caller sees `undefined`.
+      // Nothing claimed the message, so the channel closes right away and the caller sees `undefined`.
       if (!awaiting && !settled) resolve(undefined);
     });
   }
@@ -104,9 +104,7 @@ export class NotificationsShim {
     const notification = new Notification({
       title: options.title,
       body: options.message,
-      ...(options.iconUrl === undefined
-        ? {}
-        : { icon: this.resolveAsset(options.iconUrl) }),
+      ...(options.iconUrl === undefined ? {} : { icon: this.resolveAsset(options.iconUrl) }),
     });
     notification.on('click', () => {
       notification.close();

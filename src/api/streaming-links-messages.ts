@@ -10,9 +10,7 @@ export type StreamingLinksResponse =
   | { readonly ok: false; readonly message: string };
 
 // Only asked when the record we hold has no links, since list/suggestion/ranking endpoints needn't include them. Never rejects: offline, expired token or nothing to say all render as no card.
-export async function requestStreamingLinks(
-  animeId: number,
-): Promise<readonly StreamingLink[]> {
+export async function requestStreamingLinks(animeId: number): Promise<readonly StreamingLink[]> {
   const response = (await chrome.runtime.sendMessage({
     type: 'anime.get_streaming_links',
     animeId,

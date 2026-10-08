@@ -25,7 +25,14 @@
     "48": "icons/icon48.png",
     "128": "icons/icon128.png"
   },
-  "permissions": ["storage", "identity", "alarms", "notifications", "clipboardWrite"],
+  "permissions": [
+    "storage",
+    "unlimitedStorage",
+    "identity",
+    "alarms",
+    "notifications",
+    "clipboardWrite"
+  ],
   "host_permissions": [
     "https://api.myanimelist.net/*",
     "https://myanimelist.net/*",

@@ -31,6 +31,7 @@ function readState(authorizeUrl: string): string | null {
 export class IdentityShim {
   private server: Server | null = null;
   private starting: Promise<number> | null = null;
+  private disposed = false;
   private readonly pending = new Set<PendingFlow>();
 
   private listen(port: number): Promise<number> {
@@ -38,10 +39,16 @@ export class IdentityShim {
       const server = createServer((request, response) => {
         this.handleRequest(request, response);
       });
+      const onBindFailed = (error: Error) => reject(error);
+      const onClosedEarly = () =>
+        reject(new Error('AnimeLens sign-in listener closed before it started.'));
       // A stale OAuth tab from a previous run can leave a socket in TIME_WAIT.
-      server.on('error', reject);
+      server.on('error', onBindFailed);
+      // Closing before the bind completes never emits `listening` or `error`, so the promise would otherwise stay pending for good.
+      server.on('close', onClosedEarly);
       server.listen(port, '127.0.0.1', () => {
-        server.removeListener('error', reject);
+        server.removeListener('error', onBindFailed);
+        server.removeListener('close', onClosedEarly);
         server.on('error', () => undefined);
         resolve((server.address() as { port: number }).port);
       });
@@ -50,6 +57,7 @@ export class IdentityShim {
   }
 
   async start(): Promise<number> {
+    this.disposed = false;
     this.starting ??= (async () => {
       for (const port of [DEFAULT_LOOPBACK_PORT, ...FALLBACK_PORTS]) {
         try {
@@ -90,9 +98,9 @@ export class IdentityShim {
     response.end(
       matched === undefined
         ? '<!doctype html><meta charset="utf-8"><title>AnimeLens</title>' +
-          '<body style="font:16px system-ui;padding:2rem">This page is not an AnimeLens sign-in callback. You can close it.</body>'
+            '<body style="font:16px system-ui;padding:2rem">This page is not an AnimeLens sign-in callback. You can close it.</body>'
         : '<!doctype html><meta charset="utf-8"><title>AnimeLens</title>' +
-          '<body style="font:16px system-ui;padding:2rem">Signed in. Return to AnimeLens to finish.</body>',
+            '<body style="font:16px system-ui;padding:2rem">Signed in. Return to AnimeLens to finish.</body>',
     );
 
     if (matched === undefined) return;
@@ -107,7 +115,10 @@ export class IdentityShim {
   }
 
   async launchWebAuthFlow(details: WebAuthFlowDetails): Promise<string | undefined> {
+    // Checked on both sides of `start()`: a dispose landing while the listener is still coming up would otherwise register the flow after the pending set was already drained, and it would wait out the full timeout.
+    if (this.disposed) throw new Error('AnimeLens is shutting down.');
     await this.start();
+    if (this.disposed) throw new Error('AnimeLens is shutting down.');
     const expectedState = readState(details.url);
 
     const callback = new Promise<string>((resolve, reject) => {
@@ -133,6 +144,7 @@ export class IdentityShim {
     for (const flow of [...this.pending]) {
       this.settle(flow, () => flow.reject(new Error('AnimeLens is shutting down.')));
     }
+    this.disposed = true;
     this.server?.close();
     this.server = null;
     this.starting = null;

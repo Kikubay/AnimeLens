@@ -13,8 +13,14 @@ export interface HttpClient {
   patch<T>(url: string, options?: RequestInit): Promise<HttpResponse<T>>;
 }
 
+/** Without this a stalled connection hangs the sync forever, since `fetch` never settles on its own. */
+export const DEFAULT_REQUEST_TIMEOUT_MS = 30_000;
+
 export class FetchHttpClient implements HttpClient {
-  constructor(private readonly fetcher: typeof fetch = globalThis.fetch.bind(globalThis)) {}
+  constructor(
+    private readonly fetcher: typeof fetch = globalThis.fetch.bind(globalThis),
+    private readonly timeoutMs: number = DEFAULT_REQUEST_TIMEOUT_MS,
+  ) {}
 
   get<T>(url: string, options: RequestInit = {}): Promise<HttpResponse<T>> {
     return this.request<T>(url, { ...options, method: 'GET' });
@@ -31,8 +37,9 @@ export class FetchHttpClient implements HttpClient {
   private async request<T>(url: string, options: RequestInit): Promise<HttpResponse<T>> {
     let response: Response;
     try {
-      response = await this.fetcher(url, options);
+      response = await this.fetcher(url, withTimeout(options, this.timeoutMs));
     } catch (error) {
+      // A timeout is a transport failure like any other, so it lands on the retryable code instead of surfacing as an opaque `unknown`.
       throw new ApiError('The API request could not be completed.', {
         code: 'network_error',
         cause: error,
@@ -54,6 +61,13 @@ export class FetchHttpClient implements HttpClient {
 
     return { status: response.status, headers: response.headers, data };
   }
+}
+
+function withTimeout(options: RequestInit, timeoutMs: number): RequestInit {
+  if (timeoutMs <= 0) return options;
+  // A caller-supplied signal wins: composing two into one `AbortSignal` is only possible with `AbortSignal.any`, and dropping either would break a caller that cancels for its own reasons.
+  if (options.signal !== undefined) return options;
+  return { ...options, signal: AbortSignal.timeout(timeoutMs) };
 }
 
 async function toApiError(response: Response): Promise<ApiError> {

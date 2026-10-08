@@ -32,7 +32,7 @@ describe('applyTargetManifest', () => {
   });
 
   it('swaps the background to an event page for Firefox', () => {
-// Leaving it in place would ship Firefox an extension with no background script.
+    // Leaving it in place would ship Firefox an extension with no background script.
     const { background } = forTarget('gecko') as unknown as {
       background: Record<string, unknown>;
     };
@@ -69,7 +69,7 @@ describe('applyTargetManifest', () => {
   });
 
   it('leaves Chromium builds free of Gecko-only keys', () => {
-// Chrome ignores the key outright, but shipping it anyway makes a Firefox-only requirement look satisfied on a store that never enforced it.
+    // Chrome ignores the key outright, but shipping it anyway makes a Firefox-only requirement look satisfied on a store that never enforced it.
     expect(forTarget('chromium')).not.toHaveProperty('browser_specific_settings');
   });
 
@@ -95,7 +95,7 @@ describe('popup scrollbar gutter', () => {
   });
 
   it('still pins the popup body to the design width in the shared stylesheet', () => {
-// Widening this can't fix Firefox: the window grows by exactly what you add, leaving the scrollbar just as unaccounted for.
+    // Widening this can't fix Firefox: the window grows by exactly what you add, leaving the scrollbar just as unaccounted for.
     expect(popupCss).toMatch(/body\s*\{[^}]*min-width:\s*var\(--popup-content-width\)/);
   });
 

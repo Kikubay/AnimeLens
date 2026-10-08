@@ -8,12 +8,12 @@ export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), 'VITE_');
 
   return {
-// Extension packaging only, and dead weight inside the asar.
+    // Extension packaging only, and dead weight inside the asar.
     publicDir: false,
     define: {
       __APP_ENV__: JSON.stringify(env.VITE_APP_ENV ?? mode),
     },
-// Must be `build.ssr`, not just `ssr.external`: otherwise Vite resolves with browser conditions and follows `electron`'s CommonJS index into `fs`.
+    // Must be `build.ssr`, not just `ssr.external`: otherwise Vite resolves with browser conditions and follows `electron`'s CommonJS index into `fs`.
     ssr: {
       target: 'node',
       external: ['electron', ...builtinModules, ...builtinModules.map((m) => `node:${m}`)],

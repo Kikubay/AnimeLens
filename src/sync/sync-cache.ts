@@ -16,8 +16,8 @@ export function animeCacheStorageKey(providerId: 'mal' | 'anilist'): StorageKey 
   return `animeData:${providerId}`;
 }
 
-// v5 renamed malId/malScore to id/score, so older caches are re-mapped on read and existing users keep their list.
-const LEGACY_CACHE_VERSIONS = [1, 2, 3, 4];
+// v5 renamed malId/malScore to id/score, so older caches are re-mapped on read and existing users keep their list. v6 stopped writing the AniList popularity rank into `memberCount`, which had made every AniList title look both mega-popular and obscure.
+const LEGACY_CACHE_VERSIONS = [1, 2, 3, 4, 5];
 
 interface LegacyAnimeCache {
   readonly version: number;
@@ -37,6 +37,7 @@ function migrateLegacyEntry(value: unknown): unknown {
   if (isRecord(anime)) {
     if (anime.id === undefined && anime.malId !== undefined) anime.id = anime.malId;
     if (anime.score === undefined && anime.malScore !== undefined) anime.score = anime.malScore;
+    if (anime.provider === 'anilist') anime.memberCount = null;
     if (Array.isArray(anime.genres)) {
       anime.genres = anime.genres.map((item: unknown) => renameLegacyResource(item));
     }
@@ -99,15 +100,11 @@ export function createAnimeCache(
 ): AnimeCache {
   const cachedAt = now.toISOString();
   const expiresAt = new Date(now.getTime() + ttlMs).toISOString();
+  // No progress here on purpose: it would have to be a localized sentence baked into storage, and every reader replaces it with its own copy anyway.
   const sync: SyncMetadata = {
     status: 'success',
     phase: 'complete',
-    progress: {
-      phase: 'complete',
-      current: entries.length,
-      total: entries.length,
-      message: `✓ ${entries.length} anime récupérés`,
-    },
+    progress: null,
     lastSyncedAt: cachedAt,
     itemCount: entries.length,
     nextPageUrl: null,

@@ -335,6 +335,158 @@ button:focus-visible {
   animation: status-pulse 1.2s ease-in-out infinite;
 }
 
+.anime-search {
+  margin-top: 10px;
+}
+.anime-search-field {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 9px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  color: var(--muted);
+  background: var(--surface-raised);
+}
+.anime-search-field:focus-within {
+  border-color: rgb(184 165 255 / 45%);
+  box-shadow: 0 0 0 2px rgb(184 165 255 / 12%);
+}
+.anime-search-input {
+  flex: 1;
+  min-width: 0;
+  min-height: 34px;
+  padding: 0;
+  border: 0;
+  color: var(--text);
+  background: none;
+  font-size: 10px;
+  outline: none;
+  appearance: none;
+}
+.anime-search-input::placeholder {
+  color: var(--dim);
+}
+.anime-search-input::-webkit-search-cancel-button {
+  display: none;
+}
+.anime-search-clear {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  color: var(--muted);
+  background: rgb(255 255 255 / 6%);
+  cursor: pointer;
+}
+.anime-search-clear:hover {
+  color: var(--text);
+  background: rgb(255 255 255 / 12%);
+}
+.anime-search-hint {
+  margin: 6px 0 0;
+  color: var(--dim);
+  font-size: 8px;
+  line-height: 1.4;
+}
+.anime-search-panel {
+  margin-top: 4px;
+}
+.anime-search-results {
+  display: grid;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.anime-search-result {
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--surface);
+}
+.anime-search-result:hover {
+  border-color: rgb(184 165 255 / 30%);
+}
+.anime-search-result-main {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  gap: 10px;
+  padding: 7px;
+  border: 0;
+  color: inherit;
+  background: none;
+  cursor: pointer;
+  text-align: left;
+}
+.anime-search-result-main > svg {
+  flex: 0 0 auto;
+  color: var(--dim);
+}
+.anime-search-result-cover {
+  position: relative;
+  display: block;
+  flex: 0 0 auto;
+  width: 34px;
+  height: 46px;
+  overflow: hidden;
+  border-radius: 6px;
+  background: linear-gradient(135deg, color-mix(in srgb, var(--accent) 40%, #17171a), #17171a 75%);
+}
+.anime-search-result-cover img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  filter: saturate(0.86) contrast(1.04);
+}
+.anime-search-result-cover-label {
+  display: -webkit-box;
+  height: 100%;
+  overflow: hidden;
+  padding: 3px;
+  color: var(--text);
+  font-size: 7px;
+  line-height: 1.25;
+  text-align: center;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 4;
+}
+.anime-search-result-copy {
+  display: grid;
+  flex: 1;
+  min-width: 0;
+  gap: 4px;
+}
+.anime-search-result-title {
+  overflow: hidden;
+  color: var(--text);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.anime-search-result-meta {
+  overflow: hidden;
+  color: var(--muted);
+  font-size: 8px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.anime-search-skeletons {
+  display: grid;
+  gap: 6px;
+}
+.skeleton-search-row {
+  height: 60px;
+  border-radius: 10px;
+}
+
 .card {
   border: 1px solid var(--line);
   border-radius: 14px;
@@ -2257,7 +2409,7 @@ button:focus-visible {
     opacity: 0;
     transform: translateY(4px);
   }
-/* No `transform` on purpose: fill-mode: both would persist translateY(0), making the page the containing block for fixed descendants. */
+  /* No `transform` on purpose: fill-mode: both would persist translateY(0), making the page the containing block for fixed descendants. */
   to {
     opacity: 1;
   }
@@ -2672,7 +2824,7 @@ button:focus-visible {
   text-transform: uppercase;
 }
 .taste-card-option {
-/* `.setting-toggle-row`'s justify-content doesn't reach here, since this is a bare child of the options grid. */
+  /* `.setting-toggle-row`'s justify-content doesn't reach here, since this is a bare child of the options grid. */
   display: flex;
   align-items: center;
   justify-content: space-between;

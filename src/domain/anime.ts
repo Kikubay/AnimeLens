@@ -73,6 +73,7 @@ export interface Anime {
   readonly season: AnimeSeason | null;
   readonly status: AnimeAiringStatus;
   readonly type: AnimeType;
+  /** Rank position where 1 is the most popular title, not a count. AniList only ever exposes this. */
   readonly popularity: number | null;
   readonly memberCount: number | null;
   readonly contentRating?: AnimeContentRating;

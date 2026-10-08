@@ -19,7 +19,7 @@ async function collectFiles(dir, skipDirName) {
   for (const entry of entries) {
     const full = join(dir, entry.name);
     if (entry.isDirectory()) {
-// The archive lands inside the source tree, so a second run would otherwise nest the previous zip inside the next one.
+      // The archive lands inside the source tree, so a second run would otherwise nest the previous zip inside the next one.
       if (entry.name === skipDirName) continue;
       files.push(...(await collectFiles(full, skipDirName)));
     } else if (entry.isFile()) {

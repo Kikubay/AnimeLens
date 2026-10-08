@@ -73,9 +73,12 @@ export class AlarmsShim {
       return;
     }
 
-    const timer = setTimeout(() => {
-      void this.fire(name);
-    }, Math.max(0, remaining));
+    const timer = setTimeout(
+      () => {
+        void this.fire(name);
+      },
+      Math.max(0, remaining),
+    );
     // An alarm must not be the reason the app refuses to quit.
     timer.unref?.();
     this.timers.set(name, timer);
@@ -124,9 +127,7 @@ export class AlarmsShim {
     const delayInMinutes = info.delayInMinutes ?? info.periodInMinutes ?? 0;
     const definition: StoredAlarm = {
       nextRunAt: Date.now() + delayInMinutes * 60_000,
-      ...(info.periodInMinutes === undefined
-        ? {}
-        : { periodInMinutes: info.periodInMinutes }),
+      ...(info.periodInMinutes === undefined ? {} : { periodInMinutes: info.periodInMinutes }),
     };
     this.definitions.set(name, definition);
     this.schedule(name, definition);

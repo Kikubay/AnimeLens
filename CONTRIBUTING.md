@@ -53,13 +53,13 @@ MyAnimeList or AniList. Please do not open issues against them on our behalf.
 
 ### Prerequisites
 
-| Tool       | Version  | Notes                                             |
-| ---------- | -------- | ------------------------------------------------- |
-| Node.js    | 20 or 22 | Use the current LTS.                              |
-| npm        | 10+      | Any package manager works; the commands below are npm. |
-| Chromium browser | 100+ | Manifest V3 is required. Chrome, Edge, Brave and Opera all work. |
-| Firefox    | 128+     | Needed to load `dist/gecko`. Anything older refuses the manifest. |
-| Git        | any      | Required to clone.                                 |
+| Tool             | Version  | Notes                                                             |
+| ---------------- | -------- | ----------------------------------------------------------------- |
+| Node.js          | 20 or 22 | Use the current LTS.                                              |
+| npm              | 10+      | Any package manager works; the commands below are npm.            |
+| Chromium browser | 100+     | Manifest V3 is required. Chrome, Edge, Brave and Opera all work.  |
+| Firefox          | 128+     | Needed to load `dist/gecko`. Anything older refuses the manifest. |
+| Git              | any      | Required to clone.                                                |
 
 ### Install and run
 
@@ -139,10 +139,10 @@ npm run start:electron # run the unpacked build without installing it
 
 Output lands in `dist/electron`:
 
-| Path                    | Contents                                                    |
-| ----------------------- | ----------------------------------------------------------- |
-| `app/`                  | The unpacked app: `main.mjs`, `preload.mjs`, `background.mjs`, `renderer/`. |
-| `release/`              | The installer and the unpacked tree electron-builder produced. |
+| Path       | Contents                                                                    |
+| ---------- | --------------------------------------------------------------------------- |
+| `app/`     | The unpacked app: `main.mjs`, `preload.mjs`, `background.mjs`, `renderer/`. |
+| `release/` | The installer and the unpacked tree electron-builder produced.              |
 
 On Windows that means `release/AnimeLens-<version>-x64.exe`. Packaging only
 produces artifacts for the platform you build on, so a macOS `.dmg` or a Linux
@@ -161,11 +161,11 @@ Copy `.env.example` to `.env.development` and fill in what you need:
 cp .env.example .env.development
 ```
 
-| Variable                 | Required            | Purpose                                                                 |
-| ------------------------ | ------------------- | ----------------------------------------------------------------------- |
-| `VITE_APP_ENV`           | no                  | Build label, defaults to the Vite mode.                                  |
-| `VITE_MAL_CLIENT_ID`     | for MAL sign-in     | Public MAL OAuth client ID. Leave blank to configure it inside the UI.   |
-| `VITE_ANILIST_CLIENT_ID` | for AniList sign-in | Public AniList client ID. Leave blank to configure it inside the UI.      |
+| Variable                 | Required            | Purpose                                                                |
+| ------------------------ | ------------------- | ---------------------------------------------------------------------- |
+| `VITE_APP_ENV`           | no                  | Build label, defaults to the Vite mode.                                |
+| `VITE_MAL_CLIENT_ID`     | for MAL sign-in     | Public MAL OAuth client ID. Leave blank to configure it inside the UI. |
+| `VITE_ANILIST_CLIENT_ID` | for AniList sign-in | Public AniList client ID. Leave blank to configure it inside the UI.   |
 
 **Never commit API secrets.** AnimeLens does not use client secrets, and it never
 asks for your MAL or AniList password. Client IDs are public configuration.
@@ -197,24 +197,24 @@ npx vitest tests/recommendation-engine.test.ts   # a single file
 
 ## Project layout
 
-| Directory          | Responsibility                                                                 |
-| ------------------ | ------------------------------------------------------------------------------ |
-| `src/domain`       | Pure data types and invariants. No I/O, no browser APIs.                       |
-| `src/api`          | Provider implementations: MyAnimeList, AniList, and a mock provider for tests.   |
-| `src/auth`         | OAuth flows, session storage, and PKCE. Never handles client secrets.          |
-| `src/storage`      | Thin wrappers over `chrome.storage`.                                           |
-| `src/sync`         | List synchronization and its on-disk cache.                                    |
-| `src/recommendations` | The recommendation engine and dashboard assembly.                          |
-| `src/profile`      | Profile summaries, taste-card modelling, and top-picks ranking.                |
-| `src/feedback`     | Per-anime like/dislike signals.                                                 |
-| `src/settings`     | Preferences, themes, and persisted settings.                                    |
-| `src/updates`      | GitHub release checking.                                                        |
-| `src/popup`        | The React UI: pages, components, and the taste-card canvas painter.             |
-| `src/locales`      | All user-facing text. See [below](#adding-a-user-facing-string).                |
-| `src/background`   | The MV3 service worker that owns all message handling.                          |
-| `src/platform`     | Target wiring that all builds share. See [below](#the-three-build-targets).      |
-| `electron`         | The desktop shell: main process, preload, and the `chrome.*` adapter.           |
-| `src/providers`    | The provider registry that ties the above together.                             |
+| Directory             | Responsibility                                                                 |
+| --------------------- | ------------------------------------------------------------------------------ |
+| `src/domain`          | Pure data types and invariants. No I/O, no browser APIs.                       |
+| `src/api`             | Provider implementations: MyAnimeList, AniList, and a mock provider for tests. |
+| `src/auth`            | OAuth flows, session storage, and PKCE. Never handles client secrets.          |
+| `src/storage`         | Thin wrappers over `chrome.storage`.                                           |
+| `src/sync`            | List synchronization and its on-disk cache.                                    |
+| `src/recommendations` | The recommendation engine and dashboard assembly.                              |
+| `src/profile`         | Profile summaries, taste-card modelling, and top-picks ranking.                |
+| `src/feedback`        | Per-anime like/dislike signals.                                                |
+| `src/settings`        | Preferences, themes, and persisted settings.                                   |
+| `src/updates`         | GitHub release checking.                                                       |
+| `src/popup`           | The React UI: pages, components, and the taste-card canvas painter.            |
+| `src/locales`         | All user-facing text. See [below](#adding-a-user-facing-string).               |
+| `src/background`      | The MV3 service worker that owns all message handling.                         |
+| `src/platform`        | Target wiring that all builds share. See [below](#the-three-build-targets).    |
+| `electron`            | The desktop shell: main process, preload, and the `chrome.*` adapter.          |
+| `src/providers`       | The provider registry that ties the above together.                            |
 
 Two structural rules matter:
 
@@ -227,28 +227,28 @@ Two structural rules matter:
 ## The three build targets
 
 AnimeLens ships as a Chromium extension, a Firefox extension and a desktop app from one
-codebase. They are not three implementations — the extension's background script *is* the
+codebase. They are not three implementations — the extension's background script _is_ the
 Electron main process.
 
-| Concern     | Extension                            | Desktop                                                    |
-| ----------- | ------------------------------------ | ---------------------------------------------------------- |
-| Background  | MV3 service worker (Chromium), MV3 event page (Firefox) | Electron main process                        |
-| UI          | Popup document                       | `BrowserWindow` over `app://animelens`                     |
-| Messaging   | `chrome.runtime.sendMessage`         | The same message types, routed over `ipcMain`              |
-| Storage     | `chrome.storage`                     | JSON file in `app.getPath('userData')`                     |
-| Scheduling  | `chrome.alarms`                      | Persisted timers                                           |
-| OAuth       | `chrome.identity.launchWebAuthFlow`  | Loopback HTTP server + the system browser                  |
+| Concern    | Extension                                               | Desktop                                       |
+| ---------- | ------------------------------------------------------- | --------------------------------------------- |
+| Background | MV3 service worker (Chromium), MV3 event page (Firefox) | Electron main process                         |
+| UI         | Popup document                                          | `BrowserWindow` over `app://animelens`        |
+| Messaging  | `chrome.runtime.sendMessage`                            | The same message types, routed over `ipcMain` |
+| Storage    | `chrome.storage`                                        | JSON file in `app.getPath('userData')`        |
+| Scheduling | `chrome.alarms`                                         | Persisted timers                              |
+| OAuth      | `chrome.identity.launchWebAuthFlow`                     | Loopback HTTP server + the system browser     |
 
 The two extension builds compile the same sources and differ only where the platforms
 force it. `vite.manifest.ts` generates the manifest per target, and
 `geckoScrollbarPlugin` adds the one CSS override Firefox needs; everything else is
 identical.
 
-| Difference | Why it exists |
-| ---------- | ------------- |
-| `background.scripts` instead of `background.service_worker` | Firefox does not support background service workers at all. |
-| `browser_specific_settings.gecko` | AMO requires an explicit extension ID to sign MV3, and Firefox derives its OAuth redirect host from it. |
-| A hidden popup scrollbar | Firefox's scrollbar takes layout width instead of overlaying, which would force a horizontal scrollbar. |
+| Difference                                                  | Why it exists                                                                                           |
+| ----------------------------------------------------------- | ------------------------------------------------------------------------------------------------------- |
+| `background.scripts` instead of `background.service_worker` | Firefox does not support background service workers at all.                                             |
+| `browser_specific_settings.gecko`                           | AMO requires an explicit extension ID to sign MV3, and Firefox derives its OAuth redirect host from it. |
+| A hidden popup scrollbar                                    | Firefox's scrollbar takes layout width instead of overlaying, which would force a horizontal scrollbar. |
 
 Keep this list short. A difference that can be handled with a feature check or an optional
 call belongs in the code, not in the build.
@@ -291,7 +291,7 @@ Beyond formatting:
 
 - **Type imports must use `import type`.** This is an enforced ESLint rule.
 - **Exported functions and components are documented** with a short comment
-  explaining *why*, not restating the signature. Prefer a single-line `//`
+  explaining _why_, not restating the signature. Prefer a single-line `//`
   comment where a full doc block would be noise.
 - **Underscore-prefixed unused parameters** are allowed (`_arg`).
 - **Prefer pure functions.** Most of the codebase is pure functions over domain
@@ -350,7 +350,7 @@ When you change behaviour:
 - **Add or update a test.** Bug fixes should come with a failing test that your
   fix makes pass.
 - **Name tests after the behaviour**, not the function: `it('prefers the
-  tie-break pick over the default', ...)` rather than `it('test applyManualRanking')`.
+tie-break pick over the default', ...)` rather than `it('test applyManualRanking')`.
 - **Cover the edges**: empty inputs, single-element lists, ties, null fields.
 - **Do not weaken an existing test to make your change pass.** If a test now
   encodes the wrong behaviour, say so explicitly in the pull request.
@@ -373,17 +373,17 @@ not capitalised, and does not end with a period. Keep it under 72 characters.
 
 ### Types
 
-| Type       | Use for                                                        |
-| ---------- | -------------------------------------------------------------- |
-| `feat`     | A new user-visible capability.                                  |
-| `fix`      | A bug fix.                                                      |
-| `docs`     | Documentation only.                                             |
-| `refactor` | Behaviour-preserving restructuring.                             |
-| `perf`     | A measurable performance improvement.                           |
-| `test`     | Adding or correcting tests.                                     |
-| `build`    | Build tooling, dependencies, or config.                         |
-| `ci`       | CI configuration.                                               |
-| `chore`    | Maintenance that fits nowhere else.                             |
+| Type       | Use for                                 |
+| ---------- | --------------------------------------- |
+| `feat`     | A new user-visible capability.          |
+| `fix`      | A bug fix.                              |
+| `docs`     | Documentation only.                     |
+| `refactor` | Behaviour-preserving restructuring.     |
+| `perf`     | A measurable performance improvement.   |
+| `test`     | Adding or correcting tests.             |
+| `build`    | Build tooling, dependencies, or config. |
+| `ci`       | CI configuration.                       |
+| `chore`    | Maintenance that fits nowhere else.     |
 
 Useful scopes include `recommendations`, `sync`, `auth`, `popup`, `locales`,
 `taste-card`, and `settings`. Use a scope only when it narrows the change

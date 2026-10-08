@@ -28,10 +28,3 @@ export interface UserTasteProfile {
   readonly ratedAnimeCount: number;
   readonly sourceAnimeCount?: number;
 }
-
-export interface UserTasteProfileModel extends UserTasteProfile {
-  readonly genreSignals: ReadonlyMap<string, PreferenceSignal>;
-  readonly themeSignals: ReadonlyMap<string, PreferenceSignal>;
-  readonly studioSignals: ReadonlyMap<string, PreferenceSignal>;
-  readonly staffSignals: ReadonlyMap<string, PreferenceSignal>;
-}

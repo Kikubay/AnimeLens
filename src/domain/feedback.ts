@@ -60,6 +60,3 @@ export function createFeedback(
     },
   };
 }
-
-/** Old name for `RecommendationFeedback`. */
-export type AnimeFeedback = RecommendationFeedback;

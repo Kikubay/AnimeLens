@@ -1,0 +1,14 @@
+# Normalize line endings in the repository so every platform checks out the same bytes.
+# Without this, `core.autocrlf=true` on Windows makes every working-copy file CRLF while
+# Prettier expects LF, so `prettier --check` reports the entire project as unformatted
+# even when the committed content is correct.
+* text=auto eol=lf
+
+# Keep these binary, whatever the text rules above say.
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.webp binary
+*.ico binary
+*.exe binary

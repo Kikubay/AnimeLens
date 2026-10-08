@@ -9,6 +9,7 @@ import {
 } from '../domain/sync';
 import { createAnimeCache, isAnimeCache, isFreshAnimeCache } from './sync-cache';
 import type { AnimeCacheStore, SyncRunOptions, SyncResult } from './sync-types';
+import { StorageQuotaError } from '../storage/storage-adapter';
 import { getCopy, type Language } from '../locales';
 
 const DEFAULT_MAX_RETRIES = 2;
@@ -194,7 +195,8 @@ function withJitter(milliseconds: number): number {
   return Math.max(0, Math.round(milliseconds - spread + Math.random() * spread * 2));
 }
 
-function toSyncErrorCode(error: unknown): SyncErrorCode {
+export function toSyncErrorCode(error: unknown): SyncErrorCode {
+  if (error instanceof StorageQuotaError) return 'storage_full';
   if (error instanceof ApiError) {
     if (error.code === 'network_error') return 'network_error';
     if (error.code === 'rate_limited') return 'rate_limited';

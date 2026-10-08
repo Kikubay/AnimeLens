@@ -61,7 +61,7 @@ describe('readAnilistPinTokenRecord', () => {
     expect(readAnilistPinTokenRecord('abc')).toBeNull();
   });
 
-// Rejected outright rather than half-read, since the record feeds `tabs.update` and the caller's tab scan re-derives the token safely anyway.
+  // Rejected outright rather than half-read, since the record feeds `tabs.update` and the caller's tab scan re-derives the token safely anyway.
   it('rejects the whole record when the tab id is not a number', () => {
     expect(readAnilistPinTokenRecord({ token: 'abc', tabId: '7' })).toBeNull();
     expect(readAnilistPinTokenRecord({ token: 'abc', tabId: null })).toBeNull();

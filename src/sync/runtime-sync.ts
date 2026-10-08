@@ -1,5 +1,4 @@
 import type { ProviderId } from '../auth/auth-types';
-import type { SyncProgress } from '../domain/sync';
 import type { ProviderRegistryService } from '../providers/provider-registry';
 import { ChromeAnimeCacheStore } from './sync-cache';
 import { AnimeListSyncService } from './sync-service';
@@ -59,8 +58,4 @@ export class AuthenticatedAnimeListSyncService {
     }
     await (await this.cacheStoreFor(providerId)).clear();
   }
-}
-
-export function toSyncProgress(progress: SyncProgress): SyncProgress {
-  return progress;
 }

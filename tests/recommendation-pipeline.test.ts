@@ -372,6 +372,93 @@ describe('recommendation pipeline', () => {
     expect(result[0]?.category).toBe('because-you-liked');
   });
 
+  it('attributes a two-feature overlap on a moderate liked cohort, which used to fall through', () => {
+    // 8 liked entries is past the tiny-cohort exemption but under the shallow limit, so two shared features must still count.
+    const watched = Array.from({ length: 8 }, (_, index) =>
+      entry(index + 1, 9, {
+        genres: [{ id: index, name: `Genre ${index}` }],
+        themes: [{ id: 100 + index, name: `Theme ${index}` }],
+        studios: [],
+      }),
+    );
+    const sibling = anime(500, {
+      genres: [
+        { id: 3, name: 'Genre 3' },
+        { id: 99, name: 'Sci-Fi' },
+      ],
+      themes: [
+        { id: 103, name: 'Theme 3' },
+        { id: 120, name: 'Ensemble' },
+      ],
+      score: 7,
+      memberCount: 400_000,
+    });
+    const result = generateRecommendations(
+      { watched, candidates: [sibling] },
+      { limit: 5, generatedAt: '2026-01-01T00:00:00.000Z' },
+    );
+
+    expect(result).toHaveLength(1);
+    expect(result[0]?.category).toBe('because-you-liked');
+  });
+
+  it('still demands a deeper overlap on a large liked cohort, where two is the base rate', () => {
+    const watched = Array.from({ length: 20 }, (_, index) =>
+      entry(index + 1, 9, {
+        genres: [{ id: index, name: `Genre ${index}` }],
+        themes: [{ id: 100 + index, name: `Theme ${index}` }],
+        studios: [],
+      }),
+    );
+    const shallowOverlap = anime(501, {
+      genres: [
+        { id: 3, name: 'Genre 3' },
+        { id: 99, name: 'Sci-Fi' },
+      ],
+      themes: [
+        { id: 103, name: 'Theme 3' },
+        { id: 120, name: 'Ensemble' },
+      ],
+      score: 7,
+      memberCount: 400_000,
+    });
+    const result = generateRecommendations(
+      { watched, candidates: [shallowOverlap] },
+      { limit: 5, generatedAt: '2026-01-01T00:00:00.000Z' },
+    );
+
+    expect(result[0]?.category).not.toBe('because-you-liked');
+  });
+
+  it('keeps provenance attributed to a single source instead of the whole cohort', () => {
+    // Every liked entry shares the same pair, so no candidate is distinctive and none may claim provenance.
+    const watched = Array.from({ length: 8 }, (_, index) =>
+      entry(index + 1, 9, {
+        genres: [
+          { id: 1, name: 'Action' },
+          { id: 2, name: 'Drama' },
+        ],
+        themes: [{ id: 10, name: 'Super Power' }],
+        studios: [],
+      }),
+    );
+    const clone = anime(502, {
+      genres: [
+        { id: 1, name: 'Action' },
+        { id: 2, name: 'Drama' },
+      ],
+      themes: [{ id: 10, name: 'Super Power' }],
+      score: 7,
+      memberCount: 400_000,
+    });
+    const result = generateRecommendations(
+      { watched, candidates: [clone] },
+      { limit: 5, generatedAt: '2026-01-01T00:00:00.000Z' },
+    );
+
+    expect(result[0]?.category).not.toBe('because-you-liked');
+  });
+
   it('categorizes strong broad-affinity matches as highly-compatible', () => {
     // Shares at most one feature with each rated entry, so there's no because-you-liked source, but broad genre and theme affinity is strong.
     const watched = [
@@ -444,6 +531,40 @@ describe('recommendation pipeline', () => {
 
     expect(result).toHaveLength(1);
     expect(result[0]?.category).toBe('hidden-gem');
+  });
+
+  it('scores a popularity rank so a higher rank means a more popular title', () => {
+    const weights = {
+      genres: 0,
+      themes: 0,
+      studios: 0,
+      staff: 0,
+      type: 0,
+      season: 0,
+      year: 0,
+      quality: 0,
+      popularity: 1,
+    };
+    const rankScore = (rank: number) =>
+      scoreRecommendation(
+        anime(1, { genres: [], themes: [], studios: [], memberCount: null, popularity: rank }),
+        emptyProfile(),
+        { weights },
+      ).featureScores.popularity;
+    const memberScore = (memberCount: number) =>
+      scoreRecommendation(
+        anime(1, { genres: [], themes: [], studios: [], memberCount, popularity: null }),
+        emptyProfile(),
+        { weights },
+      ).featureScores.popularity;
+
+    expect(rankScore(1)).toBeGreaterThan(rankScore(100));
+    expect(rankScore(100)).toBeGreaterThan(rankScore(5_000));
+    expect(rankScore(5_000)).toBeGreaterThan(rankScore(50_000));
+    expect(rankScore(1) - rankScore(10)).toBeCloseTo(rankScore(10) - rankScore(100), 5);
+    expect(rankScore(10) - rankScore(100)).toBeCloseTo(rankScore(100) - rankScore(1_000), 5);
+    expect(rankScore(0)).toBe(0.5);
+    expect(memberScore(1_000_000)).toBeGreaterThan(memberScore(1_000));
   });
 
   it('keeps discovery sections populated on a large list', () => {

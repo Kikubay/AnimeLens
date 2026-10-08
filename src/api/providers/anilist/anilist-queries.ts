@@ -131,6 +131,15 @@ query ($page: Int, $perPage: Int) {
 }
 `;
 
+export const TRENDING_ANIME_QUERY = `
+${ANIME_MEDIA_FRAGMENT}
+query ($perPage: Int) {
+  Page(perPage: $perPage) {
+    media(type: ANIME, sort: TRENDING_DESC) { ...AnimeMedia }
+  }
+}
+`;
+
 export const SAVE_LIST_ENTRY_MUTATION = `
 mutation ($mediaId: Int, $status: MediaListStatus) {
   SaveMediaListEntry(mediaId: $mediaId, status: $status) {

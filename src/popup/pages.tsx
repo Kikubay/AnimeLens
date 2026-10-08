@@ -3,6 +3,7 @@ import { isDesktopHost } from '../platform/desktop-bridge';
 import type { AuthSnapshot } from '../auth/auth-types';
 import type { UserProfile } from '../domain/user-profile';
 import { addAnimeToMalList } from '../api/mal-list-messages';
+import { ANIME_SEARCH_MIN_LENGTH } from '../api/anime-search-messages';
 import { requestStreamingLinks } from '../api/streaming-links-messages';
 import type { StreamingLink } from '../domain/streaming';
 import {
@@ -65,6 +66,8 @@ import { categoryLabel, type AppCopy } from '../locales';
 import { MAL_GENRE_NAMES, MAL_THEME_NAMES } from '../api/mal-taxonomy';
 import type { AnimeCardData } from './components/anime';
 import { AnimeGrid, FeaturedAnime } from './components/anime';
+import { AnimeSearchField, AnimeSearchPanel } from './components/anime-search';
+import { isSearchActive } from './search-state';
 import { TasteCardModal } from './components/taste-card-modal';
 import { TopPicksModal } from './components/top-picks-modal';
 import { GridPickerModal } from './components/grid-picker-modal';
@@ -142,6 +145,7 @@ export function DashboardPage({
 }: DashboardPageProps) {
   const requestSequence = useRef(0);
   const disposed = useRef(false);
+  const [query, setQuery] = useState('');
   const [snapshot, setSnapshot] = useState<DashboardRecommendationSnapshot>({
     status: 'loading',
     daily: null,
@@ -200,6 +204,8 @@ export function DashboardPage({
   }));
 
   const displayStatus = !isOnline && daily !== null ? 'offline' : snapshot.status;
+  const searchIsActive = isSearchActive(query);
+  const isAuthenticated = auth.status === 'authenticated';
 
   return (
     <div className="page-content dashboard-page">
@@ -246,13 +252,28 @@ export function DashboardPage({
         <SyncStatusPanel
           sync={sync}
           onSync={onSync ?? (() => undefined)}
-          isAuthenticated={auth.status === 'authenticated'}
+          isAuthenticated={isAuthenticated}
           providerName={activeProviderName}
           copy={copy}
         />
+        <div className="anime-search">
+          <AnimeSearchField query={query} onQueryChange={setQuery} copy={copy} />
+          {query.trim().length > 0 && !searchIsActive && (
+            <p className="anime-search-hint">{copy.searchMinChars(ANIME_SEARCH_MIN_LENGTH)}</p>
+          )}
+        </div>
       </section>
 
-      {displayStatus === 'loading' ? (
+      {searchIsActive ? (
+        <AnimeSearchPanel
+          query={query}
+          isAuthenticated={isAuthenticated}
+          providerName={activeProviderName}
+          onSelect={onSelectAnime}
+          onConnect={() => onAuthAction('connect')}
+          copy={copy}
+        />
+      ) : displayStatus === 'loading' ? (
         <DashboardLoadingState copy={copy} />
       ) : displayStatus === 'error' ? (
         <ErrorState
@@ -501,7 +522,9 @@ function SyncStatusPanel({
         </div>
       </div>
       <div className="sync-panel-actions">
-        {metadata.status === 'error' && <span className="sync-error-text">{copy.syncFailed}</span>}
+        {metadata.status === 'error' && (
+          <span className="sync-error-text">{metadata.errorMessage ?? copy.syncFailed}</span>
+        )}
         <Button
           variant="ghost"
           size="sm"
@@ -569,6 +592,11 @@ export function DetailPage({
   const entryProviderName = entryProviderDisplayName(anime);
   const providerUrl = entryProviderUrl(anime);
   const reasons = anime.reasons ?? [];
+  const fallbackReason =
+    anime.recommendation === undefined
+      ? null
+      : [{ label: anime.recommendation, kind: 'discovery' as const, weight: 0.5 }];
+  const detailReasons = reasons.length > 0 ? reasons : (fallbackReason ?? []);
   const streamingSites = anime.streamingSites ?? fetchedStreamingLinks ?? [];
   const canUpdateMalList = auth?.status === 'authenticated';
 
@@ -669,28 +697,27 @@ export function DetailPage({
           <DetailInfo label={copy.year} value={anime.year === null ? '—' : String(anime.year)} />
         </div>
       </Card>
-      <Card className="why-card">
-        <div className="why-card-heading">
-          <span className="state-icon">
-            <Icon name="sparkles" size={17} />
-          </span>
-          <div>
-            <p className="eyebrow">{copy.recommendationWhy}</p>
-            <h3>{copy.whyThisAnime}</h3>
-          </div>
-        </div>
-        <div className="detail-reasons">
-          {(reasons.length > 0
-            ? reasons
-            : [{ label: anime.recommendation, kind: 'discovery', weight: 0.5 }]
-          ).map((reason) => (
-            <div className="detail-reason" key={`${reason.kind}-${reason.label}`}>
-              <Icon name="check" size={14} />
-              <span>{reason.label}</span>
+      {detailReasons.length > 0 && (
+        <Card className="why-card">
+          <div className="why-card-heading">
+            <span className="state-icon">
+              <Icon name="sparkles" size={17} />
+            </span>
+            <div>
+              <p className="eyebrow">{copy.recommendationWhy}</p>
+              <h3>{copy.whyThisAnime}</h3>
             </div>
-          ))}
-        </div>
-      </Card>
+          </div>
+          <div className="detail-reasons">
+            {detailReasons.map((reason) => (
+              <div className="detail-reason" key={`${reason.kind}-${reason.label}`}>
+                <Icon name="check" size={14} />
+                <span>{reason.label}</span>
+              </div>
+            ))}
+          </div>
+        </Card>
+      )}
       {streamingSites.length > 0 && (
         <Card className="where-to-watch-card">
           <div className="why-card-heading">
@@ -722,14 +749,16 @@ export function DetailPage({
           </div>
         </Card>
       )}
-      <div className="detail-score-row">
-        <CompatibilityScore value={anime.compatibility} copy={copy} />
-        <div>
-          <p className="eyebrow">{copy.compatibility}</p>
-          <h3>{anime.compatibility >= 80 ? copy.greatMatch : copy.exploreLead}</h3>
-          <p>{copy.calculatedScore}</p>
+      {anime.compatibility !== undefined && (
+        <div className="detail-score-row">
+          <CompatibilityScore value={anime.compatibility} copy={copy} />
+          <div>
+            <p className="eyebrow">{copy.compatibility}</p>
+            <h3>{anime.compatibility >= 80 ? copy.greatMatch : copy.exploreLead}</h3>
+            <p>{copy.calculatedScore}</p>
+          </div>
         </div>
-      </div>
+      )}
       <div className="detail-actions detail-actions-primary">
         <Button
           icon="list"
@@ -981,7 +1010,7 @@ function ProfileSummary({
     (next: TasteCardRenderOptions) => {
       if (onPreferencesChange === undefined) return;
       setSessionLayout(next.picksLayout);
-// Session-only, so persisting it would open the next visit onto an empty collage.
+      // Session-only, so persisting it would open the next visit onto an empty collage.
       const tasteCard = { ...next, picksLayout: persistableTasteCardPicksLayout(next.picksLayout) };
       onPreferencesChange({ ...preferences, tasteCard });
       void updateSettings({ ...preferences, tasteCard }).catch(() => undefined);
@@ -1039,7 +1068,7 @@ function ProfileSummary({
     if (next !== cardOptions.picksLayout) saveCardOptions({ ...cardOptions, picksLayout: next });
   }, [cardOptions, saveCardOptions]);
 
-// Deliberately not gated on the grid being full: the picker is the only way into grid mode, so gating here would make it unreachable.
+  // Deliberately not gated on the grid being full: the picker is the only way into grid mode, so gating here would make it unreachable.
   const canShare = summary.hasData;
 
   const completeTopPicks = (selected: readonly number[]) => {
@@ -1419,11 +1448,11 @@ export function SettingsPage({
   const [isSavingAnilistClientId, setIsSavingAnilistClientId] = useState(false);
   const [providerActionInFlight, setProviderActionInFlight] = useState<ProviderId | null>(null);
   const [pinTabToken, setPinTabToken] = useState<string | null>(null);
-// Only the extension can read tabs, so only the extension can lift the token off the pin redirect.
+  // Only the extension can read tabs, so only the extension can lift the token off the pin redirect.
   const canAutoDetectPinToken = !isDesktopHost();
-// Hosts that can't inspect tabs — the desktop app — have no auto-detect and rely on this instead.
+  // Hosts that can't inspect tabs — the desktop app — have no auto-detect and rely on this instead.
   const [pinTokenDraft, setPinTokenDraft] = useState('');
-// Set as soon as the flow starts, so the panel is reachable before any token shows up.
+  // Set as soon as the flow starts, so the panel is reachable before any token shows up.
   const [pinFlowActive, setPinFlowActive] = useState(false);
   const [isVerifyingPin, setIsVerifyingPin] = useState(false);
   const anilistProvider = providers.find((provider) => provider.id === 'anilist');
@@ -1482,8 +1511,8 @@ export function SettingsPage({
 
   useEffect(() => applyThemePreference(snapshot.preferences.theme), [snapshot.preferences.theme]);
 
-// The background owns the tab watching, because clicking into the authorize tab is what closes this popup.
-useEffect(() => {
+  // The background owns the tab watching, because clicking into the authorize tab is what closes this popup.
+  useEffect(() => {
     if (anilistSignedIn || !canAutoDetectPinToken) {
       setPinTabToken(null);
       return;
@@ -1579,7 +1608,7 @@ useEffect(() => {
           onFeedback(copy.pinInstructions);
           return undefined;
         }
-// Anything short of authenticated means the provider refused the flow.
+        // Anything short of authenticated means the provider refused the flow.
         if (
           action === 'connect' &&
           (authSnapshot.status !== 'authenticated' || authSnapshot.profile === null)
@@ -1621,7 +1650,7 @@ useEffect(() => {
   };
 
   const submitPinToken = () => {
-// A typed token wins over one lifted from a tab URL: it's the more deliberate of the two.
+    // A typed token wins over one lifted from a tab URL: it's the more deliberate of the two.
     const token = pinTokenDraft.trim() || pinTabToken?.trim() || '';
     if (token.length === 0 || isVerifyingPin) return;
     setIsVerifyingPin(true);
@@ -1840,34 +1869,34 @@ useEffect(() => {
         {/* Extension: waits for a lifted token so the panel never shows a dead button. Desktop: opens with the flow and takes a pasted token. */}
         {(canAutoDetectPinToken ? pinTabToken !== null : pinFlowActive || pinTabToken !== null) &&
           !anilistSignedIn && (
-          <div className="pin-signin-panel">
-            <p>{pinTabToken !== null ? copy.pinDetected : copy.pinPastePrompt}</p>
-            {!canAutoDetectPinToken && (
-              <input
-                className="mal-client-id-input"
-                type="text"
-                value={pinTokenDraft}
-                placeholder={copy.pinTokenPlaceholder}
-                autoComplete="off"
-                spellCheck={false}
-                aria-label={copy.pinTokenLabel}
-                onChange={(event) => setPinTokenDraft(event.target.value)}
-              />
-            )}
-            <div className="provider-actions">
-              <Button
-                size="sm"
-                variant="secondary"
-                disabled={
-                  isVerifyingPin || (pinTokenDraft.trim().length === 0 && pinTabToken === null)
-                }
-                onClick={submitPinToken}
-              >
-                {isVerifyingPin ? copy.saving : copy.pinSubmit}
-              </Button>
+            <div className="pin-signin-panel">
+              <p>{pinTabToken !== null ? copy.pinDetected : copy.pinPastePrompt}</p>
+              {!canAutoDetectPinToken && (
+                <input
+                  className="mal-client-id-input"
+                  type="text"
+                  value={pinTokenDraft}
+                  placeholder={copy.pinTokenPlaceholder}
+                  autoComplete="off"
+                  spellCheck={false}
+                  aria-label={copy.pinTokenLabel}
+                  onChange={(event) => setPinTokenDraft(event.target.value)}
+                />
+              )}
+              <div className="provider-actions">
+                <Button
+                  size="sm"
+                  variant="secondary"
+                  disabled={
+                    isVerifyingPin || (pinTokenDraft.trim().length === 0 && pinTabToken === null)
+                  }
+                  onClick={submitPinToken}
+                >
+                  {isVerifyingPin ? copy.saving : copy.pinSubmit}
+                </Button>
+              </div>
             </div>
-          </div>
-        )}
+          )}
         <p className="settings-note">{copy.providersIntro}</p>
       </SettingsSection>
       <SettingsSection title={copy.oauthConfig} eyebrow={copy.oauthEyebrow}>

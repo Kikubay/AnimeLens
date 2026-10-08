@@ -71,7 +71,7 @@ export function applyTargetManifest(
   return {
     ...manifest,
     background: {
-// Same file, loaded as a module event page — the bundle is already an ES module for the Chromium service worker.
+      // Same file, loaded as a module event page — the bundle is already an ES module for the Chromium service worker.
       scripts: [serviceWorker],
       type: 'module',
     },
@@ -79,7 +79,7 @@ export function applyTargetManifest(
       gecko: {
         id: gecko.id,
         strict_min_version: gecko.strictMinVersion,
-// Mandatory for AMO submissions since 3 Nov 2025. Nothing leaves the device: tokens are the user's own and every request goes straight to MAL, AniList or GitHub.
+        // Mandatory for AMO submissions since 3 Nov 2025. Nothing leaves the device: tokens are the user's own and every request goes straight to MAL, AniList or GitHub.
         data_collection_permissions: { required: ['none'] },
       },
     },

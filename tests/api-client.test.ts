@@ -20,13 +20,46 @@ describe('FetchHttpClient', () => {
       expect(this).toBe(globalThis);
       return Promise.resolve(jsonResponse({ ok: true }));
     });
-    const client = new FetchHttpClient();
+    const client = new FetchHttpClient(undefined, 0);
 
     await expect(client.get('/resource')).resolves.toMatchObject({
       status: 200,
       data: { ok: true },
     });
     expect(nativeFetch).toHaveBeenCalledWith('/resource', { method: 'GET' });
+  });
+
+  it('arms a timeout by default so a stalled connection cannot hang the sync', async () => {
+    const calls: RequestInit[] = [];
+    const client = new FetchHttpClient(async (_url, options) => {
+      calls.push(options ?? {});
+      return jsonResponse({ ok: true });
+    });
+
+    await client.get('/resource');
+    const signal = calls[0]?.signal;
+    expect(signal).toBeInstanceOf(AbortSignal);
+    expect(signal?.aborted).toBe(false);
+  });
+
+  it('treats an aborted request as a retryable network error', async () => {
+    const client = new FetchHttpClient(async () => {
+      throw new DOMException('The operation was aborted.', 'TimeoutError');
+    });
+
+    await expect(client.get('/resource')).rejects.toMatchObject({ code: 'network_error' });
+  });
+
+  it('leaves a caller-supplied signal alone', async () => {
+    const calls: RequestInit[] = [];
+    const client = new FetchHttpClient(async (_url, options) => {
+      calls.push(options ?? {});
+      return jsonResponse({ ok: true });
+    });
+    const controller = new AbortController();
+
+    await client.get('/resource', { signal: controller.signal });
+    expect(calls[0]?.signal).toBe(controller.signal);
   });
 
   it('returns parsed JSON for successful responses', async () => {
@@ -81,9 +114,7 @@ describe('FetchHttpClient', () => {
   });
 
   it('maps 5xx to a retryable network_error instead of an opaque unknown', async () => {
-    const client = new FetchHttpClient(async () =>
-      jsonResponse({ message: 'Bad gateway' }, 502),
-    );
+    const client = new FetchHttpClient(async () => jsonResponse({ message: 'Bad gateway' }, 502));
 
     await expect(client.get('/resource')).rejects.toMatchObject({
       code: 'network_error',

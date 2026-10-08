@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { Anime, AnimeListEntry } from '../src/domain/anime';
+import { ANIME_CACHE_VERSION } from '../src/domain/sync';
 import { ApiError } from '../src/api/api-errors';
 import type { AnimeProvider, AnimeListFetchOptions } from '../src/api/anime-provider';
 import { createAnimeCache } from '../src/sync/sync-cache';
@@ -112,7 +113,7 @@ describe('AnimeListSyncService', () => {
 
     expect(result.entries).toHaveLength(1200);
     expect(result.metadata.itemCount).toBe(1200);
-    expect(cache.value).toMatchObject({ version: 5, entries });
+    expect(cache.value).toMatchObject({ version: ANIME_CACHE_VERSION, entries });
   });
 
   it('uses a fresh existing cache without making a network request', async () => {
@@ -254,8 +255,12 @@ describe('AnimeListSyncService', () => {
       searchAnime: async () => [],
       addToList: async () => undefined,
     };
-    const service = new AnimeListSyncService(provider, new MemoryCache(), undefined, async () => {
-      });
+    const service = new AnimeListSyncService(
+      provider,
+      new MemoryCache(),
+      undefined,
+      async () => {},
+    );
 
     await expect(service.sync({ maxRetries: 1 })).resolves.toMatchObject({ fromCache: false });
     expect(calls).toBe(2);

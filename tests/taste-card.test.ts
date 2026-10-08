@@ -553,7 +553,7 @@ describe('taste card painter', () => {
         expect(rect.x).toBeGreaterThanOrEqual(padX);
         expect(Math.round(rect.x + rect.width)).toBeLessThanOrEqual(spec.width - padX);
       }
-// Right-aligned text is anchored on the content edge, so its origin is the rightmost point.
+      // Right-aligned text is anchored on the content edge, so its origin is the rightmost point.
       for (const entry of recorded.texts) {
         expect(entry.x).toBeGreaterThanOrEqual(padX);
         expect(entry.x).toBeLessThanOrEqual(spec.width - padX);
@@ -722,7 +722,7 @@ describe('taste card painter', () => {
         images: { avatar: null, brand: null, picks: Array.from({ length: 9 }, () => cover) },
         options: { ...DEFAULT_TASTE_CARD_RENDER_OPTIONS, picksLayout: 'grid' },
       });
-// The cell boxes are the rounded rects used as clip paths; the images are deliberately painted larger to crop like `cover`.
+      // The cell boxes are the rounded rects used as clip paths; the images are deliberately painted larger to crop like `cover`.
       const cells = contentRects(recorded, spec.width).filter(
         (rect) => Math.round(rect.width) === Math.round(rect.height),
       );
@@ -781,13 +781,13 @@ describe('taste card painter', () => {
       const cell = Math.round(cells[0]?.width ?? 0);
       const left = cells[0]?.x ?? 0;
       const top = cells[0]?.y ?? 0;
-// Cells run left-to-right, top-to-bottom, so index 8 ends the last column and index 6 the last row.
+      // Cells run left-to-right, top-to-bottom, so index 8 ends the last column and index 6 the last row.
       const rightGap = spec.width - (cells[8]!.x + cell);
       const bottomGap = spec.height - (cells[6]!.y + cell);
 
       // Columns are balanced within a pixel.
       expect(Math.abs(left - rightGap)).toBeLessThanOrEqual(1);
-// Rows balance too: a tall card has unavoidable vertical slack and it has to be split.
+      // Rows balance too: a tall card has unavoidable vertical slack and it has to be split.
       expect(Math.abs(top - bottomGap)).toBeLessThanOrEqual(2);
       expect(top).toBeGreaterThan(0);
     }

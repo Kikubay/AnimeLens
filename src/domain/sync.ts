@@ -8,6 +8,7 @@ export type SyncErrorCode =
   | 'unauthorized'
   | 'invalid_response'
   | 'cache_corrupted'
+  | 'storage_full'
   | 'unknown';
 
 export interface SyncProgress {
@@ -29,7 +30,7 @@ export interface SyncMetadata {
   readonly fromCache: boolean;
 }
 
-export const ANIME_CACHE_VERSION = 5;
+export const ANIME_CACHE_VERSION = 6;
 export const ANIME_CACHE_TTL_MS = 24 * 60 * 60 * 1000;
 
 import type { AnimeListEntry } from './anime';

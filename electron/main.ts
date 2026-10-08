@@ -66,14 +66,14 @@ async function startWorker(): Promise<void> {
 
 function createWindow(): void {
   mainWindow = new BrowserWindow({
-// Opens at the minimum rather than trusting Electron to clamp a smaller default up to it.
+    // Opens at the minimum rather than trusting Electron to clamp a smaller default up to it.
     width: WINDOW_MIN_WIDTH,
     height: WINDOW_MIN_HEIGHT,
     minWidth: WINDOW_MIN_WIDTH,
     minHeight: WINDOW_MIN_HEIGHT,
-// A normal app window, not a chrome-less popup: the desktop build is the full dashboard.
+    // A normal app window, not a chrome-less popup: the desktop build is the full dashboard.
     title: 'AnimeLens',
-// Windows and macOS take the icon from the packaged executable, but on Linux nothing supplies one unless the window asks for it.
+    // Windows and macOS take the icon from the packaged executable, but on Linux nothing supplies one unless the window asks for it.
     icon: join(rendererRoot, 'icons/icon32.png'),
     backgroundColor: '#0b0d14',
     show: false,
@@ -81,7 +81,7 @@ function createWindow(): void {
       preload: join(here, 'preload.mjs'),
       contextIsolation: true,
       nodeIntegration: false,
-// ES-module preloads need the sandbox off, but contextIsolation is still on and nodeIntegration off, so the renderer gets no Node access.
+      // ES-module preloads need the sandbox off, but contextIsolation is still on and nodeIntegration off, so the renderer gets no Node access.
       sandbox: false,
       spellcheck: false,
     },
@@ -92,12 +92,12 @@ function createWindow(): void {
     mainWindow = null;
   });
 
-// Without this a preload that fails to evaluate just leaves a renderer with no `chrome.*` and no window to click on.
+  // Without this a preload that fails to evaluate just leaves a renderer with no `chrome.*` and no window to click on.
   mainWindow.webContents.on('preload-error', (_event, preloadPath, error) => {
     console.error(`[AnimeLens] Preload failed (${preloadPath}):`, error);
   });
 
-// The dashboard is one scrollable surface, so nothing should navigate away or spawn a second window.
+  // The dashboard is one scrollable surface, so nothing should navigate away or spawn a second window.
   mainWindow.webContents.setWindowOpenHandler(() => ({ action: 'deny' }));
   mainWindow.webContents.on('will-navigate', (event) => event.preventDefault());
 
@@ -113,30 +113,33 @@ if (!app.requestSingleInstanceLock()) {
     mainWindow.focus();
   });
 
-  void app.whenReady().then(async () => {
-    session.defaultSession.webRequest.onHeadersReceived((details, callback) => {
-      callback({
-        responseHeaders: {
-          ...details.responseHeaders,
-          'Content-Security-Policy': [CONTENT_SECURITY_POLICY],
-        },
+  void app
+    .whenReady()
+    .then(async () => {
+      session.defaultSession.webRequest.onHeadersReceived((details, callback) => {
+        callback({
+          responseHeaders: {
+            ...details.responseHeaders,
+            'Content-Security-Policy': [CONTENT_SECURITY_POLICY],
+          },
+        });
       });
+
+      registerAppProtocol(rendererRoot);
+      await startWorker();
+      createWindow();
+
+      app.on('activate', () => {
+        if (BrowserWindow.getAllWindows().length === 0) createWindow();
+      });
+    })
+    .catch((error: unknown) => {
+      // Otherwise a rejected promise in `whenReady` is swallowed silently and the process just sits there.
+      console.error('[AnimeLens] Startup failed:', error);
+      app.quit();
     });
 
-    registerAppProtocol(rendererRoot);
-    await startWorker();
-    createWindow();
-
-    app.on('activate', () => {
-      if (BrowserWindow.getAllWindows().length === 0) createWindow();
-    });
-  }).catch((error: unknown) => {
-// Otherwise a rejected promise in `whenReady` is swallowed silently and the process just sits there.
-    console.error('[AnimeLens] Startup failed:', error);
-    app.quit();
-  });
-
-// macOS apps conventionally stay resident so `activate` can reopen the window; elsewhere closing the last window means the user is done.
+  // macOS apps conventionally stay resident so `activate` can reopen the window; elsewhere closing the last window means the user is done.
   app.on('window-all-closed', () => {
     if (process.platform !== 'darwin') app.quit();
   });

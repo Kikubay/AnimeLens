@@ -1,10 +1,16 @@
 import type { Anime, AnimeListEntry, AnimeStatus } from '../../../domain/anime';
 import type { UserProfile } from '../../../domain/user-profile';
-import type { AnimeProvider } from '../../anime-provider';
+import type { AnimeProvider, CandidatePoolConfig } from '../../anime-provider';
 import { ApiError } from '../../api-errors';
 import { defaultMockAnime, defaultMockProfile } from '../../mocks/mock-fixtures';
 
 export class MockAnimeProvider implements AnimeProvider {
+  readonly candidatePoolConfig: CandidatePoolConfig = {
+    suggestionLimit: 50,
+    rankingLimit: 100,
+    rankingOffset: 0,
+  };
+
   constructor(
     private readonly anime: readonly Anime[] = defaultMockAnime,
     private readonly user: UserProfile = defaultMockProfile,
@@ -30,6 +36,12 @@ export class MockAnimeProvider implements AnimeProvider {
   async getAnimeSuggestions(limit?: number): Promise<Anime[]> {
     const safeLimit = Math.max(0, limit ?? this.anime.length);
     return this.anime.slice(0, safeLimit);
+  }
+
+  async getAnimeRanking(limit?: number, offset?: number): Promise<Anime[]> {
+    const safeLimit = Math.max(0, limit ?? this.anime.length);
+    const safeOffset = Math.max(0, offset ?? 0);
+    return this.anime.slice(safeOffset, safeOffset + safeLimit);
   }
 
   async getAnime(id: number): Promise<Anime> {

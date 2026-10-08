@@ -5,8 +5,8 @@ import type { AppCopy } from '../../locales';
 import { Badge, Button, Card, CompatibilityScore, Icon, IconButton, Rating, Tooltip } from './ui';
 
 export interface AnimeCardData extends Anime {
-  readonly compatibility: number;
-  readonly recommendation: string;
+  readonly compatibility?: number;
+  readonly recommendation?: string;
   readonly reasons?: readonly RecommendationReason[];
   readonly category?: Recommendation['category'];
   readonly subtitle?: string;
@@ -76,7 +76,9 @@ function Poster({
         </>
       )}
       <span className="poster-index">{String(anime.id).padStart(2, '0')}</span>
-      {!featured && <CompatibilityScore value={anime.compatibility} compact copy={copy} />}
+      {!featured && anime.compatibility !== undefined && (
+        <CompatibilityScore value={anime.compatibility} compact copy={copy} />
+      )}
       {anime.isNew && (
         <Badge tone="accent" className="poster-badge">
           {copy.newLabel}
@@ -116,10 +118,12 @@ export function AnimeCard({
               {anime.episodeCount ?? '—'} {copy.episodesShort}
             </span>
           </div>
-          <div className="anime-reason" aria-label={copy.recommendationWhy}>
-            <Icon name="sparkles" size={12} />
-            <span>{anime.recommendation}</span>
-          </div>
+          {anime.recommendation !== undefined && (
+            <div className="anime-reason" aria-label={copy.recommendationWhy}>
+              <Icon name="sparkles" size={12} />
+              <span>{anime.recommendation}</span>
+            </div>
+          )}
         </div>
       </button>
       <div className="anime-card-actions">
@@ -226,9 +230,9 @@ export function FeaturedAnime({ anime, onSelect, onRecommendationFeedback, copy 
         <p className="featured-subtitle">
           {animeSubtitle(anime)} <span>•</span> {anime.episodeCount ?? '—'} {copy.episodesShort}
         </p>
-        <p className="featured-description">{anime.synopsis ?? anime.recommendation}</p>
+        <p className="featured-description">{anime.synopsis ?? anime.recommendation ?? ''}</p>
         <div className="featured-footer">
-          <CompatibilityScore value={anime.compatibility} copy={copy} />
+          <CompatibilityScore value={anime.compatibility ?? 0} copy={copy} />
           <div className="featured-actions">
             <Button size="sm" icon="arrow-right" onClick={() => onSelect?.(anime)}>
               {copy.openDetails}

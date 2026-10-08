@@ -75,15 +75,6 @@ export type SettingsMessageAction =
   | { readonly type: 'settings.delete_local_data' }
   | { readonly type: 'settings.disconnect_mal' };
 
-/** @deprecated Use `SettingsMessageAction` (kept for message naming symmetry). */
-export type SettingsAction =
-  | { readonly type: 'settings.get_snapshot' }
-  | { readonly type: 'settings.update_preferences'; readonly preferences: UserPreferences }
-  | { readonly type: 'settings.update_mal_client_id'; readonly clientId: string }
-  | { readonly type: 'settings.clear_cache' }
-  | { readonly type: 'settings.delete_local_data' }
-  | { readonly type: 'settings.disconnect_mal' };
-
 export type SettingsResponse =
   | { readonly ok: true; readonly snapshot: SettingsSnapshot }
   | { readonly ok: false; readonly message: string };

@@ -328,6 +328,9 @@
     "dailyNotificationMessage": "Votre prochaine recommandation vous attend.",
     "dailyNotificationTitle": "AnimeLens",
     "backgroundActionFailed": "Une erreur est survenue.",
+    "pinFlowAniListOnly": "Le flux de code d'autorisation AniList n'est disponible que pour AniList.",
+    "unknownProvider": "Fournisseur inconnu.",
+    "unknownSettingsAction": "Action de réglage inconnue.",
     "syncProgressFetching": "Analyse de votre liste…",
     "syncProgressFetchingCount": "Analyse de votre liste… {count} anime récupérés",
     "syncProgressFetched": "✓ {count} anime récupérés",
@@ -336,6 +339,7 @@
     "syncProgressComplete": "Synchronisation terminée",
     "syncCacheHit": "Données disponibles localement",
     "syncOfflineFallback": "Réseau indisponible : données locales utilisées",
+    "syncStorageFull": "Le stockage du navigateur est plein. Videz les données en cache dans les Paramètres, puis synchronisez à nouveau.",
     "syncErrorMessage": "La synchronisation a échoué.",
     "reasonGenre": "Vous aimez particulièrement {name}",
     "reasonTheme": "Vous appréciez les histoires {name}",
@@ -392,6 +396,18 @@
     "listAuthRequired": "Connectez votre compte {name} pour ajouter cet anime.",
     "listSessionExpired": "Votre session {name} a expiré. Reconnectez votre compte.",
     "listUnavailable": "{name} est momentanément indisponible. Réessayez dans un instant.",
-    "listRefused": "{name} a refusé la modification de votre liste."
+    "listRefused": "{name} a refusé la modification de votre liste.",
+    "searchFieldLabel": "Rechercher un anime",
+    "searchPlaceholder": "Rechercher un titre…",
+    "searchClear": "Effacer la recherche",
+    "searchMinChars": "Saisissez au moins {count} caractères pour rechercher.",
+    "searchEyebrow": "RÉSULTATS DE RECHERCHE",
+    "searchResultsTitle": "Résultats de votre recherche",
+    "searching": "Recherche en cours…",
+    "searchNoResults": "Aucun anime ne correspond à « {query} ».",
+    "searchFailed": "Échec de la recherche",
+    "searchAuthRequired": "Connectez votre compte {name} pour rechercher dans tout le catalogue.",
+    "searchSessionExpired": "Votre session {name} a expiré. Reconnectez votre compte.",
+    "searchUnavailable": "{name} est momentanément indisponible. Réessayez dans un instant."
   }
 }

@@ -317,6 +317,9 @@ export interface AppCopy {
   readonly dailyNotificationMessage: string;
   readonly dailyNotificationTitle: string;
   readonly backgroundActionFailed: string;
+  readonly pinFlowAniListOnly: string;
+  readonly unknownProvider: string;
+  readonly unknownSettingsAction: string;
   readonly syncProgressFetching: string;
   readonly syncProgressFetchingCount: (count: number) => string;
   readonly syncProgressFetched: (count: number) => string;
@@ -325,6 +328,7 @@ export interface AppCopy {
   readonly syncProgressComplete: string;
   readonly syncCacheHit: string;
   readonly syncOfflineFallback: string;
+  readonly syncStorageFull: string;
   readonly syncErrorMessage: string;
   readonly reasonGenre: (name: string) => string;
   readonly reasonTheme: (name: string) => string;
@@ -382,6 +386,18 @@ export interface AppCopy {
   readonly listSessionExpired: (name: string) => string;
   readonly listUnavailable: (name: string) => string;
   readonly listRefused: (name: string) => string;
+  readonly searchFieldLabel: string;
+  readonly searchPlaceholder: string;
+  readonly searchClear: string;
+  readonly searchMinChars: (count: number) => string;
+  readonly searchEyebrow: string;
+  readonly searchResultsTitle: string;
+  readonly searching: string;
+  readonly searchNoResults: (query: string) => string;
+  readonly searchFailed: string;
+  readonly searchAuthRequired: (name: string) => string;
+  readonly searchSessionExpired: (name: string) => string;
+  readonly searchUnavailable: (name: string) => string;
   readonly authErrorMessage: (code: AuthErrorCode | null, fallback: string) => string;
 }
 
@@ -452,6 +468,11 @@ const MESSAGE_PARAMS = {
   listSessionExpired: ['name'],
   listUnavailable: ['name'],
   listRefused: ['name'],
+  searchMinChars: ['count'],
+  searchNoResults: ['query'],
+  searchAuthRequired: ['name'],
+  searchSessionExpired: ['name'],
+  searchUnavailable: ['name'],
 } as const satisfies Readonly<
   Partial<Record<Exclude<keyof AppCopy, 'authErrorMessage'>, readonly string[]>>
 >;

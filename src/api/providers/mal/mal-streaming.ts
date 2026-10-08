@@ -61,7 +61,12 @@ function readAttribute(tagAttributes: string, name: string): string | null {
 }
 
 function stripTags(html: string): string {
-  return decodeEntities(html.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim());
+  return decodeEntities(
+    html
+      .replace(/<[^>]*>/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim(),
+  );
 }
 
 function decodeEntities(value: string): string {

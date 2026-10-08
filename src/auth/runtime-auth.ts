@@ -1,6 +1,5 @@
 import { FetchHttpClient } from '../api/http-client';
 import type { HttpClient } from '../api/http-client';
-import type { MalAuthService } from './auth-service';
 import type { IdentityWebAuthFlow, MalOAuthClient, ProviderId } from './auth-types';
 import { FetchMalOAuthClient } from './mal-oauth-client';
 import { ProviderRegistry, ProviderRegistryService } from '../providers/provider-registry';
@@ -8,10 +7,6 @@ import { ProviderRegistry, ProviderRegistryService } from '../providers/provider
 export const MAL_AUTHORIZATION_URL = 'https://myanimelist.net/v1/oauth2/authorize';
 export const MAL_CLIENT_ID_STORAGE_KEY = 'malClientId';
 export const ANILIST_CLIENT_ID_STORAGE_KEY = 'anilistClientId';
-
-export async function getConfiguredClientId(fallback: string): Promise<string> {
-  return getProviderClientId('mal', fallback);
-}
 
 export async function getProviderClientId(
   providerId: ProviderId,
@@ -61,12 +56,6 @@ export function createRuntimeProviderRegistryService(
         providerId === 'anilist' ? anilistFallbackClientId : malFallbackClientId,
       ),
   });
-}
-
-export function createRuntimeAuthService(
-  dependencies: RuntimeAuthDependencies = createRuntimeAuthDependencies(),
-): MalAuthService {
-  return createRuntimeProviderRegistryService(dependencies).getAuthService('mal');
 }
 
 export { ProviderRegistry, ProviderRegistryService } from '../providers/provider-registry';

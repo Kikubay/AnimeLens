@@ -3,6 +3,7 @@ import type { Anime, AnimeListEntry } from '../src/domain/anime';
 import {
   buildDashboardRecommendationSnapshot,
   createEmptyDashboardRecommendationSnapshot,
+  withCurrentSync,
 } from '../src/recommendations/recommendation-dashboard';
 import type { SyncMetadata } from '../src/domain/sync';
 
@@ -170,6 +171,72 @@ describe('dashboard recommendation snapshot', () => {
     expect(snapshot.status).toBe('empty');
     expect(snapshot.daily).toBeNull();
     expect(snapshot.analyzedCount).toBe(0);
+  });
+
+  it('bounds what a large candidate pool puts on the wire', async () => {
+    const watched = Array.from({ length: 4 }, (_, index) =>
+      entry(
+        1 + index,
+        'completed',
+        9,
+        [['Fantasy'], ['Drama'], ['Sci-Fi'], ['Comedy']][index] ?? [],
+      ),
+    );
+    const suggestions = Array.from({ length: 400 }, (_, index) =>
+      anime(1_000 + index, ['Fantasy', 'Adventure']),
+    );
+    const snapshot = await buildDashboardRecommendationSnapshot(
+      watched,
+      sync,
+      undefined,
+      [],
+      '2026-01-02T00:00:00.000Z',
+      async () => suggestions,
+    );
+
+    const sectionItems = snapshot.sections.flatMap((section) => section.recommendations);
+    expect(sectionItems.length).toBeGreaterThan(0);
+    expect(sectionItems.length).toBeLessThanOrEqual(4 * 24);
+    for (const section of snapshot.sections) {
+      expect(section.recommendations.length).toBeLessThanOrEqual(24);
+    }
+  });
+
+  it('refreshes the sync metadata on a reused snapshot without losing its recommendations', () => {
+    const built = withCurrentSync(
+      {
+        status: 'ready',
+        daily: null,
+        sections: [{ id: 'explore', title: 'Explore', recommendations: [] }],
+        analyzedCount: 12,
+        generatedAt: '2026-01-02T00:00:00.000Z',
+        sync,
+        errorMessage: null,
+      },
+      { ...sync, status: 'offline', fromCache: true, itemCount: 12 },
+    );
+
+    expect(built.status).toBe('offline');
+    expect(built.sync?.fromCache).toBe(true);
+    expect(built.sections).toHaveLength(1);
+    expect(built.generatedAt).toBe('2026-01-02T00:00:00.000Z');
+  });
+
+  it('drops a stale offline status once the provider is reachable again', () => {
+    const built = withCurrentSync(
+      {
+        status: 'offline',
+        daily: null,
+        sections: [],
+        analyzedCount: 12,
+        generatedAt: '2026-01-02T00:00:00.000Z',
+        sync: { ...sync, status: 'offline' },
+        errorMessage: null,
+      },
+      sync,
+    );
+
+    expect(built.status).toBe('ready');
   });
 
   it('partitions recommendations into exclusive sections instead of duplicating high scores', async () => {

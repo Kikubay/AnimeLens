@@ -47,6 +47,7 @@ posting via an official social media account, or acting as an appointed
 representative at an online or offline event.
 
 ### Reporting
+
 Instances of abusive, harassing, or otherwise unacceptable behavior may be
 reported to the project maintainer by opening a confidential report through
 [GitHub's private vulnerability and abuse reporting](https://docs.github.com/en/communities/maintaining-your-safety-on-github/reporting-abuse-or-spam),

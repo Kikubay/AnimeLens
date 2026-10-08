@@ -61,7 +61,9 @@ export interface AniListExternalLinkDto {
   readonly type?: string | null;
 }
 
-export function resolveStreamingServiceId(value: string | null | undefined): StreamingServiceId | null {
+export function resolveStreamingServiceId(
+  value: string | null | undefined,
+): StreamingServiceId | null {
   if (value === null || value === undefined) return null;
   const trimmed = value.trim();
   if (trimmed.length === 0) return null;
@@ -104,7 +106,9 @@ export function normalizeStreamingSites(
 }
 
 function slugify(value: string): string {
-  return normalizeServiceKey(value).replace(/^-+|-+$/g, '').slice(0, 40);
+  return normalizeServiceKey(value)
+    .replace(/^-+|-+$/g, '')
+    .slice(0, 40);
 }
 
 function normalizeWatchUrl(value: string | null | undefined): string | null {
@@ -124,7 +128,10 @@ function isSafeWatchUrl(value: string): boolean {
 }
 
 function normalizeServiceKey(value: string): string {
-  return value.trim().toLocaleLowerCase().replace(/[^a-z0-9]/g, '');
+  return value
+    .trim()
+    .toLocaleLowerCase()
+    .replace(/[^a-z0-9]/g, '');
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {

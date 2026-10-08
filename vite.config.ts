@@ -10,7 +10,7 @@ export default defineConfig(({ mode }) => {
 
   return {
     base: './',
-// No-op for Chromium, but it keeps both targets on the same transform so a Firefox-only key can't sneak into a store build.
+    // No-op for Chromium, but it keeps both targets on the same transform so a Firefox-only key can't sneak into a store build.
     plugins: [react(), extensionManifestPlugin('chromium')],
     define: {
       __APP_ENV__: JSON.stringify(env.VITE_APP_ENV ?? mode),

@@ -5,9 +5,7 @@ import {
   STREAMING_SERVICE_IDS,
 } from '../src/domain/streaming';
 import { ANIME_MEDIA_FRAGMENT } from '../src/api/providers/anilist/anilist-queries';
-import {
-  normalizeAnime as normalizeAniListAnime,
-} from '../src/api/providers/anilist/anilist-normalizer';
+import { normalizeAnime as normalizeAniListAnime } from '../src/api/providers/anilist/anilist-normalizer';
 import type { AniListMediaDto } from '../src/api/providers/anilist/anilist-normalizer';
 import { isStreamingLinksMessage } from '../src/api/streaming-links-messages';
 import { parseMalStreamingPlatforms } from '../src/api/providers/mal/mal-streaming';
@@ -132,7 +130,11 @@ describe('AniList integration', () => {
       id: 16498,
       title: { romaji: 'Shingeki no Kyojin' },
       externalLinks: [
-        { site: 'Crunchyroll', url: 'http://www.crunchyroll.com/attack-on-titan', type: 'STREAMING' },
+        {
+          site: 'Crunchyroll',
+          url: 'http://www.crunchyroll.com/attack-on-titan',
+          type: 'STREAMING',
+        },
         { site: 'Official Site', url: 'http://shingeki.tv/', type: 'INFO' },
         { site: 'Adult Swim', url: 'https://www.adultswim.com/videos/aot', type: 'STREAMING' },
       ],

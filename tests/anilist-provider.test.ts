@@ -112,6 +112,10 @@ function isRankingQuery(query: string): boolean {
   return query.includes('SCORE_DESC');
 }
 
+function isTrendingQuery(query: string): boolean {
+  return query.includes('TRENDING_DESC');
+}
+
 describe('AniListProvider', () => {
   it('fetches and normalizes the current user', async () => {
     const http = new RecordingHttpClient(() => VIEWER_PAYLOAD);
@@ -154,14 +158,13 @@ describe('AniListProvider', () => {
     const provider = new AniListProvider(http, 'token');
     await provider.getUserAnimeList();
 
-    const listQuery = http.requests.find((request) => request.query.includes('MediaListCollection'));
+    const listQuery = http.requests.find((request) =>
+      request.query.includes('MediaListCollection'),
+    );
     expect(listQuery?.query).toContain('tags { id name rank }');
 
     const entries = await provider.getUserAnimeList();
-    expect(entries[0]?.anime.themes.map((theme) => theme.name)).toEqual([
-      'Contemporary',
-      'School',
-    ]);
+    expect(entries[0]?.anime.themes.map((theme) => theme.name)).toEqual(['Contemporary', 'School']);
   });
 
   it('strips HTML from synopses and keeps the 0-10 community scale', () => {
@@ -174,6 +177,12 @@ describe('AniListProvider', () => {
     expect(anime.year).toBe(2020);
     expect(anime.season).toBe('fall');
     expect(anime.studios[0]?.name).toBe('MAPPA');
+  });
+
+  it('keeps the popularity rank out of memberCount, which is a count on MAL', () => {
+    const anime = normalizeAnime(MEDIA);
+    expect(anime.popularity).toBe(500_000);
+    expect(anime.memberCount).toBeNull();
   });
 
   it('maps AniList tags to themes, dropping tags below the relevance rank', () => {
@@ -194,12 +203,21 @@ describe('AniListProvider', () => {
     expect(http.requests[0]?.variables).toEqual({ page: 3, perPage: 50 });
   });
 
-  it('returns an empty suggestion pool (no AniList equivalent)', async () => {
-    const http = new RecordingHttpClient(() => {
-      throw new Error('should not be called');
-    });
+  it('fills the suggestion slot from trending media, since AniList has no suggestions endpoint', async () => {
+    const http = new RecordingHttpClient((query) =>
+      isTrendingQuery(query) ? { data: { Page: { media: [MEDIA] } } } : VIEWER_PAYLOAD,
+    );
     const provider = new AniListProvider(http, 'token');
-    await expect(provider.getAnimeSuggestions()).resolves.toEqual([]);
+    const suggestions = await provider.getAnimeSuggestions(30);
+    expect(suggestions).toHaveLength(1);
+    expect(http.requests[0]?.query).toContain('TRENDING_DESC');
+    expect(http.requests[0]?.variables).toEqual({ perPage: 30 });
+  });
+
+  it('samples the ranking where AniList still has scored titles, not MAL-shaped offsets', () => {
+    const provider = new AniListProvider(new RecordingHttpClient(() => VIEWER_PAYLOAD), 'token');
+    expect(provider.candidatePoolConfig?.rankingOffset).toBeGreaterThan(0);
+    expect(provider.candidatePoolConfig?.rankingOffset).toBeLessThan(2000);
   });
 
   it('maps GraphQL errors[] to ApiError codes with Retry-After', async () => {

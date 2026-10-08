@@ -41,9 +41,10 @@ const BECAUSE_YOU_LIKED_MIN_RATING = 7;
 const BECAUSE_YOU_LIKED_MIN_SHARED_FEATURES = 2;
 // Below this many liked entries, any overlap is inherently specific — a tiny cohort can't saturate the feature space.
 const BECAUSE_YOU_LIKED_SMALL_COHORT = 3;
-// Above it, two shared features is the base rate (~90% of candidates overlap some liked entry by two), so provenance needs a deeper match.
+// A moderate cohort still attributes on two shared features. Past it, two becomes the base rate (~90% of candidates overlap some liked entry by two), so a deeper match is required for the attribution to mean anything.
+const BECAUSE_YOU_LIKED_SHALLOW_COHORT_LIMIT = 12;
 const BECAUSE_YOU_LIKED_MIN_DEEP_SHARED_FEATURES = 3;
-const BECAUSE_YOU_LIKED_MAX_SIMILAR_SHARE = 0.25;
+const BECAUSE_YOU_LIKED_MAX_SIMILAR_SHARE = 0.4;
 
 export function extractFeatures(anime: Anime): FeatureVector {
   return {
@@ -136,8 +137,6 @@ export function buildUserPreferenceProfile(
   };
 }
 
-export const learnUserPreferences = buildUserPreferenceProfile;
-
 export function scoreRecommendation(
   anime: Anime,
   profile: RecommendationProfile | UserTasteProfile,
@@ -179,18 +178,6 @@ export function scoreRecommendation(
     confidence,
     featureScores,
     reasons: createReasons(anime, features, normalizedProfile, featureScores, options.language),
-  };
-}
-
-export function scoreAnime(anime: Anime, profile: UserTasteProfile): Recommendation {
-  const score = scoreRecommendation(anime, profile);
-  return {
-    id: `local-${anime.id}`,
-    anime,
-    category: 'top-match',
-    compatibilityScore: score.normalized,
-    generatedAt: DEFAULT_GENERATED_AT,
-    reasons: score.reasons,
   };
 }
 
@@ -560,9 +547,11 @@ function scoreQuality(score: number | null): number {
   return score === null ? 0.5 : clamp(score / 10, 0, 1);
 }
 
-function scorePopularity(popularity: number | null, memberCount: number | null): number {
+function scorePopularity(popularityRank: number | null, memberCount: number | null): number {
   if (memberCount !== null) return clamp(Math.log10(memberCount + 1) / 7, 0, 1);
-  if (popularity !== null) return clamp(1 - popularity / 10000, 0, 1);
+  if (popularityRank !== null && popularityRank > 0) {
+    return clamp(1 - Math.log10(popularityRank) / 4, 0, 1);
+  }
   return 0.5;
 }
 
@@ -682,7 +671,11 @@ function becauseYouLikedSource(
   }
   if (best === null) return undefined;
   if (likedCount <= BECAUSE_YOU_LIKED_SMALL_COHORT) return best.entry;
-  if (best.shared < BECAUSE_YOU_LIKED_MIN_DEEP_SHARED_FEATURES) return undefined;
+  const requiredShared =
+    likedCount <= BECAUSE_YOU_LIKED_SHALLOW_COHORT_LIMIT
+      ? BECAUSE_YOU_LIKED_MIN_SHARED_FEATURES
+      : BECAUSE_YOU_LIKED_MIN_DEEP_SHARED_FEATURES;
+  if (best.shared < requiredShared) return undefined;
   const similarShare = similarCount / likedCount;
   return similarShare >= BECAUSE_YOU_LIKED_MAX_SIMILAR_SHARE ? undefined : best.entry;
 }

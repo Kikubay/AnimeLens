@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { scoreAnime } from '../src/recommendations/recommendation-engine';
+import { scoreRecommendation } from '../src/recommendations/recommendation-engine';
 import type { Anime } from '../src/domain/anime';
 import type { UserTasteProfile } from '../src/domain/user-profile';
 
@@ -35,12 +35,31 @@ const profile: UserTasteProfile = {
   ratedAnimeCount: 4,
 };
 
-describe('scoreAnime', () => {
+describe('scoreRecommendation', () => {
   it('returns a bounded compatibility score with explanations', () => {
-    const recommendation = scoreAnime(anime, profile);
+    const score = scoreRecommendation(anime, profile);
 
-    expect(recommendation.compatibilityScore).toBeGreaterThanOrEqual(0);
-    expect(recommendation.compatibilityScore).toBeLessThanOrEqual(100);
-    expect(recommendation.reasons.length).toBeGreaterThan(0);
+    expect(score.normalized).toBeGreaterThanOrEqual(0);
+    expect(score.normalized).toBeLessThanOrEqual(100);
+    expect(score.reasons.length).toBeGreaterThan(0);
+  });
+
+  it('still scores a legacy taste profile, which the old adapter maps onto the current shape', () => {
+    const score = scoreRecommendation(anime, profile, {
+      weights: {
+        genres: 1,
+        themes: 0,
+        studios: 0,
+        staff: 0,
+        type: 0,
+        season: 0,
+        year: 0,
+        quality: 0,
+        popularity: 0,
+      },
+    });
+
+    expect(score.featureScores.genres).toBeGreaterThan(0.5);
+    expect(score.confidence).toBeGreaterThan(0);
   });
 });

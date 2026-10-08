@@ -4,13 +4,19 @@ import type { UserProfile } from '../../../domain/user-profile';
 import type { HttpClient } from '../../http-client';
 import { ApiError } from '../../api-errors';
 import { parseRetryAfterSeconds } from '../../retry-after';
-import type { AnimeProvider } from '../../anime-provider';
+import type {
+  AnimeListFetchOptions,
+  AnimeProvider,
+  CandidatePoolConfig,
+} from '../../anime-provider';
 import {
   ANILIST_GRAPHQL_URL,
+  ANILIST_PAGE_SIZE,
   ANIME_DETAIL_QUERY,
   RANKING_ANIME_QUERY,
   SAVE_LIST_ENTRY_MUTATION,
   SEARCH_ANIME_QUERY,
+  TRENDING_ANIME_QUERY,
   USER_LIST_QUERY,
   VIEWER_QUERY,
 } from './anilist-queries';
@@ -100,6 +106,12 @@ function toApiError(
 export class AniListProvider implements AnimeProvider {
   private readonly graphql: AniListGraphQLClient;
 
+  readonly candidatePoolConfig: CandidatePoolConfig = {
+    suggestionLimit: 50,
+    rankingLimit: 100,
+    rankingOffset: 250,
+  };
+
   constructor(
     private readonly httpClient: HttpClient,
     private readonly accessToken: string,
@@ -119,13 +131,16 @@ export class AniListProvider implements AnimeProvider {
     return normalizeUserProfile(data.Viewer);
   }
 
-  async getUserAnimeList(): Promise<AnimeListEntry[]> {
+  async getUserAnimeList(options: AnimeListFetchOptions = {}): Promise<AnimeListEntry[]> {
     const userId = await this.resolveUserId();
     const data = await this.graphql.request<unknown>(USER_LIST_QUERY, { userId }, this.accessToken);
     if (!isAniListListResponse(data)) throw invalidResponse('anime list');
-    return data.MediaListCollection.lists.flatMap((list) =>
+    const entries = data.MediaListCollection.lists.flatMap((list) =>
       list.entries.filter((entry) => isAniListMedia(entry.media)).map(normalizeAnimeListEntry),
     );
+    // One round-trip covers the whole list, so the count only lands at the end — reporting nothing at all left the sync panel pinned at zero for the entire fetch.
+    options.onProgress?.({ page: 1, itemsFetched: entries.length, nextPageUrl: null });
+    return entries;
   }
 
   async getAnime(id: number): Promise<Anime> {
@@ -141,9 +156,15 @@ export class AniListProvider implements AnimeProvider {
     return normalizeAnime(data.Media);
   }
 
-  // AniList has no suggestions endpoint; the engine falls back to plan-to-watch plus the ranking pool.
-  async getAnimeSuggestions(): Promise<Anime[]> {
-    return [];
+  async getAnimeSuggestions(limit: number = 50): Promise<Anime[]> {
+    const safeLimit = Math.max(1, Math.min(Math.floor(limit), ANILIST_PAGE_SIZE));
+    const data = await this.graphql.request<unknown>(
+      TRENDING_ANIME_QUERY,
+      { perPage: safeLimit },
+      this.accessToken,
+    );
+    if (!isAniListPageResponse(data)) throw invalidResponse('anime trending');
+    return data.Page.media.filter(isAniListMedia).map(normalizeAnime);
   }
 
   // `offset` arrives MAL-style as an item offset, so translate it to a page number.

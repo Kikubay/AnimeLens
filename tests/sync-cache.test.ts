@@ -96,6 +96,40 @@ describe('legacy cache migration (pre-v5 malId/malScore fields)', () => {
     expect(migratedEntry?.anime.staff[0]?.id).toBe(4);
   });
 
+  it('drops the AniList popularity rank that v5 had stored as a member count', () => {
+    const stale = {
+      version: 5,
+      cachedAt: '2026-01-01T00:00:00.000Z',
+      expiresAt: '2026-01-02T00:00:00.000Z',
+      sync: createAnimeCache([entry]).sync,
+      entries: [
+        {
+          ...entry,
+          anime: { ...anime, provider: 'anilist', popularity: 5000, memberCount: 5000 },
+        },
+      ],
+    };
+    const migrated = migrateLegacyCache(stale);
+    expect(isAnimeCache(migrated)).toBe(true);
+    const migratedEntry = (migrated as { entries: AnimeListEntry[] }).entries[0];
+    expect(migratedEntry?.anime.popularity).toBe(5000);
+    expect(migratedEntry?.anime.memberCount).toBeNull();
+  });
+
+  it('keeps a real MAL member count untouched', () => {
+    const stale = {
+      version: 5,
+      cachedAt: '2026-01-01T00:00:00.000Z',
+      expiresAt: '2026-01-02T00:00:00.000Z',
+      sync: createAnimeCache([entry]).sync,
+      entries: [
+        { ...entry, anime: { ...anime, provider: 'mal', popularity: 12, memberCount: 240_000 } },
+      ],
+    };
+    const migrated = migrateLegacyCache(stale);
+    expect((migrated as { entries: AnimeListEntry[] }).entries[0]?.anime.memberCount).toBe(240_000);
+  });
+
   it('leaves current-version caches untouched', () => {
     const cache = createAnimeCache([entry]);
     expect(migrateLegacyCache(cache)).toEqual(cache);

@@ -3,9 +3,7 @@ import { dirname, join } from 'node:path';
 
 // Only the members AnimeLens actually calls exist, so an unported call site fails loudly instead of silently getting `undefined`.
 export interface StorageAreaShim {
-  get(
-    keys?: string | readonly string[] | null,
-  ): Promise<Record<string, unknown>>;
+  get(keys?: string | readonly string[] | null): Promise<Record<string, unknown>>;
   set(items: Record<string, unknown>): Promise<void>;
   remove(keys: string | readonly string[]): Promise<void>;
   clear(): Promise<void>;
@@ -62,9 +60,7 @@ export class FileStorageArea implements StorageAreaShim {
     await fs.rename(temporary, this.filePath);
   }
 
-  async get(
-    keys?: string | readonly string[] | null,
-  ): Promise<Record<string, unknown>> {
+  async get(keys?: string | readonly string[] | null): Promise<Record<string, unknown>> {
     const store = { ...(await this.load()) };
     const requested = normalizeKeys(keys);
     if (requested === null) return store;
@@ -101,9 +97,7 @@ export class FileStorageArea implements StorageAreaShim {
 export class MemoryStorageArea implements StorageAreaShim {
   private store: Record<string, unknown> = {};
 
-  async get(
-    keys?: string | readonly string[] | null,
-  ): Promise<Record<string, unknown>> {
+  async get(keys?: string | readonly string[] | null): Promise<Record<string, unknown>> {
     const requested = normalizeKeys(keys);
     if (requested === null) return { ...this.store };
     const result: Record<string, unknown> = {};

@@ -106,7 +106,7 @@ export class MalAuthService {
     let transaction: OAuthTransaction;
     try {
       this.snapshot = this.createSnapshot('authorizing');
-// The MAL app registers the extension origin root, so adding a callback path makes MAL reject the request.
+      // The MAL app registers the extension origin root, so adding a callback path makes MAL reject the request.
       const redirectUri = this.identity.getRedirectURL();
 
       // MV3 resilience: the worker can be killed while the user sits on the consent page, so a fresh stored transaction is reused. On the implicit strategy it carries no PKCE state and exists only to bound callback age.
@@ -358,7 +358,7 @@ export class MalAuthService {
     return { status, profile, errorCode, errorMessage, phase };
   }
 
-// The token rides in the fragment and AniList echoes no `state`, so the redirect origin plus the freshness window are all we have to validate against.
+  // The token rides in the fragment and AniList echoes no `state`, so the redirect origin plus the freshness window are all we have to validate against.
   private parseImplicitCallback(
     callbackUrl: string,
     transaction: OAuthTransaction,

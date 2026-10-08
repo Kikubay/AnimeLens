@@ -138,7 +138,7 @@ export class ProviderRegistryService {
     };
   }
 
-// Bypasses launchWebAuthFlow, which can't complete AniList's implicit flow, but reuses the standard session store and profile fetch.
+  // Bypasses launchWebAuthFlow, which can't complete AniList's implicit flow, but reuses the standard session store and profile fetch.
   async completeAnilistPinSignIn(rawInput: string): Promise<AuthSnapshot> {
     // Either the bare token or the whole pin URL copied from the address bar.
     const accessToken = extractAccessToken(rawInput.trim());
