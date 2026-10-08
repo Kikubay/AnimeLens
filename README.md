@@ -32,6 +32,11 @@
     <img alt="License" src="https://img.shields.io/badge/License-Non--Commercial%20Copyleft-blue">
   </a>
 </p>
+
+<p align="center">
+  Language: <a href="https://github.com/Kikubay/AnimeLens/blob/main/README.md">English</a> - <a href="https://github.com/Kikubay/AnimeLens/blob/main/README_fr.md">Français</a>
+</p>
+
 <br />
 
 > _Note: Once AnimeLens launches on the Chrome Web Store and addons.mozilla.org, installation will be a single click, and the manual OAuth setup will be handled automatically in the background._
