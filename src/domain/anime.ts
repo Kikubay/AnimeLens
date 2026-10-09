@@ -13,7 +13,6 @@ export type AnimeAiringStatus =
   'currently_airing' | 'finished_airing' | 'not_yet_aired' | 'unknown';
 
 export type AnimeType = 'tv' | 'movie' | 'ova' | 'ona' | 'special' | 'music' | 'unknown';
-/** Old name for `AnimeType`. */
 export type AnimeFormat = AnimeType;
 
 export type AnimeSeason = 'winter' | 'spring' | 'summer' | 'fall';
@@ -73,7 +72,7 @@ export interface Anime {
   readonly season: AnimeSeason | null;
   readonly status: AnimeAiringStatus;
   readonly type: AnimeType;
-  /** Rank position where 1 is the most popular title, not a count. AniList only ever exposes this. */
+  /** Rank position where 1 is the most popular title, not a count. MAL exposes this; AniList has no rank. */
   readonly popularity: number | null;
   readonly memberCount: number | null;
   readonly contentRating?: AnimeContentRating;

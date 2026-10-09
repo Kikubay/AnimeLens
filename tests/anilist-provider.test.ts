@@ -56,7 +56,7 @@ const MEDIA = {
   tags: [
     { id: 1, name: 'Contemporary', rank: 90 },
     { id: 2, name: 'School', rank: 85 },
-    // Under TAG_MIN_RANK, so the domain drops it.
+    // Under TAG_MIN_RANK, so it must not survive normalization.
     { id: 3, name: 'Male Protagonist', rank: 5 },
   ],
   format: 'TV',
@@ -151,7 +151,7 @@ describe('AniListProvider', () => {
   });
 
   it('requests tags on the list query so list entries carry themes', async () => {
-    // Guards tags living in the shared fragment: on the detail query alone, `anime.themes` stayed empty for every list and candidate record, so the engine's 0.16 themes weight and the genre+theme overlap provenance silently did nothing.
+    // Tags must sit in the shared fragment: on the detail query alone every list and candidate record lost its themes, so the engine's themes weight and theme-overlap provenance silently did nothing.
     const http = new RecordingHttpClient((query) =>
       isViewerQuery(query) ? VIEWER_PAYLOAD : LIST_PAYLOAD,
     );
@@ -179,10 +179,10 @@ describe('AniListProvider', () => {
     expect(anime.studios[0]?.name).toBe('MAPPA');
   });
 
-  it('keeps the popularity rank out of memberCount, which is a count on MAL', () => {
+  it('reads AniList popularity as a member count, matching MAL num_list_users', () => {
     const anime = normalizeAnime(MEDIA);
-    expect(anime.popularity).toBe(500_000);
-    expect(anime.memberCount).toBeNull();
+    expect(anime.memberCount).toBe(500_000);
+    expect(anime.popularity).toBeNull();
   });
 
   it('maps AniList tags to themes, dropping tags below the relevance rank', () => {
@@ -320,7 +320,7 @@ describe('AniList enum mapping', () => {
       .replace(/\+/g, '-')
       .replace(/\//g, '_')
       .replace(/=+$/, '');
-    // header.payload.signature — header/signature are irrelevant here.
+    // Only the payload segment matters here; header and signature are throwaway.
     const token = `eyJhbGciOiJIUzI1NiJ9.${base64url}.sig`;
     expect(decodeAniListTokenExpiry(token)).toBe(exp * 1000);
   });
@@ -348,9 +348,9 @@ describe('AniList enum mapping', () => {
         'https://anilist.co/api/v2/oauth/pin#access_token=abc.def.ghi&token_type=Bearer',
       ),
     ).toBe(true);
-    // Prefix present but token empty → not a completion candidate.
+    // An empty token after the prefix is not a completion.
     expect(isAniListPinTabUrl('https://anilist.co/api/v2/oauth/pin#access_token=')).toBe(false);
-    // Consent page (no fragment yet) and unrelated pages → false.
+    // The consent page, before any fragment exists, is not one either.
     expect(isAniListPinTabUrl('https://anilist.co/api/v2/oauth/pin')).toBe(false);
     expect(isAniListPinTabUrl('https://anilist.co/anime/1')).toBe(false);
     expect(isAniListPinTabUrl('')).toBe(false);

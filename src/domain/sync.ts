@@ -30,7 +30,7 @@ export interface SyncMetadata {
   readonly fromCache: boolean;
 }
 
-export const ANIME_CACHE_VERSION = 6;
+export const ANIME_CACHE_VERSION = 7;
 export const ANIME_CACHE_TTL_MS = 24 * 60 * 60 * 1000;
 
 import type { AnimeListEntry } from './anime';

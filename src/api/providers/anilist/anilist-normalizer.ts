@@ -10,7 +10,7 @@ import type {
 import type { UserProfile } from '../../../domain/user-profile';
 import { normalizeStreamingSites } from '../../../domain/streaming';
 
-// AniList GraphQL DTOs, trimmed to what we consume. Normalization is deliberately defensive so one malformed field degrades to `null` instead of failing the whole sync.
+// The DTOs are trimmed to what we consume, and normalization degrades a malformed field to `null` rather than failing a whole sync.
 
 export interface AniListTitleDto {
   readonly romaji?: string | null;
@@ -38,7 +38,7 @@ export interface AniListStaffEdgeDto {
   } | null;
 }
 
-// Trust `type`, not `site`: only `STREAMING` means watchable, the rest are official sites and social accounts, and `site` is a display name rather than an enum.
+// Trust `type`, not `site`: only `STREAMING` is watchable, and `site` is a display name rather than an enum.
 export interface AniListExternalLinkDto {
   readonly site?: string | null;
   readonly url?: string | null;
@@ -58,6 +58,7 @@ export interface AniListMediaDto {
   readonly season?: string | null;
   readonly seasonYear?: number | null;
   readonly status?: string | null;
+  /** A list-member count despite the name, matching MAL's `num_list_users`. */
   readonly popularity?: number | null;
   readonly isAdult?: boolean | null;
   readonly externalLinks?: readonly AniListExternalLinkDto[] | null;
@@ -137,7 +138,7 @@ export function toMediaListStatus(status: AnimeStatus): string | null {
   }
 }
 
-// Anything below this tag rank is noise for a taste profile.
+// Lower-ranked tags are noise for a taste profile.
 const TAG_MIN_RANK = 20;
 
 export function normalizeAnime(input: AniListMediaDto): Anime {
@@ -146,7 +147,7 @@ export function normalizeAnime(input: AniListMediaDto): Anime {
     id: input.id,
     provider: 'anilist',
     title: {
-      // No canonical title, so fall back romaji → english → native.
+      // AniList has no canonical title, so fall back romaji → english → native.
       default: title.romaji ?? title.english ?? title.native ?? `Anime ${input.id}`,
       english: title.english ?? null,
       japanese: title.native ?? null,
@@ -156,7 +157,6 @@ export function normalizeAnime(input: AniListMediaDto): Anime {
     image: input.coverImage
       ? { medium: input.coverImage.medium ?? null, large: input.coverImage.large ?? null }
       : null,
-    // AniList scores 0-100; the domain keeps the 0-10 community-score scale.
     score: normalizeScore(input.averageScore),
     userScore: null,
     genres: (input.genres ?? []).map((name) => ({ id: genreId(name), name })),
@@ -170,8 +170,9 @@ export function normalizeAnime(input: AniListMediaDto): Anime {
     season: normalizeSeason(input.season),
     status: normalizeAiringStatus(input.status),
     type: normalizeAnimeType(input.format),
-    popularity: normalizeNonNegativeInteger(input.popularity),
-    memberCount: null,
+    // AniList publishes no popularity rank — the field it calls `popularity` is really a list-member count like MAL's `num_list_users`, so it has to land in `memberCount`; reading it as a rank zeroed the popularity score and flagged nearly the whole catalogue as obscure, which emptied Highly Compatible.
+    memberCount: normalizeNonNegativeInteger(input.popularity),
+    popularity: null,
     contentRating: input.isAdult === true ? 'explicit' : 'safe',
     streamingSites: normalizeStreamingSites(input.externalLinks),
   };
@@ -228,7 +229,7 @@ function stripHtml(value: string | null | undefined): string | null {
   return text.length > 0 ? text : null;
 }
 
-// Genres are bare names with no stable ID, so an FNV-1a hash keeps the domain's numeric `id` contract satisfied without a cross-provider mapping table.
+// Genre names carry no stable ID, so a hash satisfies the domain's numeric `id` without a cross-provider mapping table.
 export function genreId(name: string): number {
   let hash = 0x811c9dc5;
   for (let index = 0; index < name.length; index += 1) {
@@ -248,7 +249,7 @@ function normalizeScore(value: number | null | undefined): number | null {
 
 function normalizeUserScore(value: number | null | undefined): number | null {
   if (typeof value !== 'number' || !Number.isFinite(value) || value <= 0) return null;
-  // POINT_100, and 0 means the user never rated it.
+  // POINT_100, where 0 means the user never rated it.
   const scaled = value / 10;
   return scaled >= 0 && scaled <= 10 ? scaled : null;
 }
@@ -285,11 +286,11 @@ function normalizeListStatus(value: string | null | undefined): AnimeStatus {
 
 function toIsoTimestamp(value: number | null | undefined): string | null {
   if (typeof value !== 'number' || !Number.isFinite(value) || value <= 0) return null;
-  // Seconds, not milliseconds.
+  // AniList timestamps are in seconds.
   return new Date(value * 1000).toISOString();
 }
 
-// Runtime guards for untrusted GraphQL payloads.
+// Runtime guards for untrusted payloads.
 
 export function isAniListMedia(value: unknown): value is AniListMediaDto {
   if (typeof value !== 'object' || value === null) return false;

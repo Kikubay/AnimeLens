@@ -10,7 +10,7 @@ const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const RELEASE_DIR = 'release';
 const TARGETS = [
   { id: 'chromium', dir: 'dist/chromium' },
-  { id: 'firefox', dir: 'dist/gecko' },
+  { id: 'gecko', dir: 'dist/gecko' },
 ];
 
 async function collectFiles(dir, skipDirName) {

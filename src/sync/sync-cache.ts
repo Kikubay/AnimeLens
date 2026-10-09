@@ -16,8 +16,8 @@ export function animeCacheStorageKey(providerId: 'mal' | 'anilist'): StorageKey 
   return `animeData:${providerId}`;
 }
 
-// v5 renamed malId/malScore to id/score, so older caches are re-mapped on read and existing users keep their list. v6 stopped writing the AniList popularity rank into `memberCount`, which had made every AniList title look both mega-popular and obscure.
-const LEGACY_CACHE_VERSIONS = [1, 2, 3, 4, 5];
+// v5 renamed malId/malScore to id/score and v7 re-mapped AniList's `popularity` into `memberCount` (its "rank" is really a member count). Both are re-mapped on read so existing users keep their list.
+const LEGACY_CACHE_VERSIONS = [1, 2, 3, 4, 5, 6];
 
 interface LegacyAnimeCache {
   readonly version: number;
@@ -37,7 +37,13 @@ function migrateLegacyEntry(value: unknown): unknown {
   if (isRecord(anime)) {
     if (anime.id === undefined && anime.malId !== undefined) anime.id = anime.malId;
     if (anime.score === undefined && anime.malScore !== undefined) anime.score = anime.malScore;
-    if (anime.provider === 'anilist') anime.memberCount = null;
+    // Older caches parked AniList's member count in `popularity`; move it so cached lists score like freshly synced ones.
+    if (anime.provider === 'anilist') {
+      if (anime.memberCount === null || anime.memberCount === undefined) {
+        anime.memberCount = typeof anime.popularity === 'number' ? anime.popularity : null;
+      }
+      anime.popularity = null;
+    }
     if (Array.isArray(anime.genres)) {
       anime.genres = anime.genres.map((item: unknown) => renameLegacyResource(item));
     }
@@ -124,7 +130,7 @@ export function isAnimeCache(value: unknown): value is AnimeCache {
   return value.entries.every(isAnimeListEntry);
 }
 
-// Anything that isn't a legacy cache comes back unchanged; `isAnimeCache` rejects invalid data downstream.
+// Anything that isn't a legacy cache passes through untouched; `isAnimeCache` rejects invalid data downstream.
 export function migrateLegacyCache(value: unknown): unknown {
   if (!isRecord(value) || !isLegacyCacheVersion(value.version)) return value;
   const legacy = value as unknown as LegacyAnimeCache;

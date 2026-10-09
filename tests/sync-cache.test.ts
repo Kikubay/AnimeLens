@@ -71,7 +71,7 @@ describe('legacy cache migration (pre-v5 malId/malScore fields)', () => {
           ...entry,
           anime: {
             ...anime,
-            // Pre-v5 shape: legacy field names only — no `id`/`score` present.
+            // Pre-v5 shape: only the legacy field names.
             id: undefined,
             score: undefined,
             malId: 42,
@@ -96,6 +96,26 @@ describe('legacy cache migration (pre-v5 malId/malScore fields)', () => {
     expect(migratedEntry?.anime.staff[0]?.id).toBe(4);
   });
 
+  it('moves the AniList member count out of the popularity rank field', () => {
+    const stale = {
+      version: 6,
+      cachedAt: '2026-01-01T00:00:00.000Z',
+      expiresAt: '2026-01-02T00:00:00.000Z',
+      sync: createAnimeCache([entry]).sync,
+      entries: [
+        {
+          ...entry,
+          anime: { ...anime, provider: 'anilist', popularity: 5000, memberCount: null },
+        },
+      ],
+    };
+    const migrated = migrateLegacyCache(stale);
+    expect(isAnimeCache(migrated)).toBe(true);
+    const migratedEntry = (migrated as { entries: AnimeListEntry[] }).entries[0];
+    expect(migratedEntry?.anime.popularity).toBeNull();
+    expect(migratedEntry?.anime.memberCount).toBe(5000);
+  });
+
   it('drops the AniList popularity rank that v5 had stored as a member count', () => {
     const stale = {
       version: 5,
@@ -112,8 +132,8 @@ describe('legacy cache migration (pre-v5 malId/malScore fields)', () => {
     const migrated = migrateLegacyCache(stale);
     expect(isAnimeCache(migrated)).toBe(true);
     const migratedEntry = (migrated as { entries: AnimeListEntry[] }).entries[0];
-    expect(migratedEntry?.anime.popularity).toBe(5000);
-    expect(migratedEntry?.anime.memberCount).toBeNull();
+    expect(migratedEntry?.anime.popularity).toBeNull();
+    expect(migratedEntry?.anime.memberCount).toBe(5000);
   });
 
   it('keeps a real MAL member count untouched', () => {

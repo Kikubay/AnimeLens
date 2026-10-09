@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { Anime, AnimeListEntry } from '../src/domain/anime';
+import { normalizeAnime as normalizeAniList } from '../src/api/providers/anilist/anilist-normalizer';
 import {
   buildUserPreferenceProfile,
   extractFeatures,
@@ -353,7 +354,7 @@ describe('recommendation pipeline', () => {
       entry(2, 9, { genres: [{ id: 3, name: 'Comedy' }] }),
       entry(3, 8, { genres: [{ id: 4, name: 'Romance' }] }),
     ];
-    // Near-clone of the 10/10 favorite: clears the >=80 band too, but the specific provenance signal has to win.
+    // Near-clone of the 10/10 favorite, so provenance has to beat the raw score band.
     const clone = anime(10, {
       genres: [
         { id: 1, name: 'Action' },
@@ -373,7 +374,7 @@ describe('recommendation pipeline', () => {
   });
 
   it('attributes a two-feature overlap on a moderate liked cohort, which used to fall through', () => {
-    // 8 liked entries is past the tiny-cohort exemption but under the shallow limit, so two shared features must still count.
+    // Past the tiny-cohort exemption but under the shallow limit, so two shared features still count.
     const watched = Array.from({ length: 8 }, (_, index) =>
       entry(index + 1, 9, {
         genres: [{ id: index, name: `Genre ${index}` }],
@@ -431,7 +432,7 @@ describe('recommendation pipeline', () => {
   });
 
   it('keeps provenance attributed to a single source instead of the whole cohort', () => {
-    // Every liked entry shares the same pair, so no candidate is distinctive and none may claim provenance.
+    // Every liked entry shares the same pair, so nothing is distinctive enough to claim provenance.
     const watched = Array.from({ length: 8 }, (_, index) =>
       entry(index + 1, 9, {
         genres: [
@@ -460,7 +461,7 @@ describe('recommendation pipeline', () => {
   });
 
   it('categorizes strong broad-affinity matches as highly-compatible', () => {
-    // Shares at most one feature with each rated entry, so there's no because-you-liked source, but broad genre and theme affinity is strong.
+    // Overlaps each rated entry on at most one feature, so only broad affinity can place it.
     const watched = [
       entry(1, 10, {
         genres: [{ id: 1, name: 'Action' }],
@@ -568,7 +569,7 @@ describe('recommendation pipeline', () => {
   });
 
   it('keeps discovery sections populated on a large list', () => {
-    // Nearly every candidate here overlaps some liked entry and lands in the 60-85 band; collapsing to one dominant category used to leave Hidden Gems and Explore empty.
+    // Candidates overlap liked entries constantly and land in the 60-85 band, which used to collapse everything into one category.
     const genres = [
       'Action',
       'Adventure',
@@ -622,7 +623,7 @@ describe('recommendation pipeline', () => {
         ],
       };
     };
-    // 70% cluster around the user's favourite genres and themes.
+    // Most of the list clusters on the user's favourites, which is what makes provenance fire everywhere.
     const tasteFeatures = () => {
       const features = randomFeatures();
       return random() < 0.7
@@ -649,7 +650,7 @@ describe('recommendation pipeline', () => {
             : 3 + Math.floor(random() * 2);
       return entry(index + 1, score, tasteFeatures());
     });
-    // Popular candidates plus a deep-ranking page of obscure quality titles, the pool the background worker assembles.
+    // Mirrors the pool the background worker builds: suggestions plus a deep-ranking page.
     const candidates = [
       ...Array.from({ length: 40 }, (_, index) =>
         anime(2000 + index, {
@@ -680,5 +681,109 @@ describe('recommendation pipeline', () => {
       (byCategory.get('genre-discovery') ?? 0) + (byCategory.get('explore') ?? 0),
     ).toBeGreaterThan(0);
     expect(byCategory.get('because-you-liked') ?? 0).toBeLessThan(result.length);
+  });
+
+  // Regression: AniList's `popularity` is a member count, not the rank the domain documents; reading it as a rank left Highly Compatible permanently empty.
+  describe('anilist popularity semantics', () => {
+    const buildProfile = (): RecommendationProfile => {
+      const watched = Array.from({ length: 60 }, (_, index) =>
+        entry(index + 1, 8 + (index % 3), {
+          genres: [
+            { id: 1, name: 'Action' },
+            { id: 2, name: 'Adventure' },
+          ],
+          themes: [{ id: 3, name: 'School Life' }],
+          studios: [],
+        }),
+      );
+      return buildUserPreferenceProfile(watched);
+    };
+
+    it('normalizes AniList list-member counts into memberCount, not popularity', () => {
+      const anime = normalizeAniList({
+        id: 1,
+        title: { romaji: 'Re:Zero kara Hajimeru Isekai Seikatsu' },
+        averageScore: 88,
+        genres: ['Action', 'Adventure'],
+        popularity: 244_175,
+      });
+
+      expect(anime.memberCount).toBe(244_175);
+      expect(anime.popularity).toBeNull();
+    });
+
+    it('scores AniList popularity on the same scale as an MAL member count', () => {
+      const weights = {
+        genres: 0,
+        themes: 0,
+        studios: 0,
+        staff: 0,
+        type: 0,
+        season: 0,
+        year: 0,
+        quality: 0,
+        popularity: 1,
+      };
+      const anilist = normalizeAniList({
+        id: 1,
+        title: { romaji: 'Sousou no Frieren' },
+        averageScore: 91,
+        genres: ['Adventure'],
+        popularity: 488_052,
+      });
+      const mal = anime(1, {
+        genres: [],
+        themes: [],
+        studios: [],
+        memberCount: 488_052,
+        popularity: null,
+      });
+
+      const anilistPopularity = scoreRecommendation(anilist, buildProfile(), { weights })
+        .featureScores.popularity;
+      const malPopularity = scoreRecommendation(mal, buildProfile(), { weights }).featureScores
+        .popularity;
+
+      expect(anilistPopularity).toBe(malPopularity);
+      expect(anilistPopularity).toBeGreaterThan(0);
+    });
+
+    it('still fills Highly Compatible from a mainstream AniList candidate pool', () => {
+      const watched = Array.from({ length: 60 }, (_, index) =>
+        entry(index + 1, 8 + (index % 3), {
+          genres: [
+            { id: 1, name: 'Action' },
+            { id: 2, name: 'Adventure' },
+          ],
+          themes: [{ id: 3, name: 'School Life' }],
+          studios: [],
+        }),
+      );
+      // Trending titles carry mainstream list-member counts, which must not read as obscure.
+      const candidates = Array.from({ length: 30 }, (_, index) =>
+        normalizeAniList({
+          id: 50_000 + index,
+          title: { romaji: `Candidate ${index}` },
+          averageScore: 84,
+          genres: ['Action', 'Adventure'],
+          format: 'TV',
+          episodes: 12,
+          seasonYear: 2024,
+          season: 'SPRING',
+          status: 'FINISHED',
+          popularity: 20_000 + index * 30_000,
+          tags: [{ id: 1, name: 'School Life', rank: 90 }],
+        }),
+      );
+
+      const result = generateRecommendations(
+        { watched, candidates },
+        { limit: candidates.length, generatedAt: '2026-01-01T00:00:00.000Z' },
+      );
+
+      expect(result.filter((item) => item.category === 'highly-compatible').length).toBeGreaterThan(
+        0,
+      );
+    });
   });
 });
