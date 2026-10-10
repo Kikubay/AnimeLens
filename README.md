@@ -85,14 +85,14 @@
       <sub><b>Personalized Recommendations</b></sub>
     </td>
     <td align="center">
-      <img src="https://github.com/Kikubay/AnimeLens/blob/main/.github/img/Profile_GIF.gif?raw=true" width="500" alt="AnimeLens interface">
+      <img src="https://github.com/Kikubay/AnimeLens/blob/main/.github/img/Profile_GIF.gif?raw=true" width="425" alt="AnimeLens interface">
       <br>
       <sub><b>Profile analysis</b></sub>
     </td>
   </tr>
   <tr>
     <td align="center" colspan="2">
-      <img src="https://github.com/Kikubay/AnimeLens/blob/main/.github/img/Settings_GIF.gif?raw=true" width="300" alt="AnimeLens settings">
+      <img src="https://github.com/Kikubay/AnimeLens/blob/main/.github/img/Settings_GIF.gif?raw=true" width="450" alt="AnimeLens settings">
       <br>
       <sub><b>Configuration & Settings</b></sub>
     </td>
