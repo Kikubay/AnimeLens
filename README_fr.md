@@ -80,19 +80,19 @@ ___
 <table>
   <tr>
     <td align="center">
-      <img src="https://github.com/user-attachments/assets/9eb42caf-6775-4b42-aa10-c4a551d4a6b3" width="500" style="max-width: 100%; height: auto;" alt="Recommandations AnimeLens">
+      <img src="https://github.com/Kikubay/AnimeLens/blob/main/.github/img/Discover_GIF.gif?raw=true" width="425" alt="Recommandations AnimeLens">
       <br>
       <sub><b>Recommandations personnalisées</b></sub>
     </td>
     <td align="center">
-      <img src="https://github.com/user-attachments/assets/65619f49-990b-406c-9d78-ff66efeb757f" width="500" style="max-width: 100%; height: auto;" alt="Interface AnimeLens">
+      <img src="https://github.com/Kikubay/AnimeLens/blob/main/.github/img/Profile_GIF.gif?raw=true" width="425" alt="Interface AnimeLens">
       <br>
       <sub><b>Analyse de profil</b></sub>
     </td>
   </tr>
   <tr>
     <td align="center" colspan="2">
-      <img src="https://github.com/user-attachments/assets/6622eed5-0616-4275-b878-85caec58e1ca" width="500" style="max-width: 100%; height: auto;" alt="Paramètres AnimeLens">
+      <img src="https://github.com/Kikubay/AnimeLens/blob/main/.github/img/Settings_GIF.gif?raw=true" width="450" alt="Paramètres AnimeLens">
       <br>
       <sub><b>Configuration et Paramètres</b></sub>
     </td>
