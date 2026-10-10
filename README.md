@@ -74,8 +74,8 @@
 ## Showcase
 
 > **Try it without installing anything:** [kikubay.github.io/AnimeLens](https://kikubay.github.io/AnimeLens/)
-> runs the real interface against a sample library generated in your browser.
-> No account is connected and nothing is saved.
+> - Runs the real interface against a sample library generated in your browser.
+> - No account is connected and nothing is saved.
 
 <table>
   <tr>
