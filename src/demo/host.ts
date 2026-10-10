@@ -45,6 +45,7 @@ class DemoHost {
   private preferences: UserPreferences = { ...DEFAULT_USER_PREFERENCES };
   private feedback: RecommendationFeedback[] = [];
   private library = buildDemoLibrary(fixtures, this.provider, this.seed);
+  private syncMetadataCache: SyncMetadata | null = null;
 
   state(): DemoState {
     return {
@@ -59,6 +60,8 @@ class DemoHost {
   private rebuild(provider: AnimeProviderId): void {
     this.provider = provider;
     this.library = buildDemoLibrary(fixtures, provider, this.seed);
+    // The new library has its own sync timestamp, matching a real provider switch.
+    this.syncMetadataCache = null;
   }
 
   profile(): UserProfile {
@@ -102,8 +105,14 @@ class DemoHost {
     };
   }
 
+  /**
+   * `lastSyncedAt` is the app's signal that a real sync finished, and the dashboard reloads
+   * its recommendations whenever it moves. The popup polls this snapshot every 750ms, so a
+   * fresh timestamp here made Discover swap to its skeleton loaders several times a second.
+   * Caching the object also keeps its identity stable, so the poll costs no re-render at all.
+   */
   syncMetadata(): SyncMetadata {
-    return {
+    this.syncMetadataCache ??= {
       status: 'success',
       phase: 'complete',
       progress: null,
@@ -114,6 +123,13 @@ class DemoHost {
       errorMessage: null,
       fromCache: false,
     };
+    return this.syncMetadataCache;
+  }
+
+  /** A user-initiated sync really did just finish, so the timestamp may move. */
+  markSyncedNow(): SyncMetadata {
+    this.syncMetadataCache = null;
+    return this.syncMetadata();
   }
 
   updatePreferences(preferences: UserPreferences): SettingsSnapshot {

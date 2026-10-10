@@ -59,7 +59,7 @@ export async function dispatchDemoMessage(message: unknown): Promise<unknown> {
     case 'sync.get_snapshot':
       return ok({ snapshot: { metadata: demoHost.syncMetadata(), progress: null } });
     case 'sync.start':
-      return ok({ snapshot: { metadata: demoHost.syncMetadata(), progress: null } });
+      return ok({ snapshot: { metadata: demoHost.markSyncedNow(), progress: null } });
     case 'sync.invalidate':
       return ok({});
 

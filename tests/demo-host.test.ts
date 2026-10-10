@@ -122,4 +122,26 @@ describe('demo host', () => {
     expect(await dispatchDemoMessage({ type: 'nothing.like.this' })).toBeUndefined();
     expect(await dispatchDemoMessage('not an object')).toBeUndefined();
   });
+
+  // The popup polls `sync.get_snapshot` every 750ms and reloads the dashboard whenever
+  // `lastSyncedAt` moves, so a timestamp that ticked on every poll made Discover flicker.
+  it('keeps the sync snapshot identical across polls until a sync is asked for', async () => {
+    const poll = async () =>
+      (
+        (await dispatchDemoMessage({ type: 'sync.get_snapshot' })) as {
+          readonly snapshot: { readonly metadata: { readonly lastSyncedAt: string } };
+        }
+      ).snapshot;
+
+    const first = await poll();
+    const second = await poll();
+    expect(second.metadata.lastSyncedAt).toBe(first.metadata.lastSyncedAt);
+
+    const synced = await (
+      (await dispatchDemoMessage({ type: 'sync.start' })) as {
+        readonly snapshot: { readonly metadata: { readonly lastSyncedAt: string } };
+      }
+    ).snapshot;
+    expect(synced.metadata.lastSyncedAt).not.toBe(first.metadata.lastSyncedAt);
+  });
 });
