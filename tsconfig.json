@@ -25,6 +25,7 @@
     "vite.electron.node.config.ts",
     "vite.electron.renderer.config.ts",
     "vite.extension.gecko.config.ts",
+    "vite.demo.config.ts",
     "vite.manifest.ts",
     "eslint.config.js"
   ],

@@ -31,7 +31,10 @@
     "lint": "eslint .",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "bump": "npm version patch --no-git-tag-version && node scripts/bump-manifest.mjs"
+    "bump": "npm version patch --no-git-tag-version && node scripts/bump-manifest.mjs",
+    "build:demo": "vite build --config vite.demo.config.ts --mode production",
+    "preview:demo": "vite preview --config vite.demo.config.ts",
+    "demo:data": "node scripts/fetch-demo-data.mjs"
   },
   "dependencies": {
     "react": "^19.0.0",
