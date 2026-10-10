@@ -73,6 +73,10 @@ ___
 
 ## Aperçu
 
+> **Essayez-le sans rien installer :** [kikubay.github.io/AnimeLens](https://kikubay.github.io/AnimeLens/)
+> - Cette version utilise la véritable interface avec une bibliothèque d'exemple générée directement dans votre navigateur.
+> - Aucun compte n'est connecté et aucune donnée n'est enregistrée.
+
 <table>
   <tr>
     <td align="center">
