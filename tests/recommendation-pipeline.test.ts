@@ -610,7 +610,7 @@ describe('recommendation pipeline', () => {
       { limit: 100, generatedAt: '2026-01-01T00:00:00.000Z' },
     );
 
-    // 5 titles at ten entries, growing past ten by a hundred, so the floor rewards a richer profile.
+    // Five at ten entries, growing past ten by a hundred, so the floor rewards a richer profile.
     const minimum = size >= 100 ? 11 : 5;
     for (const section of SECTION_MEMBERS) {
       const titles = result.filter((item) => section.categories.includes(item.category));
@@ -620,7 +620,7 @@ describe('recommendation pipeline', () => {
     expect(new Set(ids).size, 'filling a section must not duplicate an anime').toBe(ids.length);
   });
 
-  // Regression: scoring unseen features as neutral 0.5 floored the composite near 51, which left the
+  // Regression: scoring unseen features as neutral 0.5 floored the composite near 51, leaving the
   // 30-49 band unreachable for exactly the users with the largest libraries.
   it('lets a large library reach the lower compatibility bands', () => {
     const genres = [

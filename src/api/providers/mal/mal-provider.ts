@@ -138,8 +138,8 @@ export class MalAnimeProvider implements AnimeProvider {
     return fetchMalStreamingPlatforms(id);
   }
 
-  // MAL's `/anime?q=` already reaches theme names, so a `#tag` search sends the bare tag and the
-  // genre/theme check below is what makes the answer exact rather than merely plausible.
+  // `/anime?q=` reaches theme names too, so a `#tag` search sends the bare tag and the genre/theme
+  // check below is what makes the answer exact rather than merely plausible.
   async searchAnime(query: string, request: AnimeSearchRequest = {}): Promise<AnimeSearchPage> {
     const normalizedQuery = query.trim();
     if (normalizedQuery.length === 0) return EMPTY_SEARCH_PAGE;
@@ -160,7 +160,7 @@ export class MalAnimeProvider implements AnimeProvider {
     }
     const matches = response.data.map((item) => normalizeAnime(item.node));
     const results = tag === null ? matches : matches.filter((anime) => animeMatchesTag(anime, tag));
-    // A short page means MAL ran out; a full one means there is more behind it.
+    // A short page means MAL ran out; a full one may still have more behind it.
     const hasMore =
       response.paging?.next !== undefined
         ? response.paging.next !== null

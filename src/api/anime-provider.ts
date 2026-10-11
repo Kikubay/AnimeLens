@@ -19,14 +19,11 @@ export interface CandidatePoolConfig {
   readonly rankingOffset: number;
 }
 
-/**
- * `offset` counts items in the provider's own result stream, not in the filtered one: a `#tag`
- * search can hand back a short page and still have more behind it, which is what `hasMore` says.
- */
+/** `offset` counts provider items, not filtered ones: a `#tag` search can return a short page with more behind it. */
 export interface AnimeSearchRequest {
   readonly limit?: number;
   readonly offset?: number;
-  /** When set, results must carry this genre or theme, so `#isekai` never answers with a title match. */
+  /** When set, results must carry this genre or theme, so `#isekai` never answers with a bare title hit. */
   readonly tag?: string | null;
 }
 

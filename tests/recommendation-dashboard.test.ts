@@ -304,9 +304,7 @@ describe('dashboard recommendation snapshot', () => {
     expect(new Set(sectionItems.map((item) => item.anime.id)).size).toBe(sectionItems.length);
   });
 
-  // The bands alone leave sections empty for a short library, because every candidate scores into
-  // the same band. This is the guarantee the user actually experiences, so it is asserted on the
-  // rendered sections rather than on engine internals.
+  // Asserted on the rendered sections, since that is the guarantee the user experiences.
   it.each([
     { size: 10, minimum: 5 },
     { size: 100, minimum: 11 },

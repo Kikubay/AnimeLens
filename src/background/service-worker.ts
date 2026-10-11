@@ -767,21 +767,20 @@ async function handleAnimeSearchMessage(message: AnimeSearchMessage): Promise<An
   const parsed = parseAnimeSearchQuery(message.query);
   if (parsed === null) return { ok: true, results: [], hasMore: false, nextOffset: 0 };
   const offset = message.offset ?? 0;
+  // A `#tag` reaches the provider as its own term and comes back filtered on genres and themes.
+  // The offset is counted in provider items and advances by a full page rather than by
+  // `results.length`, so a thinned page doesn't send the next one back over the same window.
   try {
     const page = await (
       await activeAuthService()
     ).withAccessToken(async (accessToken) => {
       const provider = await providerRegistry.createActiveProvider(accessToken);
-      // A `#tag` goes to the provider as its own term and comes back filtered on genres and themes,
-      // so paging counts provider items rather than the filtered ones.
       return provider.searchAnime(parsed.value, {
         limit: ANIME_SEARCH_PAGE_SIZE,
         offset,
         tag: parsed.kind === 'tag' ? parsed.value : null,
       });
     });
-    // Advancing by a full page rather than by `results.length` keeps a `#tag` search from
-    // re-reading the same provider window every time the genre/theme filter thins it out.
     return {
       ok: true,
       results: page.results,
@@ -812,10 +811,9 @@ async function fetchCandidatePool(): Promise<readonly Anime[]> {
       }
     };
 
+    // Trending and the near-top ranking are both taste-aligned, so without a deeper slice the pool
+    // holds nothing for Hidden Gems, whose premise is quality the baseline underestimates.
     const config = provider.candidatePoolConfig ?? DEFAULT_CANDIDATE_POOL_CONFIG;
-    // A third, much deeper slice: trending and the near-top ranking are both taste-aligned, so
-    // without this the pool holds nothing for Hidden Gems, whose whole premise is quality the
-    // baseline underestimates. Fetched in parallel, so it adds latency nothing.
     const [suggested, ranked, deepRanked] = await Promise.all([
       degrade<Anime>(() => provider.getAnimeSuggestions?.(config.suggestionLimit)),
       degrade<Anime>(() => provider.getAnimeRanking?.(config.rankingLimit, config.rankingOffset)),

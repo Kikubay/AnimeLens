@@ -262,10 +262,7 @@ export function generateRecommendations(
   );
 }
 
-/**
- * Mirrors the dashboard's section split, so a shortfall can be measured against what the user
- * actually sees rather than against internal categories.
- */
+/** Mirrors the dashboard's section split, so shortfalls are measured against what the user sees. */
 const SECTION_MEMBERSHIP: readonly {
   readonly key: string;
   readonly categories: readonly RecommendationCategory[];
@@ -277,9 +274,8 @@ const SECTION_MEMBERSHIP: readonly {
 ];
 
 /**
- * Scales with the analysed library: the floor is about avoiding an empty section on a short list,
- * and a longer list has earned more shelf space in every one of them. Capped well under the
- * per-section display cap so a pool smaller than four times the floor can still satisfy it.
+ * A longer library has earned more shelf space in every section, so the floor rises with it. Capped
+ * well under the per-section display cap so a pool smaller than four times the floor still works.
  */
 function minimumSectionTitles(analyzedCount: number): number {
   return clamp(Math.round(5 + (analyzedCount - 10) * 0.08), 5, 16);
@@ -292,10 +288,9 @@ function sectionKeyOf(category: RecommendationCategory): string {
 }
 
 /**
- * A short library scores nearly every candidate into the same band, so the bands alone leave
- * sections empty regardless of pool size. These minimums are a floor on presentation only: a moved
- * title keeps its score and reasons, and is moved rather than copied, so no anime appears twice and
- * the donor section is never pushed below its own floor.
+ * The bands alone leave sections empty on a short library, because every candidate scores into the
+ * same band. Titles are moved rather than copied, so none can appear twice, and a donor section is
+ * never taken below its own floor; a moved title keeps its score, which is what makes its band bend.
  */
 function ensureSectionMinimums(
   recommendations: readonly Recommendation[],

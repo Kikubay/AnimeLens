@@ -113,8 +113,8 @@ query ($id: Int) {
 }
 `;
 
-// `pageInfo` is what decides whether the panel keeps its "Load more" button; without it a paged
-// search can't tell an exhausted catalogue from a full page.
+// `pageInfo` is what keeps the "Load more" button honest; without it a full page is
+// indistinguishable from an exhausted catalogue.
 export const SEARCH_ANIME_QUERY = `
 ${ANIME_MEDIA_FRAGMENT}
 query ($search: String, $page: Int, $perPage: Int) {
