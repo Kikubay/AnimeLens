@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { requestAnimeSearch } from '../../api/anime-search-messages';
+import { ANIME_SEARCH_MAX_LENGTH, requestAnimeSearch } from '../../api/anime-search-messages';
 import { parseAnimeSearchQuery } from '../../api/anime-search-query';
 import type { Anime } from '../../domain/anime';
 import type { AppCopy } from '../../locales';
@@ -47,6 +47,7 @@ export function AnimeSearchField({
         value={query}
         placeholder={copy.searchPlaceholder}
         aria-label={copy.searchFieldLabel}
+        maxLength={ANIME_SEARCH_MAX_LENGTH}
         autoComplete="off"
         spellCheck={false}
         onChange={(event) => onQueryChange(event.target.value)}
@@ -149,7 +150,11 @@ export function AnimeSearchPanel({
   useEffect(() => {
     const current = sequence.current + 1;
     sequence.current = current;
-    if (!isAuthenticated || parseAnimeSearchQuery(debouncedQuery) === null) {
+    // An abandoned page request skips its own `.finally`, so the flag has to be cleared here or the
+    // button stays permanently disabled.
+    setLoadingMore(false);
+    const parsed = parseAnimeSearchQuery(debouncedQuery);
+    if (!isAuthenticated || parsed === null) {
       setState(IDLE);
       return;
     }
@@ -161,7 +166,9 @@ export function AnimeSearchPanel({
       hasMore: false,
       errorMessage: null,
     });
-    void requestAnimeSearch(debouncedQuery, 0)
+    // Truncated to the worker's length guard but still carrying the `#`, which is what tells it a tag
+    // search rather than a title one.
+    void requestAnimeSearch(debouncedQuery.trim().slice(0, ANIME_SEARCH_MAX_LENGTH), 0)
       .then((page) => {
         if (sequence.current !== current) return;
         setState({
@@ -189,20 +196,21 @@ export function AnimeSearchPanel({
     };
   }, [debouncedQuery, isAuthenticated, attempt, copy.searchFailed]);
 
-  // Appends the next page instead of replacing the list, so already-read results stay put.
   const loadMore = useCallback(() => {
     if (loadingMore || !state.hasMore || state.status !== 'ready') return;
     const current = sequence.current;
-    const from = state.nextOffset;
+    const query = state.query.trim().slice(0, ANIME_SEARCH_MAX_LENGTH);
     setLoadingMore(true);
-    void requestAnimeSearch(state.query, from)
+    void requestAnimeSearch(query, state.nextOffset)
       .then((page) => {
         if (sequence.current !== current) return;
         setState((previous) => ({
           ...previous,
           results: [...previous.results, ...page.results],
           nextOffset: page.nextOffset,
-          hasMore: page.hasMore && page.results.length > 0,
+          // `page.hasMore` alone: the tag filter runs after the provider fills a page, so an empty page can
+          // still have matches behind it.
+          hasMore: page.hasMore,
         }));
       })
       .catch(() => {

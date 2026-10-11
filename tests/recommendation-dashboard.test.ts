@@ -303,4 +303,45 @@ describe('dashboard recommendation snapshot', () => {
     expect(sectionItems.length).toBeGreaterThan(0);
     expect(new Set(sectionItems.map((item) => item.anime.id)).size).toBe(sectionItems.length);
   });
+
+  // The bands alone leave sections empty for a short library, because every candidate scores into
+  // the same band. This is the guarantee the user actually experiences, so it is asserted on the
+  // rendered sections rather than on engine internals.
+  it.each([
+    { size: 10, minimum: 5 },
+    { size: 100, minimum: 11 },
+  ])(
+    'shows at least $minimum titles in every section with $size entries',
+    async ({ size, minimum }) => {
+      const liked = ['Action', 'Adventure', 'Comedy', 'Drama', 'Fantasy'];
+      const watched = Array.from({ length: size }, (_, index) =>
+        entry(index + 1, index % 4 === 0 ? 'completed' : 'watching', 7 + (index % 4), [
+          liked[index % liked.length],
+        ]),
+      );
+      const pool = Array.from({ length: 250 }, (_, index) =>
+        anime(5_000 + index, [liked[index % liked.length]], 3_000 + index * 3_000),
+      );
+
+      const snapshot = await buildDashboardRecommendationSnapshot(
+        watched,
+        sync,
+        undefined,
+        [],
+        '2026-01-02T00:00:00.000Z',
+        async () => pool,
+      );
+
+      for (const section of snapshot.sections) {
+        expect(
+          section.recommendations.length,
+          `${section.id} at ${size} entries`,
+        ).toBeGreaterThanOrEqual(minimum);
+      }
+      const ids = snapshot.sections.flatMap((section) =>
+        section.recommendations.map((item) => item.anime.id),
+      );
+      expect(new Set(ids).size, 'no title may appear in two sections').toBe(ids.length);
+    },
+  );
 });

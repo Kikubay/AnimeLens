@@ -38,7 +38,6 @@
     "discover": "Découvrir",
     "profile": "Profil",
     "settings": "Réglages",
-    "openSettings": "Ouvrir les réglages",
     "updateAvailable": "Nouvelle version disponible · v{version}",
     "currentVersion": "Votre version : v{version}",
     "update": "Mettre à jour",

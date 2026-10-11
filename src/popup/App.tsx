@@ -6,7 +6,7 @@ import { submitRecommendationFeedback } from '../feedback/feedback-messages';
 import { requestAuthSnapshot, requestProviderList } from '../auth/auth-messages';
 import { requestSync, requestSyncSnapshot } from '../sync/sync-messages';
 import type { SyncSnapshot } from '../sync/sync-messages';
-import { Icon, IconButton, Modal, Button, Toast } from './components/ui';
+import { Icon, Modal, Button, Toast } from './components/ui';
 import { applyThemePreference } from '../settings/theme';
 import { DEFAULT_USER_PREFERENCES, type UserPreferences } from '../settings/settings-types';
 import { getCopy, normalizeLanguage, type AppCopy, type Language } from '../locales';
@@ -17,9 +17,17 @@ import { DetailPage, DashboardPage, LoadingPage, ProfilePage, SettingsPage } fro
 import type { AnimeCardData } from './components/anime';
 import type { PageId } from './pages';
 
-const navItems: readonly { id: PageId; icon: 'home' | 'sparkles' | 'user' }[] = [
-  { id: 'dashboard', icon: 'home' },
-  { id: 'profile', icon: 'user' },
+interface NavItem {
+  readonly id: PageId;
+  readonly icon: 'home' | 'sparkles' | 'user' | 'settings';
+  readonly label: (copy: AppCopy) => string;
+}
+
+// Each item carries its own label so a new destination can't silently inherit another's.
+const NAV_ITEMS: readonly NavItem[] = [
+  { id: 'dashboard', icon: 'home', label: (copy) => copy.discover },
+  { id: 'profile', icon: 'user', label: (copy) => copy.profile },
+  { id: 'settings', icon: 'settings', label: (copy) => copy.settings },
 ];
 
 function DislikeReasonModal({
@@ -334,17 +342,10 @@ export function App() {
           <span className="brand-name">{copy.brandWordmark}</span>
           <span className="brand-badge">{copy.betaBadge}</span>
         </button>
-        <div className="header-actions">
-          <span className={`connection-status${isOnline ? '' : ' is-offline'}`}>
-            <span />
-            {isOnline ? copy.live : copy.offline}
-          </span>
-          <IconButton
-            icon="settings"
-            label={copy.openSettings}
-            onClick={() => navigate('settings')}
-          />
-        </div>
+        <span className={`connection-status${isOnline ? '' : ' is-offline'}`}>
+          <span />
+          {isOnline ? copy.live : copy.offline}
+        </span>
       </header>
       {!loading && update?.status === 'available' && update.releaseUrl !== null && (
         <div className="update-banner" role="status">
@@ -426,7 +427,7 @@ export function App() {
       )}
       {!loading && page !== 'detail' && (
         <nav className="bottom-nav" aria-label={copy.discover}>
-          {navItems.map((item) => (
+          {NAV_ITEMS.map((item) => (
             <button
               className={page === item.id ? 'is-active' : ''}
               key={item.id}
@@ -434,17 +435,9 @@ export function App() {
               onClick={() => navigate(item.id)}
             >
               <Icon name={item.icon} size={16} />
-              <span>{item.id === 'dashboard' ? copy.discover : copy.profile}</span>
+              <span>{item.label(copy)}</span>
             </button>
           ))}
-          <button
-            className={page === 'settings' ? 'is-active' : ''}
-            type="button"
-            onClick={() => navigate('settings')}
-          >
-            <Icon name="settings" size={16} />
-            <span>{copy.settings}</span>
-          </button>
         </nav>
       )}
       {pendingDislike !== null && (

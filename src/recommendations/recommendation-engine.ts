@@ -30,18 +30,21 @@ const MAX_SCORE = 100;
 const DEFAULT_GENERATED_AT = '1970-01-01T00:00:00.000Z';
 const MIN_VALID_ID = 1;
 const MAX_REASON_COUNT = 3;
-const COLD_START_COUNT = 3;
-// The section still exposes every unseen title above 50, but the category itself has to stay a top-of-band signal: a rich profile compresses taste-aligned candidates into the 70-85 range, so a lower gate would route nearly everything here and starve Hidden Gems and Explore.
-const HIGHLY_COMPATIBLE_MIN_SCORE = 75;
-const STRONG_AFFINITY_THRESHOLD = 0.65;
-const HIDDEN_GEM_MIN_SCORE = 62;
+// Half-open bands, walked top-down, so a title qualifying for a higher tier never falls into a
+// lower one however well it matches that tier's qualitative condition.
+const HIGHLY_COMPATIBLE_MIN_SCORE = 70;
+const BECAUSE_YOU_LIKED_MIN_SCORE = 50;
+const HIDDEN_GEM_MIN_SCORE = 30;
+// "Demonstrably high community rating": the provider mean, on a 0-10 scale.
+const HIDDEN_GEM_MIN_RATING = 7;
 const HIDDEN_GEM_MAX_MEMBERS = 150_000;
 const HIDDEN_GEM_MIN_POPULARITY_RANK = 400;
 const BECAUSE_YOU_LIKED_MIN_RATING = 7;
 const BECAUSE_YOU_LIKED_MIN_SHARED_FEATURES = 2;
 // Below this many liked entries, any overlap is inherently specific — a tiny cohort can't saturate the feature space.
 const BECAUSE_YOU_LIKED_SMALL_COHORT = 3;
-// A moderate cohort still attributes on two shared features. Past it, two becomes the base rate (~90% of candidates overlap some liked entry by two), so a deeper match is required for the attribution to mean anything.
+// Past this cohort size two shared features is the base rate, so a deeper match is the only
+// attribution that still means anything.
 const BECAUSE_YOU_LIKED_SHALLOW_COHORT_LIMIT = 12;
 const BECAUSE_YOU_LIKED_MIN_DEEP_SHARED_FEATURES = 3;
 const BECAUSE_YOU_LIKED_MAX_SIMILAR_SHARE = 0.4;
@@ -214,7 +217,7 @@ export function generateRecommendations(
   const rejectedThemes = new Set(discovery.excludedThemes.map(normalizeName));
   const candidates = deduplicateCandidates(input.candidates.filter(isValidAnime))
     .filter((anime) => !excludedIds.has(anime.id))
-    .filter((anime) => discovery.includeHiddenGems || !isHiddenGem(anime))
+    .filter((anime) => discovery.includeHiddenGems || !isObscure(anime))
     .filter((anime) => discovery.showCompletedAnime || anime.status !== 'finished_airing')
     .filter((anime) => !anime.genres.some((genre) => rejectedGenres.has(normalizeName(genre.name))))
     .filter((anime) => !anime.themes.some((theme) => rejectedThemes.has(normalizeName(theme.name))))
@@ -235,37 +238,93 @@ export function generateRecommendations(
           : anime.contentRating === undefined || anime.contentRating === 'safe',
     )
     .map((anime) => {
+      // Kept free of bonuses so the categorisation bands are judged on the same number the card shows.
       const score = scoreRecommendation(anime, profile, {
         ...options,
         weights: effectiveWeights(options.weights, discovery),
       });
-      const preferredGenreMatch = anime.genres.some((genre) =>
-        discovery.preferredGenres.has(normalizeName(genre.name)),
-      );
-      const adjustedScore = {
-        ...score,
-        normalized: Math.min(
-          MAX_SCORE,
-          score.normalized +
-            (preferredGenreMatch ? 3 : 0) +
-            (discovery.preferredFormats.includes(anime.type) ? 2 : 0) +
-            (anime.season !== null && discovery.preferredSeasons.includes(anime.season) ? 2 : 0),
-        ),
-      };
       return {
         anime,
-        score: adjustedScore,
-        category: categorize(anime, adjustedScore, input.watched, profile),
+        score,
+        category: categorize(anime, score, input.watched),
       };
     })
     .filter((candidate) => candidate.score.normalized >= discovery.minimumCompatibilityScore)
     .sort(compareCandidates);
 
-  return diversify(
-    ensureDiscoveryVariety(candidates),
-    options.limit ?? 20,
-    options.generatedAt ?? DEFAULT_GENERATED_AT,
+  return ensureSectionMinimums(
+    diversify(
+      ensureDiscoveryVariety(candidates),
+      options.limit ?? 20,
+      options.generatedAt ?? DEFAULT_GENERATED_AT,
+    ),
+    input.watched.length,
   );
+}
+
+/**
+ * Mirrors the dashboard's section split, so a shortfall can be measured against what the user
+ * actually sees rather than against internal categories.
+ */
+const SECTION_MEMBERSHIP: readonly {
+  readonly key: string;
+  readonly categories: readonly RecommendationCategory[];
+}[] = [
+  { key: 'highly-compatible', categories: ['highly-compatible'] },
+  { key: 'because-you-liked', categories: ['because-you-liked'] },
+  { key: 'hidden-gem', categories: ['hidden-gem'] },
+  { key: 'explore', categories: ['explore', 'genre-discovery'] },
+];
+
+/**
+ * Scales with the analysed library: the floor is about avoiding an empty section on a short list,
+ * and a longer list has earned more shelf space in every one of them. Capped well under the
+ * per-section display cap so a pool smaller than four times the floor can still satisfy it.
+ */
+function minimumSectionTitles(analyzedCount: number): number {
+  return clamp(Math.round(5 + (analyzedCount - 10) * 0.08), 5, 16);
+}
+
+function sectionKeyOf(category: RecommendationCategory): string {
+  return (
+    SECTION_MEMBERSHIP.find((section) => section.categories.includes(category))?.key ?? 'explore'
+  );
+}
+
+/**
+ * A short library scores nearly every candidate into the same band, so the bands alone leave
+ * sections empty regardless of pool size. These minimums are a floor on presentation only: a moved
+ * title keeps its score and reasons, and is moved rather than copied, so no anime appears twice and
+ * the donor section is never pushed below its own floor.
+ */
+function ensureSectionMinimums(
+  recommendations: readonly Recommendation[],
+  analyzedCount: number,
+): Recommendation[] {
+  const minimum = minimumSectionTitles(analyzedCount);
+  const result = recommendations.map((item) => ({ ...item }));
+  const sectionCount = (key: string): number =>
+    result.filter((item) => sectionKeyOf(item.category) === key).length;
+
+  for (const target of SECTION_MEMBERSHIP) {
+    const targetCategory = target.categories[0];
+    if (targetCategory === undefined) continue;
+    while (sectionCount(target.key) < minimum) {
+      const donorKey = SECTION_MEMBERSHIP.filter(
+        (section) => section.key !== target.key && sectionCount(section.key) > minimum,
+      ).sort((left, right) => sectionCount(right.key) - sectionCount(left.key))[0]?.key;
+      if (donorKey === undefined) break;
+      const donorIndex = result
+        .map((item, index) => ({ item, index }))
+        .filter((entry) => sectionKeyOf(entry.item.category) === donorKey)
+        .sort(
+          (left, right) => right.item.compatibilityScore - left.item.compatibilityScore,
+        )[0]?.index;
+      if (donorIndex === undefined) break;
+      result[donorIndex] = { ...result[donorIndex], category: targetCategory };
+    }
+  }
+  return result;
 }
 
 function ensureDiscoveryVariety(candidates: readonly ScoredCandidate[]): ScoredCandidate[] {
@@ -274,24 +333,22 @@ function ensureDiscoveryVariety(candidates: readonly ScoredCandidate[]): ScoredC
   const result = [...candidates];
   const count = (category: RecommendationCategory) =>
     result.filter((candidate) => candidate.category === category).length;
-  const reclassifyLowest = (replacement: RecommendationCategory): void => {
-    const sourceCategories: readonly RecommendationCategory[] = [
-      'highly-compatible',
-      'because-you-liked',
-      'hidden-gem',
-      'genre-discovery',
-    ];
-    const source = sourceCategories.find((category) => count(category) > 1);
-    if (source === undefined) return;
-    const index = [...result].reverse().findIndex((candidate) => candidate.category === source);
+  // Genre-discovery is the only donor, since moving a title out of a banded section would break the
+  // rule that an 85% match stays Highly Compatible.
+  const reclassifyDiscovery = (replacement: RecommendationCategory): void => {
+    if (count('genre-discovery') < 2) return;
+    const index = [...result]
+      .reverse()
+      .findIndex((candidate) => candidate.category === 'genre-discovery');
     if (index < 0) return;
     const actualIndex = result.length - 1 - index;
     const candidate = result[actualIndex];
     if (candidate !== undefined) result[actualIndex] = { ...candidate, category: replacement };
   };
 
-  if (count('genre-discovery') === 0) reclassifyLowest('genre-discovery');
-  if (count('explore') === 0) reclassifyLowest('explore');
+  // Explore is the only section that can be topped up this way; a starved genre-discovery is left as
+  // the engine scored it rather than taking from a banded section.
+  if (count('explore') === 0) reclassifyDiscovery('explore');
   return result;
 }
 
@@ -509,8 +566,12 @@ function sumWeights(weights: RecommendationWeights): number {
   return Object.values(weights).reduce((total, value) => total + Math.max(0, value), 0);
 }
 
+// An unseen feature scores 0, not a neutral 0.5: scoring it as average fit gave every unknown
+// title 40+ free points, which floored the composite and emptied the lower bands for large
+// libraries. An empty profile still scores 0.5, because then there is no signal either way.
 function scoreNamedFeatures(values: readonly string[], preferences: FeaturePreferenceMap): number {
-  if (values.length === 0 || preferences.size === 0) return 0.5;
+  if (preferences.size === 0) return 0.5;
+  if (values.length === 0) return 0;
   const total = values.reduce(
     (sum, value) => sum + preferenceToScore(preferences.get(normalizeName(value))),
     0,
@@ -519,6 +580,7 @@ function scoreNamedFeatures(values: readonly string[], preferences: FeaturePrefe
 }
 
 function scorePreference<T>(value: T, preferences: ReadonlyMap<T, FeaturePreference>): number {
+  if (preferences.size === 0) return 0.5;
   return preferenceToScore(preferences.get(value));
 }
 
@@ -534,11 +596,11 @@ function scoreYear(
   preferences: ReadonlyMap<number, FeaturePreference>,
 ): number {
   if (year === null || preferences.size === 0) return 0.5;
-  let best = 0.5;
+  let best = 0;
   for (const [preferredYear, preference] of preferences) {
     const distance = Math.abs(year - preferredYear);
     const proximity = Math.max(0, 1 - distance / 10);
-    best = Math.max(best, 0.5 * proximity + 0.5 * preferenceToScore(preference));
+    best = Math.max(best, proximity * preferenceToScore(preference));
   }
   return best;
 }
@@ -556,7 +618,7 @@ function scorePopularity(popularityRank: number | null, memberCount: number | nu
 }
 
 function preferenceToScore(preference: FeaturePreference | undefined): number {
-  if (preference === undefined || preference.count === 0) return 0.5;
+  if (preference === undefined || preference.count === 0) return 0;
   const signed =
     (preference.positive - preference.negative) / Math.max(1, Math.sqrt(preference.count));
   return clamp(0.5 + signed / 2, 0, 1);
@@ -635,25 +697,31 @@ function categorize(
   anime: Anime,
   score: RecommendationScore,
   watched: readonly AnimeListEntry[],
-  profile: RecommendationProfile,
 ): RecommendationCategory {
-  // Provenance first: a candidate sharing enough features with a well-rated entry is recommended *because* of that entry, even when its global score would also clear the affinity band.
-  if (becauseYouLikedSource(anime, watched) !== undefined) return 'because-you-liked';
-  // Checked before the broad Highly Compatible band, since a taste-matching but low-popularity title is exactly what this section is for.
-  if (score.normalized >= HIDDEN_GEM_MIN_SCORE && isHiddenGem(anime)) return 'hidden-gem';
-  // Needs a real taste signal, not just a high composite score: real lists cluster around 60-77, and those stay available for the discovery sections.
+  const compatibility = score.normalized;
+  if (compatibility >= HIGHLY_COMPATIBLE_MIN_SCORE) return 'highly-compatible';
   if (
-    score.normalized >= HIGHLY_COMPATIBLE_MIN_SCORE &&
-    hasStrongAffinity(anime, profile) &&
-    profile.sourceAnimeCount >= COLD_START_COUNT
+    compatibility >= BECAUSE_YOU_LIKED_MIN_SCORE &&
+    compatibility < HIGHLY_COMPATIBLE_MIN_SCORE &&
+    becauseYouLikedSource(anime, watched) !== undefined
   ) {
-    return 'highly-compatible';
+    return 'because-you-liked';
   }
-  if (score.normalized >= 60 && anime.genres.length > 0) return 'genre-discovery';
+  if (
+    compatibility >= HIDDEN_GEM_MIN_SCORE &&
+    compatibility < BECAUSE_YOU_LIKED_MIN_SCORE &&
+    hasCommunityAcclaim(anime)
+  ) {
+    return 'hidden-gem';
+  }
+  if (compatibility >= 60 && anime.genres.length > 0) return 'genre-discovery';
   return 'explore';
 }
 
-// Only counts as provenance when the similarity is actually distinctive — on a large list everything overlaps *something*, and treating that as a match used to route the whole output here and leave Hidden Gems and Explore empty.
+// Provenance only has to clear a distinctiveness bar once the cohort is big enough for the bar to
+// mean anything. On a short list every candidate overlaps several liked entries simply because the
+// list spans few genres, so applying it there emptied this section for exactly the users with the
+// smallest libraries.
 function becauseYouLikedSource(
   anime: Anime,
   watched: readonly AnimeListEntry[],
@@ -671,28 +739,12 @@ function becauseYouLikedSource(
   }
   if (best === null) return undefined;
   if (likedCount <= BECAUSE_YOU_LIKED_SMALL_COHORT) return best.entry;
-  const requiredShared =
-    likedCount <= BECAUSE_YOU_LIKED_SHALLOW_COHORT_LIMIT
-      ? BECAUSE_YOU_LIKED_MIN_SHARED_FEATURES
-      : BECAUSE_YOU_LIKED_MIN_DEEP_SHARED_FEATURES;
-  if (best.shared < requiredShared) return undefined;
-  const similarShare = similarCount / likedCount;
-  return similarShare >= BECAUSE_YOU_LIKED_MAX_SIMILAR_SHARE ? undefined : best.entry;
-}
-
-function hasStrongAffinity(anime: Anime, profile: RecommendationProfile): boolean {
-  return (
-    anime.genres.some(
-      (genre) =>
-        preferenceToScore(profile.genres.get(normalizeName(genre.name))) >
-        STRONG_AFFINITY_THRESHOLD,
-    ) ||
-    anime.themes.some(
-      (theme) =>
-        preferenceToScore(profile.themes.get(normalizeName(theme.name))) >
-        STRONG_AFFINITY_THRESHOLD,
-    )
-  );
+  if (likedCount > BECAUSE_YOU_LIKED_SHALLOW_COHORT_LIMIT) {
+    if (best.shared < BECAUSE_YOU_LIKED_MIN_DEEP_SHARED_FEATURES) return undefined;
+    const similarShare = similarCount / likedCount;
+    if (similarShare >= BECAUSE_YOU_LIKED_MAX_SIMILAR_SHARE) return undefined;
+  }
+  return best.entry;
 }
 
 function sharedFeatureCount(left: Anime, right: Anime): number {
@@ -707,9 +759,17 @@ function sharedFeatureCount(left: Anime, right: Anime): number {
   return sharedGenres + sharedThemes;
 }
 
-function isHiddenGem(anime: Anime): boolean {
+// Obscurity no longer defines the category; this only backs the `includeHiddenGems` pool
+// preference, which is about how mainstream a title is.
+function isObscure(anime: Anime): boolean {
   if (anime.memberCount !== null) return anime.memberCount < HIDDEN_GEM_MAX_MEMBERS;
   return anime.popularity !== null && anime.popularity > HIDDEN_GEM_MIN_POPULARITY_RANK;
+}
+
+// Acclaim rather than obscurity: the section exists to surface quality the baseline underestimates,
+// and an obscurity-only test rated a 1.0 title with a few thousand members as a Hidden Gem.
+function hasCommunityAcclaim(anime: Anime): boolean {
+  return anime.score !== null && anime.score >= HIDDEN_GEM_MIN_RATING;
 }
 
 function deduplicateCandidates(candidates: readonly Anime[]): Anime[] {

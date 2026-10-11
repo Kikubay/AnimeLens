@@ -54,6 +54,17 @@ function emptyProfile(): RecommendationProfile {
   return buildUserPreferenceProfile([]);
 }
 
+// Mirrors the dashboard's sections, so section-level assertions test what the user sees.
+const SECTION_MEMBERS: readonly {
+  readonly key: string;
+  readonly categories: readonly string[];
+}[] = [
+  { key: 'highly-compatible', categories: ['highly-compatible'] },
+  { key: 'because-you-liked', categories: ['because-you-liked'] },
+  { key: 'hidden-gem', categories: ['hidden-gem'] },
+  { key: 'explore', categories: ['explore', 'genre-discovery'] },
+];
+
 describe('recommendation pipeline', () => {
   it.each([0, 1, 5, 10, 100, 1000])('handles %i watched anime deterministically', (count) => {
     const watched = Array.from({ length: count }, (_, index) =>
@@ -342,7 +353,7 @@ describe('recommendation pipeline', () => {
     expect(result).toEqual([]);
   });
 
-  it('routes candidates sharing features with a highly rated entry to because-you-liked', () => {
+  it('keeps a near-clone of a favourite in the top band rather than claiming provenance', () => {
     const watched = [
       entry(1, 10, {
         genres: [
@@ -354,7 +365,6 @@ describe('recommendation pipeline', () => {
       entry(2, 9, { genres: [{ id: 3, name: 'Comedy' }] }),
       entry(3, 8, { genres: [{ id: 4, name: 'Romance' }] }),
     ];
-    // Near-clone of the 10/10 favorite, so provenance has to beat the raw score band.
     const clone = anime(10, {
       genres: [
         { id: 1, name: 'Action' },
@@ -369,8 +379,10 @@ describe('recommendation pipeline', () => {
       { limit: 5, generatedAt: '2026-01-01T00:00:00.000Z' },
     );
 
+    // Traces back to a 10/10 favourite, but at 70%+ the top band wins over provenance.
     expect(result).toHaveLength(1);
-    expect(result[0]?.category).toBe('because-you-liked');
+    expect(result[0]?.compatibilityScore).toBeGreaterThanOrEqual(70);
+    expect(result[0]?.category).toBe('highly-compatible');
   });
 
   it('attributes a two-feature overlap on a moderate liked cohort, which used to fall through', () => {
@@ -382,6 +394,7 @@ describe('recommendation pipeline', () => {
         studios: [],
       }),
     );
+    // Tuned to land inside the 50-69 band; at 70 or above the top band claims it regardless of provenance.
     const sibling = anime(500, {
       genres: [
         { id: 3, name: 'Genre 3' },
@@ -391,8 +404,8 @@ describe('recommendation pipeline', () => {
         { id: 103, name: 'Theme 3' },
         { id: 120, name: 'Ensemble' },
       ],
-      score: 7,
-      memberCount: 400_000,
+      score: 6,
+      memberCount: 5_000,
     });
     const result = generateRecommendations(
       { watched, candidates: [sibling] },
@@ -400,6 +413,8 @@ describe('recommendation pipeline', () => {
     );
 
     expect(result).toHaveLength(1);
+    expect(result[0]?.compatibilityScore).toBeGreaterThanOrEqual(50);
+    expect(result[0]?.compatibilityScore).toBeLessThan(70);
     expect(result[0]?.category).toBe('because-you-liked');
   });
 
@@ -505,33 +520,165 @@ describe('recommendation pipeline', () => {
     expect(result[0]?.compatibilityScore).toBeGreaterThanOrEqual(80);
   });
 
-  it('categorizes low-popularity quality candidates as hidden-gem', () => {
+  it('categorizes a mid-band candidate with a strong community rating as hidden-gem', () => {
+    // The disliked overlap is what drops the composite into the 30-49 band.
     const watched = [
-      entry(1, 10, {
-        genres: [{ id: 1, name: 'Action' }],
-        themes: [],
-        studios: [],
-      }),
-      entry(2, 9, {
-        genres: [{ id: 2, name: 'Drama' }],
-        themes: [],
-        studios: [],
-      }),
+      entry(1, 10, { genres: [{ id: 1, name: 'Loved' }], themes: [], studios: [] }),
+      entry(2, 1, { genres: [{ id: 2, name: 'Disliked' }], themes: [], studios: [] }),
+      entry(3, 10, { genres: [{ id: 5, name: 'Loved2' }], themes: [], studios: [] }),
     ];
-    const gem = anime(30, {
-      genres: [{ id: 1, name: 'Action' }],
-      themes: [],
-      studios: [],
-      score: 8,
-      memberCount: 40_000,
-    });
-    const result = generateRecommendations(
-      { watched, candidates: [gem] },
+    const makeGem = (rating: number) =>
+      anime(30, {
+        genres: [{ id: 2, name: 'Disliked' }],
+        themes: [
+          { id: 22, name: 'DislikedT' },
+          { id: 23, name: 'Unseen' },
+        ],
+        studios: [],
+        score: rating,
+        memberCount: 100,
+      });
+
+    const acclaimed = generateRecommendations(
+      { watched, candidates: [makeGem(8)] },
       { limit: 5, generatedAt: '2026-01-01T00:00:00.000Z' },
     );
+    expect(acclaimed).toHaveLength(1);
+    expect(acclaimed[0]?.compatibilityScore).toBeGreaterThanOrEqual(30);
+    expect(acclaimed[0]?.compatibilityScore).toBeLessThan(50);
+    expect(acclaimed[0]?.category).toBe('hidden-gem');
 
-    expect(result).toHaveLength(1);
-    expect(result[0]?.category).toBe('hidden-gem');
+    // Only the rating differs, so this isolates the acclaim condition from obscurity.
+    const unacclaimed = generateRecommendations(
+      { watched, candidates: [makeGem(6.5)] },
+      { limit: 5, generatedAt: '2026-01-01T00:00:00.000Z' },
+    );
+    expect(unacclaimed[0]?.category).not.toBe('hidden-gem');
+  });
+
+  it('never puts one anime in more than one section', () => {
+    const watched = Array.from({ length: 12 }, (_, index) =>
+      entry(index + 1, index % 2 === 0 ? 9 : 4, {
+        genres: [{ id: index, name: `Genre ${index}` }],
+        themes: [{ id: 100 + index, name: `Theme ${index}` }],
+        studios: [],
+      }),
+    );
+    const candidates = Array.from({ length: 60 }, (_, index) =>
+      anime(2000 + index, {
+        genres: [{ id: index % 12, name: `Genre ${index % 12}` }],
+        themes: [{ id: 100 + (index % 12), name: `Theme ${index % 12}` }],
+        studios: [],
+        score: 5 + (index % 5),
+        memberCount: 100 + index * 4_000,
+      }),
+    );
+    const result = generateRecommendations(
+      { watched, candidates },
+      { limit: candidates.length, generatedAt: '2026-01-01T00:00:00.000Z' },
+    );
+
+    const ids = result.map((item) => item.anime.id);
+    expect(new Set(ids).size, 'an anime must not be duplicated across sections').toBe(ids.length);
+    for (const item of result) {
+      expect(SECTION_MEMBERS.map((section) => section.categories).flat()).toContain(item.category);
+    }
+  });
+
+  it.each([10, 100])('scales every section floor with the library size (%i entries)', (size) => {
+    const liked = ['Action', 'Adventure', 'Comedy', 'Drama'];
+    const watched = Array.from({ length: size }, (_, index) =>
+      entry(index + 1, 7 + (index % 3), {
+        genres: [{ id: index % 4, name: liked[index % 4] }],
+        themes: [{ id: 100 + (index % 3), name: `Theme ${index % 3}` }],
+        studios: [],
+        year: 2015 + (index % 8),
+      }),
+    );
+    const candidates = Array.from({ length: 250 }, (_, index) =>
+      anime(2000 + index, {
+        genres: [{ id: 900 + index, name: liked[index % 4] }],
+        themes: [{ id: 950 + index, name: `Theme ${index % 3}` }],
+        studios: [],
+        score: 5.5 + (index % 8) * 0.4,
+        memberCount: 3_000 + index * 3_000,
+        year: 1995 + (index % 25),
+      }),
+    );
+    const result = generateRecommendations(
+      { watched, candidates },
+      { limit: 100, generatedAt: '2026-01-01T00:00:00.000Z' },
+    );
+
+    // 5 titles at ten entries, growing past ten by a hundred, so the floor rewards a richer profile.
+    const minimum = size >= 100 ? 11 : 5;
+    for (const section of SECTION_MEMBERS) {
+      const titles = result.filter((item) => section.categories.includes(item.category));
+      expect(titles.length, `${section.key} at ${size} entries`).toBeGreaterThanOrEqual(minimum);
+    }
+    const ids = result.map((item) => item.anime.id);
+    expect(new Set(ids).size, 'filling a section must not duplicate an anime').toBe(ids.length);
+  });
+
+  // Regression: scoring unseen features as neutral 0.5 floored the composite near 51, which left the
+  // 30-49 band unreachable for exactly the users with the largest libraries.
+  it('lets a large library reach the lower compatibility bands', () => {
+    const genres = [
+      'Action',
+      'Adventure',
+      'Comedy',
+      'Drama',
+      'Fantasy',
+      'Sci-Fi',
+      'Horror',
+      'Romance',
+    ];
+    const themes = ['School', 'Isekai', 'Space', 'Mecha', 'Time Travel', 'Psychological'];
+    const watched = Array.from({ length: 159 }, (_, index) =>
+      entry(index + 1, index % 3 === 0 ? 9 : 6, {
+        genres: [{ id: index % 8, name: genres[index % 8] }],
+        themes: [{ id: 100 + (index % 6), name: themes[index % 6] }],
+        studios: [],
+        type: 'tv',
+        season: 'spring',
+        year: 2015 + (index % 9),
+      }),
+    );
+
+    // The case that used to bottom out near 51.
+    const stranger = scoreRecommendation(
+      anime(9000, {
+        genres: [{ id: 77, name: 'Totally Unrelated' }],
+        themes: [{ id: 78, name: 'Never Seen' }],
+        studios: [{ id: 79, name: 'Unknown Studio' }],
+        type: 'ona',
+        season: 'winter',
+        year: 1987,
+        score: 8,
+        memberCount: 20_000,
+      }),
+      buildUserPreferenceProfile(watched),
+    );
+    expect(stranger.normalized, 'a zero-overlap title must fall below the 50% band').toBeLessThan(
+      50,
+    );
+    expect(stranger.featureScores.genres, 'an unseen feature is not neutral').toBe(0);
+
+    // The top band must still be reachable, or the fix just flattened everything.
+    const favourite = scoreRecommendation(
+      anime(9001, {
+        genres: [{ id: 1, name: 'Action' }],
+        themes: [{ id: 100, name: 'School' }],
+        studios: [],
+        type: 'tv',
+        season: 'spring',
+        year: 2020,
+        score: 9,
+        memberCount: 300_000,
+      }),
+      buildUserPreferenceProfile(watched),
+    );
+    expect(favourite.normalized).toBeGreaterThanOrEqual(70);
   });
 
   it('scores a popularity rank so a higher rank means a more popular title', () => {
@@ -640,16 +787,26 @@ describe('recommendation pipeline', () => {
           }
         : features;
     };
-    const watched = Array.from({ length: 130 }, (_, index) => {
-      const roll = random();
-      const score =
-        roll < 0.55
-          ? 7 + Math.floor(random() * 4)
-          : roll < 0.9
-            ? 5 + Math.floor(random() * 3)
-            : 3 + Math.floor(random() * 2);
-      return entry(index + 1, score, tasteFeatures());
-    });
+    const watched = [
+      ...Array.from({ length: 130 }, (_, index) => {
+        const roll = random();
+        const score =
+          roll < 0.55
+            ? 7 + Math.floor(random() * 4)
+            : roll < 0.9
+              ? 5 + Math.floor(random() * 3)
+              : 3 + Math.floor(random() * 2);
+        return entry(index + 1, score, tasteFeatures());
+      }),
+      // Rated badly, to give the hidden-gem candidates below a negative signal.
+      ...Array.from({ length: 8 }, (_, index) =>
+        entry(500 + index, 2, {
+          genres: [{ id: 700 + index, name: `Dud ${index}` }],
+          themes: [{ id: 800 + index, name: `DudTheme ${index}` }],
+          studios: [],
+        }),
+      ),
+    ];
     // Mirrors the pool the background worker builds: suggestions plus a deep-ranking page.
     const candidates = [
       ...Array.from({ length: 40 }, (_, index) =>
@@ -664,6 +821,21 @@ describe('recommendation pipeline', () => {
           ...(index % 2 === 1 ? randomFeatures() : tasteFeatures()),
           memberCount: index % 2 === 1 ? 20_000 + index * 3_000 : 400_000 + index * 10_000,
           score: 6 + random() * 3,
+        }),
+      ),
+      // Off-taste but well reviewed, which is what Hidden Gems is for; the "Dud" overlap with the
+      // low-rated entries above is what pushes them into the 30-49 band.
+      ...Array.from({ length: 20 }, (_, index) =>
+        anime(4000 + index, {
+          genres: [
+            { id: 700 + index, name: `Dud ${index}` },
+            { id: 900 + index, name: `Offtaste ${index}` },
+          ],
+          themes: [{ id: 800 + index, name: `DudTheme ${index}` }],
+          studios: [],
+          memberCount: 200 + index * 900,
+          year: 1985 + (index % 10),
+          score: 7.2 + random() * 0.8,
         }),
       ),
     ];

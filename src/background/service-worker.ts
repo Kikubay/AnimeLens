@@ -813,12 +813,25 @@ async function fetchCandidatePool(): Promise<readonly Anime[]> {
     };
 
     const config = provider.candidatePoolConfig ?? DEFAULT_CANDIDATE_POOL_CONFIG;
-    const [suggested, ranked] = await Promise.all([
+    // A third, much deeper slice: trending and the near-top ranking are both taste-aligned, so
+    // without this the pool holds nothing for Hidden Gems, whose whole premise is quality the
+    // baseline underestimates. Fetched in parallel, so it adds latency nothing.
+    const [suggested, ranked, deepRanked] = await Promise.all([
       degrade<Anime>(() => provider.getAnimeSuggestions?.(config.suggestionLimit)),
       degrade<Anime>(() => provider.getAnimeRanking?.(config.rankingLimit, config.rankingOffset)),
+      degrade<Anime>(() =>
+        provider.getAnimeRanking?.(
+          config.rankingLimit,
+          config.rankingOffset + config.rankingLimit * 4,
+        ),
+      ),
     ]);
-    const seen = new Set(suggested.map((anime) => anime.id));
-    return [...suggested, ...ranked.filter((anime) => !seen.has(anime.id))];
+    const seen = new Set([...suggested, ...ranked].map((anime) => anime.id));
+    return [
+      ...suggested,
+      ...ranked.filter((anime) => !seen.has(anime.id)),
+      ...deepRanked.filter((anime) => !seen.has(anime.id)),
+    ];
   });
   return pool;
 }

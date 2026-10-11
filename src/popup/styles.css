@@ -162,11 +162,6 @@ button:focus-visible {
   object-fit: cover;
   box-shadow: 0 0 16px rgb(152 124 244 / 15%);
 }
-.header-actions {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
 .connection-status {
   display: inline-flex;
   align-items: center;
@@ -882,10 +877,6 @@ button:focus-visible {
 .icon-button-sm {
   width: 28px;
   height: 28px;
-}
-.icon-button-md {
-  width: 34px;
-  height: 34px;
 }
 .icon-button-lg {
   width: 40px;

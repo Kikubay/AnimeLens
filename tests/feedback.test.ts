@@ -139,7 +139,10 @@ describe('feedback-aware recommendations', () => {
 
     expect(profile.genres.get('romance')?.negative).toBeCloseTo(0.25);
     expect(profile.themes.get('adventure')).toBeUndefined();
-    expect(romance.normalized).toBeLessThan(fantasy.normalized);
+    // Whole-title ranking is not comparable here: an unseen feature scores 0 rather than a neutral
+    // 0.5, so the Fantasy title lands below Romance on every dimension the dislike did not touch.
+    expect(romance.featureScores.genres).toBeLessThan(0.5);
+    expect(romance.featureScores.themes).toBe(fantasy.featureScores.themes);
 
     const result = generateRecommendations({
       watched: [],

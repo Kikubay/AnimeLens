@@ -24,7 +24,6 @@ export interface AppCopy {
   readonly discover: string;
   readonly profile: string;
   readonly settings: string;
-  readonly openSettings: string;
   readonly updateAvailable: (version: string) => string;
   readonly currentVersion: (version: string) => string;
   readonly update: string;
