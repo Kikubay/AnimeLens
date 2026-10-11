@@ -188,10 +188,57 @@ describe('MalAnimeProvider', () => {
     });
   });
 
+  it('passes the requested limit and offset to the search endpoint', async () => {
+    const client = new StubHttpClient([
+      {
+        data: [{ node: animeDto(1, 'A') }, { node: animeDto(2, 'B') }],
+        paging: { next: 'https://mal.test/v2/anime?offset=4' },
+      },
+    ]);
+    const provider = new MalAnimeProvider(client, 'test-token', 'https://mal.test/v2');
+
+    const page = await provider.searchAnime('title', { limit: 2, offset: 2 });
+
+    const url = new URL(client.calls[0]?.url ?? '');
+    expect(url.searchParams.get('q')).toBe('title');
+    expect(url.searchParams.get('limit')).toBe('2');
+    expect(url.searchParams.get('offset')).toBe('2');
+    expect(page.results).toHaveLength(2);
+    expect(page.hasMore).toBe(true);
+  });
+
+  it('drops a theme-less match so #isekai never answers with a title hit', async () => {
+    const client = new StubHttpClient([
+      {
+        data: [
+          { node: { ...animeDto(1, 'Isekai'), genres: [{ id: 62, name: 'Isekai' }] } },
+          { node: animeDto(2, 'Isekai no Ouvert') },
+        ],
+      },
+    ]);
+    const provider = new MalAnimeProvider(client, 'test-token', 'https://mal.test/v2');
+
+    const page = await provider.searchAnime('isekai', { limit: 24, offset: 0, tag: 'isekai' });
+
+    expect(page.results.map((anime) => anime.id)).toEqual([1]);
+    expect(page.hasMore).toBe(false);
+  });
+
+  it('falls back to a full page when MAL omits the paging envelope', async () => {
+    const client = new StubHttpClient([
+      { data: [{ node: animeDto(1, 'A') }, { node: animeDto(2, 'B') }] },
+    ]);
+    const provider = new MalAnimeProvider(client, 'test-token', 'https://mal.test/v2');
+
+    const page = await provider.searchAnime('title', { limit: 2, offset: 0 });
+
+    expect(page.hasMore).toBe(true);
+  });
+
   it('ignores blank searches and rejects malformed search payloads', async () => {
     const blankClient = new StubHttpClient([]);
     const provider = new MalAnimeProvider(blankClient, 'test-token', 'https://mal.test/v2');
-    await expect(provider.searchAnime('   ')).resolves.toEqual([]);
+    await expect(provider.searchAnime('   ')).resolves.toEqual({ results: [], hasMore: false });
     expect(blankClient.calls).toHaveLength(0);
 
     const invalidClient = new StubHttpClient([{ data: {} }]);

@@ -7,11 +7,16 @@ import { parseRetryAfterSeconds } from '../../retry-after';
 import type {
   AnimeListFetchOptions,
   AnimeProvider,
+  AnimeSearchPage,
+  AnimeSearchRequest,
   CandidatePoolConfig,
 } from '../../anime-provider';
+import { EMPTY_SEARCH_PAGE } from '../../anime-provider';
+import { animeMatchesTag } from '../../anime-search-query';
 import {
   ANILIST_GRAPHQL_URL,
   ANILIST_PAGE_SIZE,
+  ANILIST_SEARCH_PAGE_SIZE,
   ANIME_DETAIL_QUERY,
   RANKING_ANIME_QUERY,
   SAVE_LIST_ENTRY_MUTATION,
@@ -28,6 +33,7 @@ import {
   normalizeAnime,
   normalizeAnimeListEntry,
   normalizeUserProfile,
+  readAniListHasNextPage,
   toMediaListStatus,
 } from './anilist-normalizer';
 
@@ -185,16 +191,25 @@ export class AniListProvider implements AnimeProvider {
     return (await this.getAnime(id)).streamingSites ?? [];
   }
 
-  async searchAnime(query: string): Promise<Anime[]> {
+  async searchAnime(query: string, request: AnimeSearchRequest = {}): Promise<AnimeSearchPage> {
     const normalizedQuery = query.trim();
-    if (normalizedQuery.length === 0) return [];
+    if (normalizedQuery.length === 0) return EMPTY_SEARCH_PAGE;
+    const perPage = Math.max(
+      1,
+      Math.min(Math.floor(request.limit ?? ANILIST_SEARCH_PAGE_SIZE), ANILIST_SEARCH_PAGE_SIZE),
+    );
+    // `offset` arrives as an item offset from the caller, but `Page` is addressed by number.
+    const page = Math.floor(Math.max(0, Math.floor(request.offset ?? 0)) / perPage) + 1;
+    const tag = request.tag ?? null;
     const data = await this.graphql.request<unknown>(
       SEARCH_ANIME_QUERY,
-      { search: normalizedQuery },
+      { search: normalizedQuery, page, perPage },
       this.accessToken,
     );
     if (!isAniListPageResponse(data)) throw invalidResponse('anime search');
-    return data.Page.media.filter(isAniListMedia).map(normalizeAnime);
+    const matches = data.Page.media.filter(isAniListMedia).map(normalizeAnime);
+    const results = tag === null ? matches : matches.filter((anime) => animeMatchesTag(anime, tag));
+    return { results, hasMore: readAniListHasNextPage(data) };
   }
 
   async addToList(id: number, status: AnimeStatus = 'plan_to_watch'): Promise<void> {

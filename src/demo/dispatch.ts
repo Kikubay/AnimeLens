@@ -1,4 +1,5 @@
 import type { AnimeProviderId } from '../domain/anime';
+import { ANIME_SEARCH_PAGE_SIZE } from '../api/anime-search-messages';
 import { normalizeUserPreferences } from '../settings/settings-types';
 import type { UserPreferences } from '../settings/settings-types';
 import { normalizeLanguage } from '../locales';
@@ -89,9 +90,12 @@ export async function dispatchDemoMessage(message: unknown): Promise<unknown> {
     case 'feedback.list':
       return ok({ feedback: demoHost.state().feedback });
 
-    case 'anime.search':
+    case 'anime.search': {
       if (typeof request.query !== 'string') return fail('Invalid search.');
-      return ok({ results: demoHost.search(request.query) });
+      const offset = typeof request.offset === 'number' ? request.offset : 0;
+      const page = demoHost.search(request.query, offset, ANIME_SEARCH_PAGE_SIZE);
+      return ok({ ...page, nextOffset: offset + ANIME_SEARCH_PAGE_SIZE });
+    }
 
     case 'anime.get_streaming_links': {
       const record = demoHost.recordFor(Number(request.animeId));

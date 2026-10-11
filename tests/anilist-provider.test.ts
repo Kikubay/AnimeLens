@@ -116,6 +116,10 @@ function isTrendingQuery(query: string): boolean {
   return query.includes('TRENDING_DESC');
 }
 
+function isSearchQuery(query: string): boolean {
+  return query.includes('SEARCH_MATCH');
+}
+
 describe('AniListProvider', () => {
   it('fetches and normalizes the current user', async () => {
     const http = new RecordingHttpClient(() => VIEWER_PAYLOAD);
@@ -212,6 +216,50 @@ describe('AniListProvider', () => {
     expect(suggestions).toHaveLength(1);
     expect(http.requests[0]?.query).toContain('TRENDING_DESC');
     expect(http.requests[0]?.variables).toEqual({ perPage: 30 });
+  });
+
+  it('converts an item offset into a page number and reports whether more remain', async () => {
+    const http = new RecordingHttpClient((query) =>
+      isSearchQuery(query)
+        ? { data: { Page: { media: [MEDIA], pageInfo: { hasNextPage: true, currentPage: 2 } } } }
+        : VIEWER_PAYLOAD,
+    );
+    const provider = new AniListProvider(http, 'token');
+    const page = await provider.searchAnime('jujutsu', { limit: 24, offset: 24 });
+
+    expect(http.requests[0]?.variables).toEqual({ search: 'jujutsu', page: 2, perPage: 24 });
+    expect(page.results).toHaveLength(1);
+    expect(page.hasMore).toBe(true);
+  });
+
+  it('keeps only records that really carry the searched tag', async () => {
+    const untagged = { ...MEDIA, genres: ['Action'], tags: [] };
+    const http = new RecordingHttpClient((query) =>
+      isSearchQuery(query)
+        ? {
+            data: {
+              Page: {
+                media: [MEDIA, untagged],
+                pageInfo: { hasNextPage: false, currentPage: 1 },
+              },
+            },
+          }
+        : VIEWER_PAYLOAD,
+    );
+    const provider = new AniListProvider(http, 'token');
+    const page = await provider.searchAnime('school', { limit: 24, offset: 0, tag: 'School' });
+
+    expect(page.results.map((anime) => anime.id)).toEqual([MEDIA.id]);
+    expect(page.hasMore).toBe(false);
+  });
+
+  it('treats a missing pageInfo as the last page rather than a broken payload', async () => {
+    const http = new RecordingHttpClient((query) =>
+      isSearchQuery(query) ? { data: { Page: { media: [MEDIA] } } } : VIEWER_PAYLOAD,
+    );
+    const provider = new AniListProvider(http, 'token');
+
+    await expect(provider.searchAnime('jujutsu')).resolves.toMatchObject({ hasMore: false });
   });
 
   it('samples the ranking where AniList still has scored titles, not MAL-shaped offsets', () => {

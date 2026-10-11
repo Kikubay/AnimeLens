@@ -1,9 +1,18 @@
 import { describe, expect, it } from 'vitest';
+import type { Anime } from '../src/domain/anime';
 import {
   ANIME_SEARCH_MAX_LENGTH,
   ANIME_SEARCH_MIN_LENGTH,
   isAnimeSearchMessage,
 } from '../src/api/anime-search-messages';
+import {
+  animeMatchesTag,
+  matchesAnimeSearchQuery,
+  normalizeAnimeTag,
+  parseAnimeSearchQuery,
+} from '../src/api/anime-search-query';
+import { defaultMockAnime } from '../src/api/mocks/mock-fixtures';
+import { MockAnimeProvider } from '../src/api/providers/mock/mock-provider';
 import { isSearchActive, SEARCH_DEBOUNCE_MS } from '../src/popup/search-state';
 
 describe('anime search message', () => {
@@ -11,6 +20,8 @@ describe('anime search message', () => {
     expect(isAnimeSearchMessage({ type: 'anime.search', query: 'naruto' })).toBe(true);
     expect(isAnimeSearchMessage({ type: 'anime.search', query: '  cowboy  ' })).toBe(true);
     expect(isAnimeSearchMessage({ type: 'anime.search', query: 'ab' })).toBe(true);
+    expect(isAnimeSearchMessage({ type: 'anime.search', query: '#isekai' })).toBe(true);
+    expect(isAnimeSearchMessage({ type: 'anime.search', query: 'naruto', offset: 24 })).toBe(true);
     expect(
       isAnimeSearchMessage({ type: 'anime.search', query: 'x'.repeat(ANIME_SEARCH_MAX_LENGTH) }),
     ).toBe(true);
@@ -24,6 +35,9 @@ describe('anime search message', () => {
       { type: 'anime.search', query: 'x'.repeat(ANIME_SEARCH_MAX_LENGTH + 1) },
       { type: 'anime.search', query: 12 },
       { type: 'anime.search', query: null },
+      { type: 'anime.search', query: 'naruto', offset: -1 },
+      { type: 'anime.search', query: 'naruto', offset: 1.5 },
+      { type: 'anime.search', query: 'naruto', offset: '24' },
       { type: 'anime.search' },
       { type: 'anime.get_streaming_links', animeId: 16498 },
       { type: 'mal.list.add', animeId: 1 },
@@ -32,6 +46,60 @@ describe('anime search message', () => {
       'anime.search',
     ]) {
       expect(isAnimeSearchMessage(invalid), JSON.stringify(invalid ?? null)).toBe(false);
+    }
+  });
+});
+
+describe('search query parsing', () => {
+  it('reads a leading # as a tag search rather than a title search', () => {
+    expect(parseAnimeSearchQuery('#isekai')).toEqual({ kind: 'tag', value: 'isekai' });
+    expect(parseAnimeSearchQuery('  #Slice of Life  ')).toEqual({
+      kind: 'tag',
+      value: 'Slice of Life',
+    });
+    expect(parseAnimeSearchQuery('#')).toBeNull();
+    expect(parseAnimeSearchQuery('#a')).toBeNull();
+  });
+
+  it('treats anything without the # prefix as a title search', () => {
+    expect(parseAnimeSearchQuery('cowboy bebop')).toEqual({
+      kind: 'title',
+      value: 'cowboy bebop',
+    });
+    expect(parseAnimeSearchQuery('a')).toBeNull();
+    expect(parseAnimeSearchQuery('  ')).toBeNull();
+  });
+
+  it('folds punctuation and spacing together so one tag name has one spelling', () => {
+    expect(normalizeAnimeTag('Slice of Life')).toBe('sliceoflife');
+    expect(normalizeAnimeTag('slice-of-life')).toBe('sliceoflife');
+    expect(normalizeAnimeTag('SLICE_OF_LIFE')).toBe('sliceoflife');
+  });
+});
+
+describe('tag matching', () => {
+  const anime = defaultMockAnime[0];
+
+  it('matches a theme or genre regardless of how the tag was typed', () => {
+    expect(anime).toBeDefined();
+    const names = [...anime.genres, ...anime.themes].map((entry) => entry.name);
+    for (const name of names) {
+      expect(animeMatchesTag(anime, name), name).toBe(true);
+      expect(animeMatchesTag(anime, name.toLowerCase()), name).toBe(true);
+      expect(animeMatchesTag(anime, name.replace(/ /g, '-')), name).toBe(true);
+    }
+    expect(animeMatchesTag(anime, 'not-a-real-tag')).toBe(false);
+    expect(animeMatchesTag(anime, '   ')).toBe(false);
+  });
+
+  it('keeps a tag search off titles that merely mention the word', () => {
+    const tagged = defaultMockAnime.filter((item) => animeMatchesTag(item, 'fantasy'));
+    expect(tagged.length).toBeGreaterThan(0);
+    for (const item of tagged) {
+      expect(
+        matchesAnimeSearchQuery(item, { kind: 'tag', value: 'fantasy' }),
+        item.title.default,
+      ).toBe(true);
     }
   });
 });
@@ -45,8 +113,76 @@ describe('search activation', () => {
     expect(isSearchActive('  cowboy  ')).toBe(true);
   });
 
+  it('counts a tag by the text after the #, so a bare # stays inactive', () => {
+    expect(isSearchActive('#')).toBe(false);
+    expect(isSearchActive('#a')).toBe(false);
+    expect(isSearchActive('#is')).toBe(true);
+    expect(isSearchActive('  #isekai  ')).toBe(true);
+  });
+
   it('debounces long enough to survive a burst of keystrokes', () => {
     expect(SEARCH_DEBOUNCE_MS).toBeGreaterThanOrEqual(200);
     expect(ANIME_SEARCH_MIN_LENGTH).toBe(2);
+  });
+});
+
+describe('paged search', () => {
+  const catalogue: readonly Anime[] = [
+    ...defaultMockAnime,
+    ...[1, 2, 3].map((index) => ({
+      ...defaultMockAnime[0],
+      id: 1000 + index,
+      title: {
+        default: `Isekai Tale ${index}`,
+        english: null,
+        japanese: null,
+        synonyms: [],
+      },
+      genres: [{ id: 2, name: 'Adventure' }],
+      themes: [{ id: 62, name: 'Isekai' }],
+    })),
+  ];
+  const provider = new MockAnimeProvider(catalogue);
+  const isekai = catalogue.filter((item) => animeMatchesTag(item, 'isekai'));
+
+  it('walks a tag result set one page at a time and reports when it is exhausted', async () => {
+    expect(isekai.length).toBeGreaterThan(1);
+
+    const first = await provider.searchAnime('isekai', { tag: 'isekai', limit: 2, offset: 0 });
+    expect(first.results).toHaveLength(2);
+    expect(first.hasMore).toBe(true);
+
+    const second = await provider.searchAnime('isekai', { tag: 'isekai', limit: 2, offset: 2 });
+    expect(second.results).toHaveLength(isekai.length - 2);
+    expect(second.hasMore).toBe(false);
+
+    const seen = [...first.results, ...second.results].map((item) => item.id);
+    expect(new Set(seen).size).toBe(isekai.length);
+  });
+
+  it('never reports more pages once the last row has been handed out', async () => {
+    const page = await provider.searchAnime('isekai', { tag: 'isekai', limit: 50, offset: 0 });
+
+    expect(page.results).toHaveLength(isekai.length);
+    expect(page.hasMore).toBe(false);
+  });
+
+  it('answers a title search with titles only, tag or no tag', async () => {
+    const page = await provider.searchAnime('frieren', { limit: 24, offset: 0 });
+
+    expect(page.results.length).toBeGreaterThan(0);
+    for (const item of page.results) {
+      expect(item.title.default.toLowerCase()).toContain('frieren');
+    }
+  });
+
+  it('returns an empty terminal page for an unknown tag', async () => {
+    const page = await provider.searchAnime('nonexistenttag', {
+      tag: 'nonexistenttag',
+      limit: 24,
+      offset: 0,
+    });
+
+    expect(page).toEqual({ results: [], hasMore: false });
   });
 });

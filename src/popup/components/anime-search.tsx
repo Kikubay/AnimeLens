@@ -1,5 +1,6 @@
-import { useEffect, useRef, useState } from 'react';
-import { ANIME_SEARCH_MIN_LENGTH, requestAnimeSearch } from '../../api/anime-search-messages';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { requestAnimeSearch } from '../../api/anime-search-messages';
+import { parseAnimeSearchQuery } from '../../api/anime-search-query';
 import type { Anime } from '../../domain/anime';
 import type { AppCopy } from '../../locales';
 import { SEARCH_DEBOUNCE_MS } from '../search-state';
@@ -14,10 +15,19 @@ interface SearchState {
   readonly status: SearchStatus;
   readonly results: readonly Anime[];
   readonly query: string;
+  readonly nextOffset: number;
+  readonly hasMore: boolean;
   readonly errorMessage: string | null;
 }
 
-const IDLE: SearchState = { status: 'idle', results: [], query: '', errorMessage: null };
+const IDLE: SearchState = {
+  status: 'idle',
+  results: [],
+  query: '',
+  nextOffset: 0,
+  hasMore: false,
+  errorMessage: null,
+};
 
 export function AnimeSearchField({
   query,
@@ -128,6 +138,7 @@ export function AnimeSearchPanel({
   const [debouncedQuery, setDebouncedQuery] = useState(normalized);
   const [state, setState] = useState<SearchState>(IDLE);
   const [attempt, setAttempt] = useState(0);
+  const [loadingMore, setLoadingMore] = useState(false);
   const sequence = useRef(0);
 
   useEffect(() => {
@@ -138,15 +149,29 @@ export function AnimeSearchPanel({
   useEffect(() => {
     const current = sequence.current + 1;
     sequence.current = current;
-    if (!isAuthenticated || debouncedQuery.length < ANIME_SEARCH_MIN_LENGTH) {
+    if (!isAuthenticated || parseAnimeSearchQuery(debouncedQuery) === null) {
       setState(IDLE);
       return;
     }
-    setState({ status: 'loading', results: [], query: debouncedQuery, errorMessage: null });
-    void requestAnimeSearch(debouncedQuery)
-      .then((results) => {
+    setState({
+      status: 'loading',
+      results: [],
+      query: debouncedQuery,
+      nextOffset: 0,
+      hasMore: false,
+      errorMessage: null,
+    });
+    void requestAnimeSearch(debouncedQuery, 0)
+      .then((page) => {
         if (sequence.current !== current) return;
-        setState({ status: 'ready', results, query: debouncedQuery, errorMessage: null });
+        setState({
+          status: 'ready',
+          results: page.results,
+          query: debouncedQuery,
+          nextOffset: page.nextOffset,
+          hasMore: page.hasMore,
+          errorMessage: null,
+        });
       })
       .catch((error: unknown) => {
         if (sequence.current !== current) return;
@@ -154,6 +179,8 @@ export function AnimeSearchPanel({
           status: 'error',
           results: [],
           query: debouncedQuery,
+          nextOffset: 0,
+          hasMore: false,
           errorMessage: error instanceof Error ? error.message : copy.searchFailed,
         });
       });
@@ -162,19 +189,57 @@ export function AnimeSearchPanel({
     };
   }, [debouncedQuery, isAuthenticated, attempt, copy.searchFailed]);
 
+  // Appends the next page instead of replacing the list, so already-read results stay put.
+  const loadMore = useCallback(() => {
+    if (loadingMore || !state.hasMore || state.status !== 'ready') return;
+    const current = sequence.current;
+    const from = state.nextOffset;
+    setLoadingMore(true);
+    void requestAnimeSearch(state.query, from)
+      .then((page) => {
+        if (sequence.current !== current) return;
+        setState((previous) => ({
+          ...previous,
+          results: [...previous.results, ...page.results],
+          nextOffset: page.nextOffset,
+          hasMore: page.hasMore && page.results.length > 0,
+        }));
+      })
+      .catch(() => {
+        if (sequence.current !== current) return;
+        setState((previous) => ({ ...previous, hasMore: false }));
+      })
+      .finally(() => {
+        if (sequence.current === current) setLoadingMore(false);
+      });
+  }, [loadingMore, state.hasMore, state.status, state.nextOffset, state.query]);
+
   const isLoading = state.status === 'loading' || debouncedQuery !== normalized;
+
+  const parsed = parseAnimeSearchQuery(state.query === '' ? normalized : state.query);
+  const headingTitle =
+    parsed?.kind === 'tag' ? copy.searchTagResultsTitle(parsed.value) : copy.searchResultsTitle;
 
   const heading = (
     <div className="section-heading">
       <div>
         <p className="eyebrow">{copy.searchEyebrow}</p>
-        <h2 id="anime-search-title">{copy.searchResultsTitle}</h2>
+        <h2 id="anime-search-title">{headingTitle}</h2>
       </div>
       {state.status === 'ready' && (
         <span className="section-count">{copy.titles(state.results.length)}</span>
       )}
     </div>
   );
+
+  const loadMoreButton =
+    state.hasMore && state.status === 'ready' ? (
+      <div className="anime-search-more">
+        <Button variant="secondary" size="sm" onClick={loadMore} disabled={loadingMore}>
+          {loadingMore ? copy.searchLoadingMore : copy.searchLoadMore}
+        </Button>
+      </div>
+    ) : null;
 
   return (
     <section className="anime-search-panel" aria-labelledby="anime-search-title">
@@ -209,22 +274,33 @@ export function AnimeSearchPanel({
             </Button>
           }
         />
+      ) : state.results.length === 0 && state.hasMore ? (
+        <div className="anime-search-more-block">
+          <EmptyState
+            title={copy.searchResultsTitle}
+            message={copy.searchNoResults(state.query === '' ? normalized : state.query)}
+          />
+          {loadMoreButton}
+        </div>
       ) : state.results.length === 0 ? (
         <EmptyState
           title={copy.searchResultsTitle}
           message={copy.searchNoResults(state.query === '' ? normalized : state.query)}
         />
       ) : (
-        <ul className="anime-search-results">
-          {state.results.map((anime) => (
-            <SearchResultRow
-              key={`${anime.provider ?? providerName}-${anime.id}`}
-              anime={anime}
-              onSelect={onSelect}
-              copy={copy}
-            />
-          ))}
-        </ul>
+        <>
+          <ul className="anime-search-results">
+            {state.results.map((anime) => (
+              <SearchResultRow
+                key={`${anime.provider ?? providerName}-${anime.id}`}
+                anime={anime}
+                onSelect={onSelect}
+                copy={copy}
+              />
+            ))}
+          </ul>
+          {loadMoreButton}
+        </>
       )}
     </section>
   );

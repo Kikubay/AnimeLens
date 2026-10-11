@@ -1,4 +1,5 @@
 import type { ProviderId } from '../auth/auth-types';
+import { EMPTY_SEARCH_PAGE } from '../api/anime-provider';
 import type { ProviderRegistryService } from '../providers/provider-registry';
 import { ChromeAnimeCacheStore } from './sync-cache';
 import { AnimeListSyncService } from './sync-service';
@@ -39,7 +40,7 @@ export class AuthenticatedAnimeListSyncService {
         getAnime: async () => {
           throw new Error('Cache-only operation.');
         },
-        searchAnime: async () => [],
+        searchAnime: async () => EMPTY_SEARCH_PAGE,
         addToList: async () => undefined,
       },
       await this.cacheStoreFor(providerId),

@@ -486,6 +486,15 @@ button:focus-visible {
   height: 60px;
   border-radius: 10px;
 }
+.anime-search-more {
+  display: flex;
+  justify-content: center;
+  margin-top: 10px;
+}
+.anime-search-more-block {
+  display: grid;
+  gap: 10px;
+}
 
 .card {
   border: 1px solid var(--line);

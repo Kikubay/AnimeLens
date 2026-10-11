@@ -113,10 +113,13 @@ query ($id: Int) {
 }
 `;
 
+// `pageInfo` is what decides whether the panel keeps its "Load more" button; without it a paged
+// search can't tell an exhausted catalogue from a full page.
 export const SEARCH_ANIME_QUERY = `
 ${ANIME_MEDIA_FRAGMENT}
-query ($search: String) {
-  Page(perPage: ${ANILIST_SEARCH_PAGE_SIZE}) {
+query ($search: String, $page: Int, $perPage: Int) {
+  Page(page: $page, perPage: $perPage) {
+    pageInfo { hasNextPage currentPage }
     media(search: $search, type: ANIME, sort: SEARCH_MATCH) { ...AnimeMedia }
   }
 }

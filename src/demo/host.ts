@@ -12,6 +12,8 @@ import { buildUserPreferenceProfile } from '../recommendations/recommendation-en
 import { profileSummaryFromModel, type ProfileSnapshot } from '../profile/profile-types';
 import type { SyncMetadata } from '../domain/sync';
 import type { UserProfile } from '../domain/user-profile';
+import type { AnimeSearchPage } from '../api/anime-provider';
+import { matchesAnimeSearchQuery, parseAnimeSearchQuery } from '../api/anime-search-query';
 import fixtureData from './data/demo-anime.json';
 import { buildDemoLibrary, type DemoAnimeFixture } from './library';
 import { buildRecord } from './records';
@@ -155,18 +157,15 @@ class DemoHost {
     };
   }
 
-  search(query: string): readonly Anime[] {
-    const needle = query.trim().toLowerCase();
-    if (needle.length < 2) return [];
-    return fixtures
-      .filter((fixture) => {
-        const titles = [fixture.title.default, fixture.title.english, fixture.title.japanese];
-        return titles.some(
-          (title) => typeof title === 'string' && title.toLowerCase().includes(needle),
-        );
-      })
-      .slice(0, 20)
-      .map((fixture) => buildRecord(fixture, this.provider));
+  search(query: string, offset: number = 0, limit: number = 20): AnimeSearchPage {
+    const parsed = parseAnimeSearchQuery(query);
+    if (parsed === null) return { results: [], hasMore: false };
+    const safeOffset = Math.max(0, offset);
+    const safeLimit = Math.max(0, limit);
+    const records = fixtures.map((fixture) => buildRecord(fixture, this.provider));
+    const matches = records.filter((anime) => matchesAnimeSearchQuery(anime, parsed));
+    const results = matches.slice(safeOffset, safeOffset + safeLimit);
+    return { results, hasMore: safeOffset + results.length < matches.length };
   }
 
   recordFor(animeId: number): Anime | null {

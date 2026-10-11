@@ -2,7 +2,12 @@ import { describe, expect, it } from 'vitest';
 import type { Anime, AnimeListEntry } from '../src/domain/anime';
 import { ANIME_CACHE_VERSION } from '../src/domain/sync';
 import { ApiError } from '../src/api/api-errors';
-import type { AnimeProvider, AnimeListFetchOptions } from '../src/api/anime-provider';
+import type {
+  AnimeProvider,
+  AnimeListFetchOptions,
+  AnimeSearchPage,
+} from '../src/api/anime-provider';
+import { EMPTY_SEARCH_PAGE } from '../src/api/anime-provider';
 import { createAnimeCache } from '../src/sync/sync-cache';
 import { AnimeListSyncService } from '../src/sync/sync-service';
 import type { AnimeCacheStore } from '../src/sync/sync-types';
@@ -74,8 +79,8 @@ class StubProvider implements AnimeProvider {
   async getAnime(): Promise<Anime> {
     return anime;
   }
-  async searchAnime(): Promise<Anime[]> {
-    return [];
+  async searchAnime(): Promise<AnimeSearchPage> {
+    return { results: [], hasMore: false };
   }
   async addToList(): Promise<void> {
     return undefined;
@@ -160,7 +165,7 @@ describe('AnimeListSyncService', () => {
         return [entry(4)];
       },
       getAnime: async () => anime,
-      searchAnime: async () => [],
+      searchAnime: async () => EMPTY_SEARCH_PAGE,
       addToList: async () => undefined,
     };
     const waits: number[] = [];
@@ -193,7 +198,7 @@ describe('AnimeListSyncService', () => {
         return [entry(4)];
       },
       getAnime: async () => anime,
-      searchAnime: async () => [],
+      searchAnime: async () => EMPTY_SEARCH_PAGE,
       addToList: async () => undefined,
     };
     const guidedService = new AnimeListSyncService(
@@ -252,7 +257,7 @@ describe('AnimeListSyncService', () => {
         return [entry(4)];
       },
       getAnime: async () => anime,
-      searchAnime: async () => [],
+      searchAnime: async () => EMPTY_SEARCH_PAGE,
       addToList: async () => undefined,
     };
     const service = new AnimeListSyncService(

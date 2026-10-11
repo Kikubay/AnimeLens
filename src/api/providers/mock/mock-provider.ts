@@ -1,6 +1,13 @@
 import type { Anime, AnimeListEntry, AnimeStatus } from '../../../domain/anime';
 import type { UserProfile } from '../../../domain/user-profile';
-import type { AnimeProvider, CandidatePoolConfig } from '../../anime-provider';
+import type {
+  AnimeProvider,
+  AnimeSearchPage,
+  AnimeSearchRequest,
+  CandidatePoolConfig,
+} from '../../anime-provider';
+import { EMPTY_SEARCH_PAGE } from '../../anime-provider';
+import { animeMatchesTag } from '../../anime-search-query';
 import { ApiError } from '../../api-errors';
 import { defaultMockAnime, defaultMockProfile } from '../../mocks/mock-fixtures';
 
@@ -64,11 +71,18 @@ export class MockAnimeProvider implements AnimeProvider {
     }
   }
 
-  async searchAnime(query: string): Promise<Anime[]> {
+  async searchAnime(query: string, request: AnimeSearchRequest = {}): Promise<AnimeSearchPage> {
     const normalizedQuery = query.trim().toLocaleLowerCase();
-    if (normalizedQuery.length === 0) return [];
-    return this.anime.filter((anime) =>
-      anime.title.default.toLocaleLowerCase().includes(normalizedQuery),
+    if (normalizedQuery.length === 0) return EMPTY_SEARCH_PAGE;
+    const safeOffset = Math.max(0, request.offset ?? 0);
+    const safeLimit = Math.max(0, request.limit ?? this.anime.length);
+    const tag = request.tag ?? null;
+    const matches = this.anime.filter((anime) =>
+      tag === null
+        ? anime.title.default.toLocaleLowerCase().includes(normalizedQuery)
+        : animeMatchesTag(anime, tag),
     );
+    const results = matches.slice(safeOffset, safeOffset + safeLimit);
+    return { results, hasMore: safeOffset + results.length < matches.length };
   }
 }

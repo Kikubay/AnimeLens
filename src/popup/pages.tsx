@@ -258,8 +258,10 @@ export function DashboardPage({
         />
         <div className="anime-search">
           <AnimeSearchField query={query} onQueryChange={setQuery} copy={copy} />
-          {query.trim().length > 0 && !searchIsActive && (
+          {query.trim().length > 0 && !searchIsActive ? (
             <p className="anime-search-hint">{copy.searchMinChars(ANIME_SEARCH_MIN_LENGTH)}</p>
+          ) : (
+            <p className="anime-search-hint">{copy.searchTagHint}</p>
           )}
         </div>
       </section>

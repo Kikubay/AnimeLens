@@ -73,6 +73,7 @@ describe('AnimeProvider contract', () => {
 
     expect(user.username).toBe('alex.mori');
     expect(list.length).toBeGreaterThan(0);
-    expect(search[0]?.title.default).toContain('Frieren');
+    expect(search.results[0]?.title.default).toContain('Frieren');
+    expect(search.hasMore).toBe(false);
   });
 });

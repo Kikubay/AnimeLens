@@ -10,7 +10,9 @@ describe('MockAnimeProvider', () => {
     await expect(provider.getCurrentUser()).resolves.toMatchObject({ username: 'alex.mori' });
     await expect(provider.getUserAnimeList()).resolves.toHaveLength(defaultMockAnime.length);
     await expect(provider.getAnime(defaultMockAnime[0].id)).resolves.toEqual(defaultMockAnime[0]);
-    await expect(provider.searchAnime('frieren')).resolves.toHaveLength(1);
+    const search = await provider.searchAnime('frieren');
+    expect(search.results).toHaveLength(1);
+    expect(search.hasMore).toBe(false);
   });
 
   it('returns an explicit not-found error for unknown anime', async () => {

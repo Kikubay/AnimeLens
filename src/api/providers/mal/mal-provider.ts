@@ -5,8 +5,12 @@ import { ApiError } from '../../api-errors';
 import type {
   AnimeListFetchOptions,
   AnimeProvider,
+  AnimeSearchPage,
+  AnimeSearchRequest,
   CandidatePoolConfig,
 } from '../../anime-provider';
+import { EMPTY_SEARCH_PAGE } from '../../anime-provider';
+import { animeMatchesTag } from '../../anime-search-query';
 import type { HttpClient } from '../../http-client';
 import { MAL_API_BASE_URL, MAL_FIELDS, MAL_LIMITS, MAL_LIST_FIELDS } from './mal-config';
 import {
@@ -134,16 +138,34 @@ export class MalAnimeProvider implements AnimeProvider {
     return fetchMalStreamingPlatforms(id);
   }
 
-  async searchAnime(query: string): Promise<Anime[]> {
+  // MAL's `/anime?q=` already reaches theme names, so a `#tag` search sends the bare tag and the
+  // genre/theme check below is what makes the answer exact rather than merely plausible.
+  async searchAnime(query: string, request: AnimeSearchRequest = {}): Promise<AnimeSearchPage> {
     const normalizedQuery = query.trim();
-    if (normalizedQuery.length === 0) return [];
-    const response = await this.request<{
-      readonly data: readonly { readonly node: MalAnimeDto }[];
-    }>('/anime', { q: normalizedQuery, limit: String(MAL_LIMITS.animeSearch), fields: MAL_FIELDS });
+    if (normalizedQuery.length === 0) return EMPTY_SEARCH_PAGE;
+    const safeLimit = Math.max(
+      1,
+      Math.min(Math.floor(request.limit ?? MAL_LIMITS.animeSearch), MAL_LIMITS.animeSearch),
+    );
+    const safeOffset = Math.max(0, Math.floor(request.offset ?? 0));
+    const tag = request.tag ?? null;
+    const response = await this.request<MalAnimeListResponse>('/anime', {
+      q: normalizedQuery,
+      limit: String(safeLimit),
+      fields: MAL_FIELDS,
+      ...(safeOffset > 0 ? { offset: String(safeOffset) } : {}),
+    });
     if (!isMalListResponse(response) || !response.data.every(isMalAnimeNodeDto)) {
       throw invalidResponse('anime search');
     }
-    return response.data.map((item) => normalizeAnime(item.node));
+    const matches = response.data.map((item) => normalizeAnime(item.node));
+    const results = tag === null ? matches : matches.filter((anime) => animeMatchesTag(anime, tag));
+    // A short page means MAL ran out; a full one means there is more behind it.
+    const hasMore =
+      response.paging?.next !== undefined
+        ? response.paging.next !== null
+        : matches.length >= safeLimit;
+    return { results, hasMore };
   }
 
   private async requestListStatus(id: number, status: AnimeStatus): Promise<void> {

@@ -343,3 +343,10 @@ export function isAniListPageResponse(
   if (typeof page !== 'object' || page === null) return false;
   return Array.isArray((page as Record<string, unknown>).media);
 }
+
+export function readAniListHasNextPage(value: unknown): boolean {
+  if (!isAniListPageResponse(value)) return false;
+  const pageInfo = (value.Page as Record<string, unknown>).pageInfo;
+  if (typeof pageInfo !== 'object' || pageInfo === null) return false;
+  return (pageInfo as Record<string, unknown>).hasNextPage === true;
+}

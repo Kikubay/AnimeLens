@@ -69,11 +69,12 @@ import type { CandidatePoolConfig } from '../api/anime-provider';
 import type { ProviderStatus } from '../providers/provider-registry';
 import { isMalListMessage } from '../api/mal-list-messages';
 import {
-  ANIME_SEARCH_MAX_LENGTH,
+  ANIME_SEARCH_PAGE_SIZE,
   isAnimeSearchMessage,
   type AnimeSearchMessage,
   type AnimeSearchResponse,
 } from '../api/anime-search-messages';
+import { parseAnimeSearchQuery } from '../api/anime-search-query';
 import {
   isStreamingLinksMessage,
   type StreamingLinksMessage,
@@ -118,7 +119,6 @@ const DEFAULT_CANDIDATE_POOL_CONFIG: CandidatePoolConfig = {
 };
 const DAILY_RECOMMENDATION_ALARM = 'animelens-daily-recommendation';
 const SYNC_ALARM = 'animelens-sync';
-const ANIME_SEARCH_RESULT_LIMIT = 24;
 let updateCheckInFlight: Promise<UpdateSnapshot> | null = null;
 
 // Every rating, add, preference change and sync re-requests the pool, and each request costs two provider calls for byte-identical results.
@@ -764,15 +764,30 @@ async function handleMalListMessage(message: MalListMessage): Promise<MalListMes
 }
 
 async function handleAnimeSearchMessage(message: AnimeSearchMessage): Promise<AnimeSearchResponse> {
+  const parsed = parseAnimeSearchQuery(message.query);
+  if (parsed === null) return { ok: true, results: [], hasMore: false, nextOffset: 0 };
+  const offset = message.offset ?? 0;
   try {
-    const query = message.query.trim().slice(0, ANIME_SEARCH_MAX_LENGTH);
-    const results = await (
+    const page = await (
       await activeAuthService()
     ).withAccessToken(async (accessToken) => {
       const provider = await providerRegistry.createActiveProvider(accessToken);
-      return provider.searchAnime(query);
+      // A `#tag` goes to the provider as its own term and comes back filtered on genres and themes,
+      // so paging counts provider items rather than the filtered ones.
+      return provider.searchAnime(parsed.value, {
+        limit: ANIME_SEARCH_PAGE_SIZE,
+        offset,
+        tag: parsed.kind === 'tag' ? parsed.value : null,
+      });
     });
-    return { ok: true, results: results.slice(0, ANIME_SEARCH_RESULT_LIMIT) };
+    // Advancing by a full page rather than by `results.length` keeps a `#tag` search from
+    // re-reading the same provider window every time the genre/theme filter thins it out.
+    return {
+      ok: true,
+      results: page.results,
+      hasMore: page.hasMore,
+      nextOffset: offset + ANIME_SEARCH_PAGE_SIZE,
+    };
   } catch (error) {
     reportBackgroundFailure(error);
     return { ok: false, message: await toUserFacingSearchError(error) };
