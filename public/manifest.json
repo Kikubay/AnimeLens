@@ -31,7 +31,8 @@
     "identity",
     "alarms",
     "notifications",
-    "clipboardWrite"
+    "clipboardWrite",
+    "downloads"
   ],
   "host_permissions": [
     "https://api.myanimelist.net/*",

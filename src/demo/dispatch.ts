@@ -106,6 +106,8 @@ export async function dispatchDemoMessage(message: unknown): Promise<unknown> {
       return fail(DEMO_DISABLED_MESSAGE);
 
     case 'updates.check':
+    case 'updates.download':
+    case 'updates.openRelease':
       return ok({
         snapshot: {
           status: 'up_to_date',

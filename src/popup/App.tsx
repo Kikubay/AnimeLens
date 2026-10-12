@@ -11,7 +11,11 @@ import { applyThemePreference } from '../settings/theme';
 import { DEFAULT_USER_PREFERENCES, type UserPreferences } from '../settings/settings-types';
 import { getCopy, normalizeLanguage, type AppCopy, type Language } from '../locales';
 import { requestSettingsSnapshot } from '../settings/settings-messages';
-import { requestUpdateCheck } from '../updates/update-messages';
+import {
+  requestUpdateCheck,
+  requestUpdateDownload,
+  requestUpdateReleasePage,
+} from '../updates/update-messages';
 import type { UpdateSnapshot } from '../updates/update-checker';
 import { DetailPage, DashboardPage, LoadingPage, ProfilePage, SettingsPage } from './pages';
 import type { AnimeCardData } from './components/anime';
@@ -23,7 +27,6 @@ interface NavItem {
   readonly label: (copy: AppCopy) => string;
 }
 
-// Each item carries its own label so a new destination can't silently inherit another's.
 const NAV_ITEMS: readonly NavItem[] = [
   { id: 'dashboard', icon: 'home', label: (copy) => copy.discover },
   { id: 'profile', icon: 'user', label: (copy) => copy.profile },
@@ -74,6 +77,7 @@ function DislikeReasonModal({
   return (
     <Modal open title={copy.dislikeTitle} onClose={onCancel} closeLabel={copy.closeLabel}>
       <p className="modal-copy">{copy.dislikeDescription}</p>
+
       <div className="dislike-reason-options" role="group" aria-label={copy.dislikeReasons}>
         {options.map((option) => {
           const reason: DislikeReason = { kind: option.kind, name: option.name };
@@ -86,15 +90,18 @@ function DislikeReasonModal({
               key={`${option.kind}-${option.name ?? 'general'}`}
             >
               <input type="checkbox" checked={selected} onChange={() => toggleReason(reason)} />
+
               <span>{option.label}</span>
             </label>
           );
         })}
       </div>
+
       <div className="confirmation-actions">
         <Button variant="ghost" size="sm" onClick={onCancel}>
           {copy.cancel}
         </Button>
+
         <Button
           variant="danger"
           size="sm"
@@ -128,6 +135,7 @@ export function App() {
   const [recommendationsRevision, setRecommendationsRevision] = useState(0);
   const [pendingDislike, setPendingDislike] = useState<AnimeCardData | null>(null);
   const [update, setUpdate] = useState<UpdateSnapshot | null>(null);
+  const [downloadingUpdate, setDownloadingUpdate] = useState(false);
   const [language, setLanguage] = useState<Language>('en');
   const [preferences, setPreferences] = useState<UserPreferences>(DEFAULT_USER_PREFERENCES);
   const [activeProviderName, setActiveProviderName] = useState('MyAnimeList');
@@ -137,7 +145,7 @@ export function App() {
     copyRef.current = copy;
     document.documentElement.lang = language;
   }, [copy, language]);
-  // Refreshed on any auth change so a connect, disconnect or provider switch updates the copy.
+
   const refreshActiveProviderName = () => {
     void requestProviderList()
       .then((providers) => {
@@ -245,6 +253,17 @@ export function App() {
     setPage('detail');
   };
   const showToast = (message: string) => setToast(message);
+  const startUpdateDownload = () => {
+    if (downloadingUpdate) return;
+    setDownloadingUpdate(true);
+    void requestUpdateDownload()
+      .then(() => showToast(copy.updateStarted))
+      .catch(() => showToast(copy.updateFailed))
+      .finally(() => setDownloadingUpdate(false));
+  };
+  const openUpdateReleasePage = () => {
+    void requestUpdateReleasePage().catch(() => showToast(copy.updateFailed));
+  };
   const handleRecommendationFeedback = (
     anime: AnimeCardData,
     value: FeedbackValue,
@@ -340,6 +359,7 @@ export function App() {
         >
           <img className="brand-icon" src="icons/icon32.png" alt="" aria-hidden="true" />
           <span className="brand-name">{copy.brandWordmark}</span>
+
           <span className="brand-badge">{copy.betaBadge}</span>
         </button>
         <span className={`connection-status${isOnline ? '' : ' is-offline'}`}>
@@ -347,25 +367,29 @@ export function App() {
           {isOnline ? copy.live : copy.offline}
         </span>
       </header>
+
       {!loading && update?.status === 'available' && update.releaseUrl !== null && (
         <div className="update-banner" role="status">
           <div>
             <strong>{copy.updateAvailable(update.latestVersion ?? '')}</strong>
+
             <span>{copy.currentVersion(update.currentVersion)}</span>
           </div>
-          <button
-            className="update-banner-action"
-            type="button"
-            onClick={() =>
-              window.open(
-                update.downloadUrl ?? update.releaseUrl ?? undefined,
-                '_blank',
-                'noopener,noreferrer',
-              )
-            }
-          >
-            {copy.update}
-          </button>
+
+          <div className="update-banner-actions">
+            <button className="update-banner-notes" type="button" onClick={openUpdateReleasePage}>
+              {copy.updateReleaseNotes}
+            </button>
+
+            <button
+              className="update-banner-action"
+              type="button"
+              disabled={downloadingUpdate}
+              onClick={startUpdateDownload}
+            >
+              {downloadingUpdate ? copy.updateDownloading : copy.update}
+            </button>
+          </div>
         </div>
       )}
       {loading ? (
@@ -435,6 +459,7 @@ export function App() {
               onClick={() => navigate(item.id)}
             >
               <Icon name={item.icon} size={16} />
+
               <span>{item.label(copy)}</span>
             </button>
           ))}

@@ -341,8 +341,42 @@ chrome.runtime.onMessage.addListener(
   },
 );
 
-async function handleUpdateMessage(_message: UpdateMessage): Promise<UpdateResponse> {
-  return { ok: true, snapshot: await checkForUpdates() };
+async function handleUpdateMessage(message: UpdateMessage): Promise<UpdateResponse> {
+  const snapshot = await checkForUpdates();
+  if (message.type === 'updates.download') {
+    await startUpdateDownload(snapshot);
+    return { ok: true, snapshot };
+  }
+  if (message.type === 'updates.openRelease') {
+    await openExternalUrl(snapshot.releaseUrl);
+    return { ok: true, snapshot };
+  }
+  return { ok: true, snapshot };
+}
+
+interface DownloadsApi {
+  download(options: { readonly url: string; readonly saveAs: boolean }): Promise<number>;
+}
+
+interface TabsApi {
+  create(properties: { readonly url: string }): Promise<unknown>;
+}
+
+async function startUpdateDownload(snapshot: UpdateSnapshot): Promise<void> {
+  if (snapshot.status !== 'available') return;
+  const url = snapshot.downloadUrl ?? snapshot.releaseUrl;
+  if (url === null) return;
+  const downloads = (globalThis.chrome as { downloads?: DownloadsApi }).downloads;
+  if (typeof downloads?.download === 'function') {
+    await downloads.download({ url, saveAs: false });
+    return;
+  }
+  await openExternalUrl(url);
+}
+
+async function openExternalUrl(url: string | null): Promise<void> {
+  if (url === null) return;
+  await (globalThis.chrome as { tabs?: TabsApi }).tabs?.create({ url });
 }
 
 async function checkForUpdates(): Promise<UpdateSnapshot> {

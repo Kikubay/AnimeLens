@@ -116,6 +116,30 @@ button:focus-visible {
 .update-banner-action:hover {
   filter: brightness(1.08);
 }
+.update-banner-action:disabled {
+  cursor: default;
+  opacity: 0.6;
+  filter: none;
+}
+.update-banner-actions {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 8px;
+}
+.update-banner-notes {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--muted);
+  font-family: inherit;
+  font-size: 8px;
+  text-decoration: underline;
+  cursor: pointer;
+}
+.update-banner-notes:hover {
+  color: var(--text);
+}
 .app-header {
   display: flex;
   align-items: center;

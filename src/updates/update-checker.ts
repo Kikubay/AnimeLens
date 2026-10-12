@@ -3,6 +3,23 @@ export const GITHUB_LATEST_RELEASE_URL =
 export const UPDATE_CHECK_INTERVAL_MS = 30 * 60 * 1000;
 export const UPDATE_CHECK_STORAGE_KEY = 'updateCheck';
 
+export type UpdateTarget = 'chromium' | 'gecko' | 'desktop' | 'demo';
+
+declare const __UPDATE_TARGET__: string | undefined;
+
+export function currentUpdateTarget(): UpdateTarget {
+  const injected = typeof __UPDATE_TARGET__ === 'string' ? __UPDATE_TARGET__ : null;
+  if (
+    injected === 'chromium' ||
+    injected === 'gecko' ||
+    injected === 'desktop' ||
+    injected === 'demo'
+  ) {
+    return injected;
+  }
+  return 'chromium';
+}
+
 export interface UpdateSnapshot {
   readonly status: 'available' | 'up_to_date' | 'unavailable';
   readonly currentVersion: string;
@@ -50,6 +67,7 @@ export function buildUpdateSnapshot(
   currentVersion: string,
   release: GitHubRelease,
   checkedAt: number,
+  target: UpdateTarget = currentUpdateTarget(),
 ): UpdateSnapshot {
   const latestVersion = normalizeVersion(release.tag_name);
   if (latestVersion === null || typeof release.html_url !== 'string') {
@@ -59,8 +77,7 @@ export function buildUpdateSnapshot(
     };
   }
 
-  const downloadUrl =
-    release.assets?.find((asset) => isZipAsset(asset))?.browser_download_url ?? null;
+  const downloadUrl = findUpdateAssetUrl(release.assets, target);
   return {
     status: isVersionNewer(latestVersion, currentVersion) ? 'available' : 'up_to_date',
     currentVersion,
@@ -69,6 +86,22 @@ export function buildUpdateSnapshot(
     downloadUrl,
     checkedAt,
   };
+}
+
+export function findUpdateAssetUrl(
+  assets: readonly GitHubReleaseAsset[] | undefined,
+  target: UpdateTarget,
+): string | null {
+  if (assets === undefined || target === 'demo') return null;
+  return assets.find((asset) => isUpdateAsset(asset, target))?.browser_download_url ?? null;
+}
+
+export function isUpdateAsset(asset: GitHubReleaseAsset, target: UpdateTarget): boolean {
+  const name = asset.name.toLowerCase();
+  if (target === 'desktop') return name.endsWith('.exe') && name.includes('-x64');
+  if (target === 'gecko') return name.endsWith('-gecko.zip');
+  if (target === 'chromium') return name.endsWith('-chromium.zip');
+  return false;
 }
 
 export function normalizeVersion(value: string): string | null {
@@ -142,9 +175,4 @@ function comparePrerelease(left: string, right: string): number {
     return leftPart < rightPart ? -1 : 1;
   }
   return 0;
-}
-
-function isZipAsset(asset: GitHubReleaseAsset): boolean {
-  const name = asset.name.toLocaleLowerCase();
-  return name.endsWith('.zip') || name.endsWith('.7z');
 }

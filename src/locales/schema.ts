@@ -26,6 +26,10 @@ export interface AppCopy {
   readonly updateAvailable: (version: string) => string;
   readonly currentVersion: (version: string) => string;
   readonly update: string;
+  readonly updateDownloading: string;
+  readonly updateStarted: string;
+  readonly updateFailed: string;
+  readonly updateReleaseNotes: string;
   readonly dislikeTitle: string;
   readonly dislikeDescription: string;
   readonly dislikeReasons: string;
