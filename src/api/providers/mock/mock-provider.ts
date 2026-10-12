@@ -7,7 +7,7 @@ import type {
   CandidatePoolConfig,
 } from '../../anime-provider';
 import { EMPTY_SEARCH_PAGE } from '../../anime-provider';
-import { animeMatchesTag } from '../../anime-search-query';
+import { animeMatchesTag, filterAnimeByFormats } from '../../anime-search-query';
 import { ApiError } from '../../api-errors';
 import { defaultMockAnime, defaultMockProfile } from '../../mocks/mock-fixtures';
 
@@ -77,10 +77,13 @@ export class MockAnimeProvider implements AnimeProvider {
     const safeOffset = Math.max(0, request.offset ?? 0);
     const safeLimit = Math.max(0, request.limit ?? this.anime.length);
     const tag = request.tag ?? null;
-    const matches = this.anime.filter((anime) =>
-      tag === null
-        ? anime.title.default.toLocaleLowerCase().includes(normalizedQuery)
-        : animeMatchesTag(anime, tag),
+    const matches = filterAnimeByFormats(
+      this.anime.filter((anime) =>
+        tag === null
+          ? anime.title.default.toLocaleLowerCase().includes(normalizedQuery)
+          : animeMatchesTag(anime, tag),
+      ),
+      request.formats ?? [],
     );
     const results = matches.slice(safeOffset, safeOffset + safeLimit);
     return { results, hasMore: safeOffset + results.length < matches.length };

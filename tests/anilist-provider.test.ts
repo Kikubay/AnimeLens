@@ -222,7 +222,11 @@ describe('AniListProvider', () => {
     const provider = new AniListProvider(http, 'token');
     const page = await provider.searchAnime('jujutsu', { limit: 24, offset: 24 });
 
-    expect(http.requests[0]?.variables).toEqual({ search: 'jujutsu', page: 2, perPage: 24 });
+    expect(http.requests[0]?.variables).toEqual({
+      search: 'jujutsu',
+      page: 2,
+      perPage: 24,
+    });
     expect(page.results).toHaveLength(1);
     expect(page.hasMore).toBe(true);
   });
@@ -267,6 +271,43 @@ describe('AniListProvider', () => {
       page: 1,
       perPage: 24,
     });
+    expect(Object.hasOwn(request?.variables ?? {}, 'formatIn')).toBe(false);
+  });
+
+  it('filters by format at the API instead of discarding rows locally', async () => {
+    const http = new RecordingHttpClient((query) =>
+      isSearchQuery(query)
+        ? { data: { Page: { media: [MEDIA], pageInfo: { hasNextPage: true, currentPage: 1 } } } }
+        : VIEWER_PAYLOAD,
+    );
+    const provider = new AniListProvider(http, 'token');
+
+    await provider.searchAnime('action', {
+      limit: 24,
+      offset: 0,
+      tag: 'Action',
+      formats: ['ova', 'special'],
+    });
+
+    expect(http.requests[0]?.variables).toMatchObject({ formatIn: ['OVA', 'SPECIAL'] });
+  });
+
+  it('drops the unknown type, which has no MediaFormat, instead of guessing one', async () => {
+    const http = new RecordingHttpClient((query) =>
+      isSearchQuery(query)
+        ? { data: { Page: { media: [MEDIA], pageInfo: { hasNextPage: false, currentPage: 1 } } } }
+        : VIEWER_PAYLOAD,
+    );
+    const provider = new AniListProvider(http, 'token');
+
+    await provider.searchAnime('action', {
+      limit: 24,
+      offset: 0,
+      tag: 'Action',
+      formats: ['unknown'],
+    });
+
+    expect(Object.hasOwn(http.requests[0]?.variables ?? {}, 'formatIn')).toBe(false);
   });
 
   it('falls back to a tag filter for anything that is not an AniList genre', async () => {

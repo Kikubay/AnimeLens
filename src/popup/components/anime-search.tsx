@@ -1,13 +1,24 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
-import { ANIME_SEARCH_MAX_LENGTH, requestAnimeSearch } from '../../api/anime-search-messages';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import {
+  ANIME_SEARCH_MAX_LENGTH,
+  ANIME_SEARCH_PAGE_SIZE,
+  requestAnimeSearch,
+} from '../../api/anime-search-messages';
 import { parseAnimeSearchQuery } from '../../api/anime-search-query';
 import type { Anime } from '../../domain/anime';
 import type { AppCopy } from '../../locales';
-import { SEARCH_DEBOUNCE_MS } from '../search-state';
+import {
+  SEARCH_DEBOUNCE_MS,
+  SEARCH_FORMAT_FILTERS,
+  searchFormatTypes,
+  toggleSearchFormat,
+} from '../search-state';
 import type { AnimeCardData } from './anime';
 import { Button, EmptyState, ErrorState, Icon, Skeleton } from './ui';
 
 const SEARCH_SKELETON_ROWS = 4;
+
+const SEARCH_AUTOFILL_MAX_PAGES = 3;
 
 type SearchStatus = 'idle' | 'loading' | 'ready' | 'error';
 
@@ -41,6 +52,7 @@ export function AnimeSearchField({
   return (
     <div className="anime-search-field">
       <Icon name="search" size={14} />
+
       <input
         type="search"
         className="anime-search-input"
@@ -55,6 +67,7 @@ export function AnimeSearchField({
           if (event.key === 'Escape') onQueryChange('');
         }}
       />
+
       {query.length > 0 && (
         <button
           className="anime-search-clear"
@@ -110,13 +123,42 @@ function SearchResultRow({
             <img src={imageUrl} alt="" loading="lazy" decoding="async" />
           )}
         </span>
+
         <span className="anime-search-result-copy">
           <span className="anime-search-result-title">{anime.title.default}</span>
+
           <span className="anime-search-result-meta">{resultMeta(anime, copy)}</span>
         </span>
+
         <Icon name="arrow-right" size={14} />
       </button>
     </li>
+  );
+}
+
+export function AnimeSearchFormatFilter({
+  keys,
+  onToggle,
+  copy,
+}: {
+  readonly keys: readonly string[];
+  readonly onToggle: (key: string) => void;
+  readonly copy: AppCopy;
+}) {
+  return (
+    <div className="anime-search-formats" role="group" aria-label={copy.searchFormatFilterLabel}>
+      {SEARCH_FORMAT_FILTERS.map((filter) => (
+        <button
+          key={filter.key}
+          type="button"
+          className="anime-search-format"
+          aria-pressed={keys.includes(filter.key)}
+          onClick={() => onToggle(filter.key)}
+        >
+          {filter.label(copy)}
+        </button>
+      ))}
+    </div>
   );
 }
 
@@ -140,7 +182,15 @@ export function AnimeSearchPanel({
   const [state, setState] = useState<SearchState>(IDLE);
   const [attempt, setAttempt] = useState(0);
   const [loadingMore, setLoadingMore] = useState(false);
+  const [formatKeys, setFormatKeys] = useState<readonly string[]>([]);
   const sequence = useRef(0);
+  const autoFillRef = useRef(0);
+
+  const toggleFormat = useCallback((key: string) => {
+    setFormatKeys((current) => toggleSearchFormat(current, key));
+  }, []);
+
+  const formats = useMemo(() => searchFormatTypes(formatKeys), [formatKeys]);
 
   useEffect(() => {
     const timer = window.setTimeout(() => setDebouncedQuery(normalized), SEARCH_DEBOUNCE_MS);
@@ -150,8 +200,8 @@ export function AnimeSearchPanel({
   useEffect(() => {
     const current = sequence.current + 1;
     sequence.current = current;
-    // An abandoned page request skips its own `.finally`, so the flag has to be cleared here or the
-    // button stays permanently disabled.
+    autoFillRef.current = 0;
+
     setLoadingMore(false);
     const parsed = parseAnimeSearchQuery(debouncedQuery);
     if (!isAuthenticated || parsed === null) {
@@ -166,9 +216,8 @@ export function AnimeSearchPanel({
       hasMore: false,
       errorMessage: null,
     });
-    // Truncated to the worker's length guard but still carrying the `#`, which is what tells it a tag
-    // search rather than a title one.
-    void requestAnimeSearch(debouncedQuery.trim().slice(0, ANIME_SEARCH_MAX_LENGTH), 0)
+
+    void requestAnimeSearch(debouncedQuery.trim().slice(0, ANIME_SEARCH_MAX_LENGTH), 0, formats)
       .then((page) => {
         if (sequence.current !== current) return;
         setState({
@@ -194,22 +243,21 @@ export function AnimeSearchPanel({
     return () => {
       sequence.current += 1;
     };
-  }, [debouncedQuery, isAuthenticated, attempt, copy.searchFailed]);
+  }, [debouncedQuery, isAuthenticated, attempt, formats, copy.searchFailed]);
 
   const loadMore = useCallback(() => {
     if (loadingMore || !state.hasMore || state.status !== 'ready') return;
     const current = sequence.current;
     const query = state.query.trim().slice(0, ANIME_SEARCH_MAX_LENGTH);
     setLoadingMore(true);
-    void requestAnimeSearch(query, state.nextOffset)
+    void requestAnimeSearch(query, state.nextOffset, formats)
       .then((page) => {
         if (sequence.current !== current) return;
         setState((previous) => ({
           ...previous,
           results: [...previous.results, ...page.results],
           nextOffset: page.nextOffset,
-          // `page.hasMore` alone: the tag filter runs after the provider fills a page, so an empty page can
-          // still have matches behind it.
+
           hasMore: page.hasMore,
         }));
       })
@@ -220,7 +268,16 @@ export function AnimeSearchPanel({
       .finally(() => {
         if (sequence.current === current) setLoadingMore(false);
       });
-  }, [loadingMore, state.hasMore, state.status, state.nextOffset, state.query]);
+  }, [loadingMore, state.hasMore, state.status, state.nextOffset, state.query, formats]);
+
+  useEffect(() => {
+    if (formats.length === 0) return;
+    if (state.status !== 'ready' || !state.hasMore || loadingMore) return;
+    if (state.results.length >= ANIME_SEARCH_PAGE_SIZE) return;
+    if (autoFillRef.current >= SEARCH_AUTOFILL_MAX_PAGES) return;
+    autoFillRef.current += 1;
+    loadMore();
+  }, [formats.length, state.status, state.hasMore, state.results.length, loadingMore, loadMore]);
 
   const isLoading = state.status === 'loading' || debouncedQuery !== normalized;
 
@@ -232,10 +289,16 @@ export function AnimeSearchPanel({
     <div className="section-heading">
       <div>
         <p className="eyebrow">{copy.searchEyebrow}</p>
+
         <h2 id="anime-search-title">{headingTitle}</h2>
       </div>
+
       {state.status === 'ready' && (
-        <span className="section-count">{copy.titles(state.results.length)}</span>
+        <div className="anime-search-controls">
+          <AnimeSearchFormatFilter keys={formatKeys} onToggle={toggleFormat} copy={copy} />
+
+          <span className="section-count">{copy.titles(state.results.length)}</span>
+        </div>
       )}
     </div>
   );
@@ -288,12 +351,17 @@ export function AnimeSearchPanel({
             title={copy.searchResultsTitle}
             message={copy.searchNoResults(state.query === '' ? normalized : state.query)}
           />
+
           {loadMoreButton}
         </div>
       ) : state.results.length === 0 ? (
         <EmptyState
           title={copy.searchResultsTitle}
-          message={copy.searchNoResults(state.query === '' ? normalized : state.query)}
+          message={
+            formats.length > 0
+              ? copy.searchFormatEmpty
+              : copy.searchNoResults(state.query === '' ? normalized : state.query)
+          }
         />
       ) : (
         <>
@@ -307,6 +375,7 @@ export function AnimeSearchPanel({
               />
             ))}
           </ul>
+
           {loadMoreButton}
         </>
       )}

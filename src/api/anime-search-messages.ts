@@ -1,4 +1,4 @@
-import type { Anime } from '../domain/anime';
+import type { Anime, AnimeType } from '../domain/anime';
 import {
   ANIME_SEARCH_MAX_LENGTH,
   ANIME_SEARCH_MIN_LENGTH,
@@ -9,10 +9,21 @@ export { ANIME_SEARCH_MAX_LENGTH, ANIME_SEARCH_MIN_LENGTH };
 
 export const ANIME_SEARCH_PAGE_SIZE = 24;
 
+export const ANIME_TYPES: readonly AnimeType[] = [
+  'tv',
+  'movie',
+  'ova',
+  'ona',
+  'special',
+  'music',
+  'unknown',
+];
+
 export type AnimeSearchMessage = {
   readonly type: 'anime.search';
   readonly query: string;
   readonly offset?: number;
+  readonly formats?: readonly AnimeType[];
 };
 
 export type AnimeSearchResponse =
@@ -20,7 +31,7 @@ export type AnimeSearchResponse =
       readonly ok: true;
       readonly results: readonly Anime[];
       readonly hasMore: boolean;
-      /** Offset to pass back for the next page, counted in provider items rather than returned rows. */
+
       readonly nextOffset: number;
     }
   | { readonly ok: false; readonly message: string };
@@ -34,11 +45,13 @@ export interface AnimeSearchResultPage {
 export async function requestAnimeSearch(
   query: string,
   offset: number = 0,
+  formats: readonly AnimeType[] = [],
 ): Promise<AnimeSearchResultPage> {
   const response = (await chrome.runtime.sendMessage({
     type: 'anime.search',
     query,
     offset,
+    formats,
   })) as AnimeSearchResponse | undefined;
   if (response === undefined || response === null) throw new Error('Search is unavailable.');
   if (!response.ok) throw new Error(response.message);
@@ -59,6 +72,16 @@ export function isAnimeSearchMessage(value: unknown): value is AnimeSearchMessag
   }
   if ('offset' in value && value.offset !== undefined) {
     if (typeof value.offset !== 'number' || !Number.isInteger(value.offset) || value.offset < 0) {
+      return false;
+    }
+  }
+  if ('formats' in value && value.formats !== undefined) {
+    if (!Array.isArray(value.formats)) return false;
+    if (
+      !value.formats.every(
+        (entry) => typeof entry === 'string' && ANIME_TYPES.includes(entry as AnimeType),
+      )
+    ) {
       return false;
     }
   }

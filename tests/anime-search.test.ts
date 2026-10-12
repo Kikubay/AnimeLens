@@ -7,13 +7,20 @@ import {
 } from '../src/api/anime-search-messages';
 import {
   animeMatchesTag,
+  filterAnimeByFormats,
   matchesAnimeSearchQuery,
   normalizeAnimeTag,
   parseAnimeSearchQuery,
 } from '../src/api/anime-search-query';
 import { defaultMockAnime } from '../src/api/mocks/mock-fixtures';
 import { MockAnimeProvider } from '../src/api/providers/mock/mock-provider';
-import { isSearchActive, SEARCH_DEBOUNCE_MS } from '../src/popup/search-state';
+import {
+  SEARCH_DEBOUNCE_MS,
+  SEARCH_FORMAT_FILTERS,
+  isSearchActive,
+  searchFormatTypes,
+  toggleSearchFormat,
+} from '../src/popup/search-state';
 
 describe('anime search message', () => {
   it('accepts a trimmed query of at least the minimum length', () => {
@@ -184,5 +191,101 @@ describe('paged search', () => {
     });
 
     expect(page).toEqual({ results: [], hasMore: false });
+  });
+});
+
+describe('search format filter', () => {
+  const byType = (type: Anime['type'], id: number): Anime => ({
+    ...defaultMockAnime[0],
+    id,
+    type,
+    title: { default: `${type} ${id}`, english: null, japanese: null, synonyms: [] },
+  });
+
+  const results: readonly Anime[] = [
+    byType('tv', 1),
+    byType('movie', 2),
+    byType('ova', 3),
+    byType('ona', 4),
+    byType('special', 5),
+    byType('music', 6),
+    byType('unknown', 7),
+  ];
+
+  it('returns the results untouched while no format is selected', () => {
+    expect(filterAnimeByFormats(results, [])).toBe(results);
+  });
+
+  it('keeps only the selected format', () => {
+    expect(filterAnimeByFormats(results, ['movie']).map((item) => item.id)).toEqual([2]);
+  });
+
+  it('keeps the union of several selected formats', () => {
+    expect(filterAnimeByFormats(results, ['ova', 'ona']).map((item) => item.id)).toEqual([3, 4]);
+  });
+
+  it('offers five chips, with Specials standing in for music and unknown', () => {
+    expect(SEARCH_FORMAT_FILTERS.map((filter) => filter.key)).toEqual([
+      'tv',
+      'movie',
+      'ova',
+      'ona',
+      'special',
+    ]);
+    const specials = SEARCH_FORMAT_FILTERS.find((filter) => filter.key === 'special');
+    expect(specials?.types).toEqual(['special', 'music', 'unknown']);
+  });
+
+  it('lets the Specials chip reach music and unknown rows that no other chip covers', () => {
+    const specials = searchFormatTypes(['special']);
+    expect(filterAnimeByFormats(results, specials).map((item) => item.id)).toEqual([5, 6, 7]);
+  });
+
+  it('maps selected chips to the underlying types a provider should accept', () => {
+    expect(searchFormatTypes(['tv', 'ona'])).toEqual(['tv', 'ona']);
+    expect(searchFormatTypes([])).toEqual([]);
+  });
+
+  it('adds and removes a chip without disturbing the others', () => {
+    let selected: readonly string[] = [];
+    selected = toggleSearchFormat(selected, 'movie');
+    selected = toggleSearchFormat(selected, 'ova');
+    expect(selected).toEqual(['movie', 'ova']);
+    selected = toggleSearchFormat(selected, 'movie');
+    expect(selected).toEqual(['ova']);
+    selected = toggleSearchFormat(selected, 'movie');
+    expect(selected).toEqual(['ova', 'movie']);
+  });
+
+  it('ignores chip keys that no longer exist', () => {
+    expect(searchFormatTypes(['music'])).toEqual([]);
+  });
+
+  it('narrows a paginated provider search when formats are supplied', async () => {
+    const paginated = new MockAnimeProvider([
+      ...defaultMockAnime,
+      ...[1, 2, 3].map((index) => ({
+        ...defaultMockAnime[0],
+        id: 2000 + index,
+        type: 'ova' as const,
+        title: {
+          default: `Ova ${index}`,
+          english: null,
+          japanese: null,
+          synonyms: [],
+        },
+        themes: [{ id: 62, name: 'Isekai' }],
+      })),
+    ]);
+    const page = await paginated.searchAnime('isekai', {
+      tag: 'isekai',
+      limit: 24,
+      offset: 0,
+      formats: ['ova'],
+    });
+    expect(page.results.length).toBeGreaterThan(0);
+    for (const item of page.results) {
+      expect(item.type).toBe('ova');
+    }
   });
 });

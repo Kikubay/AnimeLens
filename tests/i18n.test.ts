@@ -2,7 +2,6 @@ import { describe, expect, it } from 'vitest';
 import type { AuthErrorCode } from '../src/auth/auth-types';
 import { getCopy, normalizeLanguage } from '../src/locales';
 
-// Brand lines, all-caps eyebrows and words spelled the same in both languages.
 const INTENTIONALLY_SAME_KEYS = new Set([
   'dashboardEyebrow',
   'genres',
@@ -19,6 +18,7 @@ const INTENTIONALLY_SAME_KEYS = new Set([
   'brandWordmark',
   'dailyNotificationTitle',
   'oauthEyebrow',
+  'searchFormatTv',
 ]);
 
 const FUNCTION_ARGS: Record<string, readonly unknown[]> = {
@@ -134,7 +134,6 @@ describe('localization', () => {
   });
 });
 
-// The leak check above only catches *identical* values, so a swapped pair (French in the English table, English in the French one) slips through; this pins the wording in both directions.
 const TASTE_CARD_STRINGS: readonly (readonly [string, string, string])[] = [
   ['tasteCardShare', 'Partager ma carte de goûts', 'Share my taste card'],
   ['tasteCardTitle', 'Votre carte de goûts', 'Your taste card'],

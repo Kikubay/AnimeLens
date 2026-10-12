@@ -1,4 +1,4 @@
-import type { Anime, AnimeListEntry, AnimeStatus } from '../../../domain/anime';
+import type { Anime, AnimeListEntry, AnimeStatus, AnimeType } from '../../../domain/anime';
 import type { StreamingLink } from '../../../domain/streaming';
 import type { UserProfile } from '../../../domain/user-profile';
 import { ApiError } from '../../api-errors';
@@ -10,7 +10,7 @@ import type {
   CandidatePoolConfig,
 } from '../../anime-provider';
 import { EMPTY_SEARCH_PAGE } from '../../anime-provider';
-import { animeMatchesTag } from '../../anime-search-query';
+import { animeMatchesTag, filterAnimeByFormats } from '../../anime-search-query';
 import type { HttpClient } from '../../http-client';
 import {
   MAL_API_BASE_URL,
@@ -33,6 +33,8 @@ import { fetchMalStreamingPlatforms } from './mal-streaming';
 const MAX_PAGES = 100;
 
 const MAL_TAG_SEARCH_MAX_PAGES = 4;
+
+const MAL_TAG_SEARCH_FORMAT_MAX_PAGES = 10;
 
 export class MalAnimeProvider implements AnimeProvider {
   readonly candidatePoolConfig: CandidatePoolConfig = {
@@ -154,8 +156,9 @@ export class MalAnimeProvider implements AnimeProvider {
       Math.min(Math.floor(request.limit ?? MAL_LIMITS.animeSearch), MAL_LIMITS.animeSearch),
     );
     const safeOffset = Math.max(0, Math.floor(request.offset ?? 0));
+    const formats = request.formats ?? [];
     if (tag.length > 0) {
-      return this.searchAnimeByTag(tag, safeLimit, safeOffset);
+      return this.searchAnimeByTag(tag, safeLimit, safeOffset, formats);
     }
     const response = await this.request<MalAnimeListResponse>('/anime', {
       q: normalizedQuery,
@@ -167,21 +170,25 @@ export class MalAnimeProvider implements AnimeProvider {
       throw invalidResponse('anime search');
     }
     const matches = response.data.map((item) => normalizeAnime(item.node));
+    const results = filterAnimeByFormats(matches, formats);
     const hasMore =
       response.paging?.next !== undefined
         ? response.paging.next !== null
-        : matches.length >= safeLimit;
-    return { results: matches, hasMore };
+        : results.length >= safeLimit;
+    return { results, hasMore };
   }
 
   private async searchAnimeByTag(
     tag: string,
     limit: number,
     offset: number,
+    formats: readonly AnimeType[],
   ): Promise<AnimeSearchPage> {
     const target = offset + limit;
+    const maxPages =
+      formats.length === 0 ? MAL_TAG_SEARCH_MAX_PAGES : MAL_TAG_SEARCH_FORMAT_MAX_PAGES;
     const collected: Anime[] = [];
-    for (let page = 0; page < MAL_TAG_SEARCH_MAX_PAGES && collected.length < target; page += 1) {
+    for (let page = 0; page < maxPages && collected.length < target; page += 1) {
       const pageOffset = page * MAL_LIMITS.animeTagRanking;
       const response = await this.request<MalAnimeListResponse>('/anime/ranking', {
         ranking_type: 'bypopularity',
@@ -194,7 +201,9 @@ export class MalAnimeProvider implements AnimeProvider {
       }
       for (const item of response.data) {
         const anime = normalizeAnime(item.node);
-        if (animeMatchesTag(anime, tag)) collected.push(anime);
+        if (!animeMatchesTag(anime, tag)) continue;
+        if (formats.length > 0 && !formats.includes(anime.type)) continue;
+        collected.push(anime);
       }
       if (response.data.length < MAL_LIMITS.animeTagRanking) break;
     }

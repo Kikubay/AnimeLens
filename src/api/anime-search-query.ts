@@ -1,4 +1,4 @@
-import type { Anime } from '../domain/anime';
+import type { Anime, AnimeType } from '../domain/anime';
 
 export const ANIME_SEARCH_MIN_LENGTH = 2;
 export const ANIME_SEARCH_MAX_LENGTH = 120;
@@ -8,7 +8,6 @@ export type AnimeSearchQuery =
   | { readonly kind: 'title'; readonly value: string }
   | { readonly kind: 'tag'; readonly value: string };
 
-/** Folds a genre or theme name and a typed `#tag` onto the same key, so `Slice of Life`, `slice-of-life` and `sliceoflife` all meet. */
 export function normalizeAnimeTag(value: string): string {
   return value.toLowerCase().replace(/[^a-z0-9]+/g, '');
 }
@@ -38,4 +37,12 @@ export function matchesAnimeSearchQuery(anime: Anime, query: AnimeSearchQuery): 
   return [anime.title.default, anime.title.english, anime.title.japanese, ...anime.title.synonyms]
     .filter((title): title is string => typeof title === 'string')
     .some((title) => title.toLowerCase().includes(needle));
+}
+
+export function filterAnimeByFormats(
+  results: readonly Anime[],
+  formats: readonly AnimeType[],
+): readonly Anime[] {
+  if (formats.length === 0) return results;
+  return results.filter((anime) => formats.includes(anime.type));
 }

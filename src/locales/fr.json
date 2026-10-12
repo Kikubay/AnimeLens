@@ -411,6 +411,13 @@
     "searchFailed": "Échec de la recherche",
     "searchAuthRequired": "Connectez votre compte {name} pour rechercher dans tout le catalogue.",
     "searchSessionExpired": "Votre session {name} a expiré. Reconnectez votre compte.",
-    "searchUnavailable": "{name} est momentanément indisponible. Réessayez dans un instant."
+    "searchUnavailable": "{name} est momentanément indisponible. Réessayez dans un instant.",
+    "searchFormatFilterLabel": "Filtrer les résultats par format",
+    "searchFormatTv": "TV",
+    "searchFormatMovie": "Films",
+    "searchFormatOva": "OAV",
+    "searchFormatOna": "ONA",
+    "searchFormatSpecial": "Spécial",
+    "searchFormatEmpty": "Aucun résultat ne correspond à ce format. Essayez un format plus large ou effacez les filtres."
   }
 }

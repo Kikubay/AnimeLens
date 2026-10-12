@@ -107,20 +107,20 @@ query ($id: Int) {
 
 export const SEARCH_ANIME_QUERY = `
 ${ANIME_MEDIA_FRAGMENT}
-query ($search: String, $page: Int, $perPage: Int) {
+query ($search: String, $formatIn: [MediaFormat], $page: Int, $perPage: Int) {
   Page(page: $page, perPage: $perPage) {
     pageInfo { hasNextPage currentPage }
-    media(search: $search, type: ANIME, sort: SEARCH_MATCH) { ...AnimeMedia }
+    media(search: $search, type: ANIME, sort: SEARCH_MATCH, format_in: $formatIn) { ...AnimeMedia }
   }
 }
 `;
 
 export const SEARCH_ANIME_BY_TAG_QUERY = `
 ${ANIME_MEDIA_FRAGMENT}
-query ($genreIn: [String], $tagIn: [String], $page: Int, $perPage: Int) {
+query ($genreIn: [String], $tagIn: [String], $formatIn: [MediaFormat], $page: Int, $perPage: Int) {
   Page(page: $page, perPage: $perPage) {
     pageInfo { hasNextPage currentPage }
-    media(type: ANIME, sort: POPULARITY_DESC, genre_in: $genreIn, tag_in: $tagIn) { ...AnimeMedia }
+    media(type: ANIME, sort: POPULARITY_DESC, genre_in: $genreIn, tag_in: $tagIn, format_in: $formatIn) { ...AnimeMedia }
   }
 }
 `;

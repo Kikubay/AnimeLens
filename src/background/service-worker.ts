@@ -106,12 +106,10 @@ import { getCopy, type Language } from '../locales';
 const dependencies = createRuntimeAuthDependencies();
 const providerRegistry = createRuntimeProviderRegistryService(dependencies);
 
-// Plain auth messages deliberately target the active provider so connect/disconnect/snapshot keep working as before; anything provider-scoped goes through `providerRegistry`.
 async function activeAuthService() {
   return providerRegistry.getAuthService(await providerRegistry.registry.getActiveProvider());
 }
 
-// Deep enough to skip the mega-popular head, but MAL starts returning empty pages further down than you'd expect.
 const DEFAULT_CANDIDATE_POOL_CONFIG: CandidatePoolConfig = {
   suggestionLimit: 50,
   rankingLimit: 100,
@@ -121,7 +119,6 @@ const DAILY_RECOMMENDATION_ALARM = 'animelens-daily-recommendation';
 const SYNC_ALARM = 'animelens-sync';
 let updateCheckInFlight: Promise<UpdateSnapshot> | null = null;
 
-// Every rating, add, preference change and sync re-requests the pool, and each request costs two provider calls for byte-identical results.
 const candidatePoolStore = createCandidatePoolStore(createSessionStorageArea());
 const dashboardSnapshotStore = createDashboardSnapshotStore(createSessionStorageArea());
 let candidatePoolInFlight: {
@@ -129,7 +126,6 @@ let candidatePoolInFlight: {
   readonly request: Promise<readonly Anime[]>;
 } | null = null;
 
-/** Drop the pool when the account, or the data it was drawn from, changes. */
 async function invalidateCandidatePool(): Promise<void> {
   candidatePoolInFlight = null;
   await candidatePoolStore.clear();
@@ -138,7 +134,6 @@ async function invalidateCandidatePool(): Promise<void> {
 
 type Storage = ConstructorParameters<typeof ChromeAnimeCacheStore>[0];
 
-// The shared adapter rather than a local copy, so a failed write raises the same typed error everywhere instead of vanishing into a generic sync error.
 const storage: Storage = new ChromeStorageAdapter();
 
 const feedbackService = new RecommendationFeedbackService(new ChromeFeedbackStore(storage));
@@ -153,7 +148,7 @@ const syncService = new AuthenticatedAnimeListSyncService(providerRegistry, stor
 void providerRegistry.migrateLegacySessions().catch(reportBackgroundFailure);
 
 void hydrateCachedSync().catch(reportBackgroundFailure);
-// `setAccessLevel` is Chrome-only, so an unguarded call throws synchronously at module scope and takes the whole background script with it.
+
 chrome.storage.session
   .setAccessLevel?.({ accessLevel: 'TRUSTED_CONTEXTS' })
   ?.catch(reportBackgroundFailure);
@@ -179,18 +174,14 @@ async function rememberAnilistPinToken(token: string, tabId?: number): Promise<v
   await chrome.storage.session.set({ [ANILIST_PIN_TOKEN_KEY]: record });
 }
 
-/** Clears the stashed token and navigates its tab off the pin URL, which still holds the token in its address bar for the next scan to find. */
 async function forgetAnilistPinToken(): Promise<void> {
   const stored = await chrome.storage.session.get(ANILIST_PIN_TOKEN_KEY);
   const record = readAnilistPinTokenRecord(stored[ANILIST_PIN_TOKEN_KEY]);
   await chrome.storage.session.remove(ANILIST_PIN_TOKEN_KEY);
   if (record?.tabId === undefined) return;
-  await chrome.tabs?.update?.(record.tabId, { url: ANILIST_HOME_URL }).catch(() => {
-    // A closed tab is the common case, and nothing depends on the redirect landing.
-  });
+  await chrome.tabs?.update?.(record.tabId, { url: ANILIST_HOME_URL }).catch(() => {});
 }
 
-/** A tab already parked on the pin page is invisible to `tabs.onUpdated` after a worker restart, so ask the open tabs directly. */
 async function readStoredAnilistPinToken(): Promise<string | null> {
   const stored = await chrome.storage.session.get(ANILIST_PIN_TOKEN_KEY);
   const record = readAnilistPinTokenRecord(stored[ANILIST_PIN_TOKEN_KEY]);
@@ -207,7 +198,6 @@ async function readStoredAnilistPinToken(): Promise<string | null> {
   return null;
 }
 
-// Optional because the desktop shim implements neither, and a top-level registration that throws is nothing a `catch` can rescue.
 chrome.tabs?.onUpdated?.addListener((tabId, changeInfo) => {
   const token = extractAnilistPinToken(changeInfo.url);
   if (token === null) return;
@@ -215,7 +205,6 @@ chrome.tabs?.onUpdated?.addListener((tabId, changeInfo) => {
 });
 
 chrome.runtime.onStartup?.addListener(() => {
-  // Firefox drops alarms on browser restart, unlike Chromium, so the daily recommendation would quietly stop firing.
   void configureScheduledTasks().catch(reportBackgroundFailure);
 });
 
@@ -449,10 +438,9 @@ async function handleAuthMessage(message: AuthMessage): Promise<AuthResponse> {
     }
     const snapshot = await providerRegistry.completeAnilistPinSignIn(message.token);
     if (snapshot.status === 'authenticated') {
-      // The pin tab is still sitting on its URL, so without this the same token would be handed out again on every later popup open.
       await forgetAnilistPinToken();
       void configureScheduledTasks().catch(reportBackgroundFailure);
-      // The pin flow doesn't switch the active provider, so only sync if AniList is already the one taking traffic.
+
       const activeProvider = await providerRegistry.registry.getActiveProvider();
       if (activeProvider === 'anilist') {
         void startSync('initial').catch(reportBackgroundFailure);
@@ -466,7 +454,7 @@ async function handleAuthMessage(message: AuthMessage): Promise<AuthResponse> {
       return { ok: false, message: (await currentCopy()).unknownProvider };
     }
     await providerRegistry.registry.setActiveProvider(providerId);
-    // Reset the visible sync state; the new provider's cache hydrates on the next snapshot read, then a background re-sync refreshes it.
+
     await invalidateCandidatePool();
     syncSnapshot = { metadata: createIdleMetadata(), progress: null };
     void hydrateCachedSync().catch(reportBackgroundFailure);
@@ -477,7 +465,6 @@ async function handleAuthMessage(message: AuthMessage): Promise<AuthResponse> {
     return { ok: true, snapshot: auth };
   }
 
-  // launchWebAuthFlow can't complete AniList's fragment redirect, so we open the authorize page in a tab and wait for the pasted token.
   if (message.type === 'auth.connect' && message.providerId === 'anilist') {
     try {
       const authorizeUrl = await providerRegistry.getAniListPinAuthorizeUrl();
@@ -517,7 +504,6 @@ async function handleAuthMessage(message: AuthMessage): Promise<AuthResponse> {
         : await targetService.disconnect();
 
   if (message.type === 'auth.connect' && snapshot.status === 'authenticated') {
-    // Only take the active slot when nothing is signed in there; adding a second provider never steals it.
     const activeProvider = await providerRegistry.registry.getActiveProvider();
     const activeStillSignedIn = await providerRegistry.isProviderSignedIn(activeProvider);
     const shouldActivate =
@@ -537,7 +523,6 @@ async function handleAuthMessage(message: AuthMessage): Promise<AuthResponse> {
     }
   }
   if (message.type === 'auth.disconnect') {
-    // Feedback and profile are global, so they only go when the last provider signs out.
     const disconnectedProviderId =
       targetProviderId ?? (await providerRegistry.registry.getActiveProvider());
     await syncService.invalidate(disconnectedProviderId);
@@ -587,14 +572,13 @@ async function handleSettingsMessage(message: SettingsMessage): Promise<Settings
   if (message.type === 'settings.clear_cache') {
     await syncService.invalidate();
     await invalidateCandidatePool();
-    // The history is derived from the cache, so keeping it would make the next sync diff against data that's already gone.
+
     await profileHistoryStore.clear();
     syncSnapshot = { metadata: createIdleMetadata(), progress: null };
     void hydrateCachedSync().catch(reportBackgroundFailure);
     return settingsSnapshot();
   }
   if (message.type === 'settings.delete_local_data') {
-    // Typed as StorageKey[], so adding a persisted key anywhere else becomes a compile error rather than a silent omission here.
     const LOCAL_DATA_KEYS: readonly StorageKey[] = [
       'animeData',
       'animeData:mal',
@@ -619,7 +603,6 @@ async function handleSettingsMessage(message: SettingsMessage): Promise<Settings
   }
 
   if (message.type === 'settings.disconnect_mal') {
-    // Matches explicitly instead of falling through, because an unrecognized settings message must never wipe the user's list. AniList keeps its session and its cached list.
     await providerRegistry.getAuthService('mal').disconnect();
     await Promise.all([storage.remove('animeData'), storage.remove('animeData:mal')]);
     await profileHistoryStore.clear('mal');
@@ -637,7 +620,6 @@ async function handleSettingsMessage(message: SettingsMessage): Promise<Settings
     return settingsSnapshot();
   }
 
-  // Unreachable today, but keeping it explicit means a new SettingsMessage variant is a type error instead of a destructive fall-through.
   return { ok: false, message: (await currentCopy()).unknownSettingsAction };
 }
 
@@ -658,7 +640,7 @@ async function settingsSnapshot(): Promise<SettingsResponse> {
       anilistClientId,
       providers: await providerRegistry.listProviderStatuses(),
       malRedirectUri: chrome.identity.getRedirectURL(),
-      // The pin page, not the chromiumapp.org origin, is what the AniList app must register as its redirect URL.
+
       anilistRedirectUri: ANILIST_PIN_REDIRECT_URL,
     },
   };
@@ -676,7 +658,6 @@ async function configureScheduledTasks(): Promise<void> {
   await updateSyncAlarm(preferences.syncFrequency);
 }
 
-// `chrome.alarms.create` replaces an existing alarm and restarts its countdown, so a clear-then-create on every cold start would push the alarm forward forever and it would never fire. Recreate only when the period actually changed, otherwise toggling an unrelated preference also resets the countdown.
 async function reconcileAlarm(name: string, periodMinutes: number | null): Promise<void> {
   const existing = await chrome.alarms.get(name);
 
@@ -735,7 +716,7 @@ async function handleStreamingLinksMessage(
         await activeAuthService()
       ).withAccessToken(async (accessToken) => {
         const provider = await providerRegistry.createActiveProvider(accessToken);
-        // Asked per title rather than read off the cached record, since list/suggestion/ranking responses aren't obliged to carry these.
+
         const dedicated = await provider.getStreamingLinks?.(message.animeId);
         if (dedicated !== undefined) return dedicated;
         const anime = await provider.getAnime(message.animeId);
@@ -743,7 +724,6 @@ async function handleStreamingLinksMessage(
       }),
     };
   } catch (error) {
-    // An expired session or an offline network must not break the page.
     reportBackgroundFailure(error);
     return { ok: true, links: [] };
   }
@@ -767,9 +747,7 @@ async function handleAnimeSearchMessage(message: AnimeSearchMessage): Promise<An
   const parsed = parseAnimeSearchQuery(message.query);
   if (parsed === null) return { ok: true, results: [], hasMore: false, nextOffset: 0 };
   const offset = message.offset ?? 0;
-  // A `#tag` reaches the provider as its own term and comes back filtered on genres and themes.
-  // The offset is counted in provider items and advances by a full page rather than by
-  // `results.length`, so a thinned page doesn't send the next one back over the same window.
+
   try {
     const page = await (
       await activeAuthService()
@@ -779,6 +757,7 @@ async function handleAnimeSearchMessage(message: AnimeSearchMessage): Promise<An
         limit: ANIME_SEARCH_PAGE_SIZE,
         offset,
         tag: parsed.kind === 'tag' ? parsed.value : null,
+        formats: message.formats ?? [],
       });
     });
     return {
@@ -793,7 +772,6 @@ async function handleAnimeSearchMessage(message: AnimeSearchMessage): Promise<An
   }
 }
 
-// Suggestions are the primary source; the deep ranking page is what widens it with quality-but-obscure titles, since the top of the ranking is already known to heavy users. Each source is fetched independently so a failure in one can't discard the other — they used to run sequentially behind an unguarded await, which meant the fallback never ran in the one case it existed for.
 async function fetchCandidatePool(): Promise<readonly Anime[]> {
   const pool = await (
     await activeAuthService()
@@ -811,8 +789,6 @@ async function fetchCandidatePool(): Promise<readonly Anime[]> {
       }
     };
 
-    // Trending and the near-top ranking are both taste-aligned, so without a deeper slice the pool
-    // holds nothing for Hidden Gems, whose premise is quality the baseline underestimates.
     const config = provider.candidatePoolConfig ?? DEFAULT_CANDIDATE_POOL_CONFIG;
     const [suggested, ranked, deepRanked] = await Promise.all([
       degrade<Anime>(() => provider.getAnimeSuggestions?.(config.suggestionLimit)),
@@ -834,13 +810,11 @@ async function fetchCandidatePool(): Promise<readonly Anime[]> {
   return pool;
 }
 
-// Keyed on the active provider so switching accounts can't serve the previous account's pool.
 async function loadCandidatePool(): Promise<readonly Anime[]> {
   const providerId = await providerRegistry.registry.getActiveProvider();
   const cached = await candidatePoolStore.load(providerId, Date.now());
   if (cached !== null) return cached;
 
-  // A provider switch mid-flight must not be served the previous account's pool.
   if (candidatePoolInFlight !== null && candidatePoolInFlight.providerId === providerId) {
     return candidatePoolInFlight.request;
   }
@@ -849,7 +823,6 @@ async function loadCandidatePool(): Promise<readonly Anime[]> {
     try {
       return await fetchCandidatePool();
     } catch (error) {
-      // Degrade to plan-to-watch-only candidates rather than blocking the dashboard.
       reportBackgroundFailure(error);
       return [] as readonly Anime[];
     }
@@ -858,7 +831,7 @@ async function loadCandidatePool(): Promise<readonly Anime[]> {
 
   try {
     const pool = await request;
-    // An empty pool is a degraded failure, not an answer, so don't cache it and lock the dashboard to it for the whole TTL.
+
     if (pool.length > 0) {
       await candidatePoolStore.save(providerId, pool, Date.now());
     }
@@ -926,14 +899,12 @@ async function buildCurrentProfileSummary(): Promise<{
   return { summary, providerId };
 }
 
-// Called when the inputs change (a finished sync, a written rating) and never on a read, or the first popup to open would eat the delta.
 async function recordProfileBaseline(): Promise<void> {
   try {
     const current = await buildCurrentProfileSummary();
     if (current === null || !current.summary.hasData) return;
     await profileHistoryStore.record(current.providerId, current.summary);
   } catch (error) {
-    // A failed history write must not take the sync or the rating down with it.
     reportBackgroundFailure(error);
   }
 }
@@ -972,7 +943,6 @@ async function handleProfileMessage(message: ProfileMessage): Promise<ProfileMes
   };
 }
 
-// Recomputed on every call so the stored signature always reflects the list as it is now.
 async function currentTopPickPlan(): Promise<TopPickPlan> {
   const providerId = await providerRegistry.registry.getActiveProvider();
   const stored = await readActiveProviderCache();
@@ -989,7 +959,7 @@ async function handleTopPicksMessage(message: TopPicksMessage): Promise<TopPicks
   if (message.type === 'profile.get_top_picks_ranking') {
     return { ok: true, ranking: await topPicksStore.load(plan) };
   }
-  // Locked slots are re-derived from the plan, so only the open ones are stored and a stale answer can't contradict the scores.
+
   const ranking = message.ranking;
   const valid =
     plan.needsChoice &&
@@ -1012,7 +982,7 @@ async function handleFeedbackMessage(message: FeedbackMessage): Promise<Feedback
     message.value,
     message.reasons ?? [],
   );
-  // A rating moves the profile just as watching something does.
+
   await recordProfileBaseline();
   return { ok: true, feedback };
 }
@@ -1050,7 +1020,7 @@ async function startSync(reason: 'initial' | 'manual' | 'reconnect'): Promise<vo
       onProgress: (progress) => updateProgress(progress),
     });
     syncSnapshot = { metadata: result.metadata, progress: result.metadata.progress };
-    // A successful sync is the one moment we know the list behind the profile changed.
+
     if (result.metadata.status === 'success') await recordProfileBaseline();
   } catch (error) {
     let cached: Awaited<ReturnType<typeof syncService.getCachedResult>> = null;
@@ -1082,7 +1052,7 @@ async function hydrateCachedSync(): Promise<void> {
     if (cached !== null)
       syncSnapshot = { metadata: cached.metadata, progress: cached.metadata.progress };
   } catch {
-    // Nothing to hydrate; the cache store already discarded anything unreadable.
+    return;
   }
 }
 

@@ -1,5 +1,6 @@
 import type { AnimeProviderId } from '../domain/anime';
-import { ANIME_SEARCH_PAGE_SIZE } from '../api/anime-search-messages';
+import { ANIME_SEARCH_PAGE_SIZE, ANIME_TYPES } from '../api/anime-search-messages';
+import type { AnimeType } from '../domain/anime';
 import { normalizeUserPreferences } from '../settings/settings-types';
 import type { UserPreferences } from '../settings/settings-types';
 import { normalizeLanguage } from '../locales';
@@ -19,11 +20,6 @@ function preferencesOf(message: Message): UserPreferences {
   return normalizeUserPreferences(message.preferences);
 }
 
-/**
- * The popup only ever reaches its background through `chrome.runtime.sendMessage`, so a
- * single function backing that call is enough to host the whole app in a plain tab. Anything
- * that would touch a real account or a real provider API answers with a refusal instead.
- */
 export async function dispatchDemoMessage(message: unknown): Promise<unknown> {
   if (typeof message !== 'object' || message === null) return undefined;
   const request = message as Message;
@@ -38,7 +34,7 @@ export async function dispatchDemoMessage(message: unknown): Promise<unknown> {
       return ok({ snapshot: demoHost.setActiveProvider(request.providerId) });
     case 'auth.get_token_exchange_diagnostic':
       return ok({ diagnostic: null });
-    // The pin flow would open AniList's authorize page, so it is refused outright.
+
     case 'auth.get_pin_token':
       return ok({ pinToken: null });
     case 'auth.connect':
@@ -93,13 +89,16 @@ export async function dispatchDemoMessage(message: unknown): Promise<unknown> {
     case 'anime.search': {
       if (typeof request.query !== 'string') return fail('Invalid search.');
       const offset = typeof request.offset === 'number' ? request.offset : 0;
-      const page = demoHost.search(request.query, offset, ANIME_SEARCH_PAGE_SIZE);
+      const formats = Array.isArray(request.formats)
+        ? request.formats.filter((entry): entry is AnimeType => ANIME_TYPES.includes(entry))
+        : [];
+      const page = demoHost.search(request.query, offset, ANIME_SEARCH_PAGE_SIZE, formats);
       return ok({ ...page, nextOffset: offset + ANIME_SEARCH_PAGE_SIZE });
     }
 
     case 'anime.get_streaming_links': {
       const record = demoHost.recordFor(Number(request.animeId));
-      // The record already carries its links, so there is nothing further to fetch.
+
       return ok({ links: record?.streamingSites ?? [] });
     }
 

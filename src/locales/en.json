@@ -411,6 +411,13 @@
     "searchFailed": "Search failed",
     "searchAuthRequired": "Connect your {name} account to search the whole catalog.",
     "searchSessionExpired": "Your {name} session has expired. Reconnect your account.",
-    "searchUnavailable": "{name} is temporarily unavailable. Try again in a moment."
+    "searchUnavailable": "{name} is temporarily unavailable. Try again in a moment.",
+    "searchFormatFilterLabel": "Filter results by format",
+    "searchFormatTv": "TV",
+    "searchFormatMovie": "Movies",
+    "searchFormatOva": "OVAs",
+    "searchFormatOna": "ONAs",
+    "searchFormatSpecial": "Specials",
+    "searchFormatEmpty": "No results match this format. Try a broader format or clear the filters."
   }
 }

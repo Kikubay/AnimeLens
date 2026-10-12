@@ -1,4 +1,4 @@
-import type { Anime, AnimeProviderId } from '../domain/anime';
+import type { Anime, AnimeProviderId, AnimeType } from '../domain/anime';
 import type { AuthSnapshot } from '../auth/auth-types';
 import type {
   ProviderStatusView,
@@ -13,7 +13,11 @@ import { profileSummaryFromModel, type ProfileSnapshot } from '../profile/profil
 import type { SyncMetadata } from '../domain/sync';
 import type { UserProfile } from '../domain/user-profile';
 import type { AnimeSearchPage } from '../api/anime-provider';
-import { matchesAnimeSearchQuery, parseAnimeSearchQuery } from '../api/anime-search-query';
+import {
+  filterAnimeByFormats,
+  matchesAnimeSearchQuery,
+  parseAnimeSearchQuery,
+} from '../api/anime-search-query';
 import fixtureData from './data/demo-anime.json';
 import { buildDemoLibrary, type DemoAnimeFixture } from './library';
 import { buildRecord } from './records';
@@ -26,7 +30,6 @@ const PROVIDER_DISPLAY: Readonly<Record<AnimeProviderId, string>> = {
   anilist: 'AniList',
 };
 
-// A recognisable but obviously invented account, so nobody mistakes the demo for a real session.
 const DEMO_USERNAME = 'demo_viewer';
 
 interface DemoState {
@@ -62,7 +65,7 @@ class DemoHost {
   private rebuild(provider: AnimeProviderId): void {
     this.provider = provider;
     this.library = buildDemoLibrary(fixtures, provider, this.seed);
-    // The new library has its own sync timestamp, matching a real provider switch.
+
     this.syncMetadataCache = null;
   }
 
@@ -107,12 +110,6 @@ class DemoHost {
     };
   }
 
-  /**
-   * `lastSyncedAt` is the app's signal that a real sync finished, and the dashboard reloads
-   * its recommendations whenever it moves. The popup polls this snapshot every 750ms, so a
-   * fresh timestamp here made Discover swap to its skeleton loaders several times a second.
-   * Caching the object also keeps its identity stable, so the poll costs no re-render at all.
-   */
   syncMetadata(): SyncMetadata {
     this.syncMetadataCache ??= {
       status: 'success',
@@ -128,7 +125,6 @@ class DemoHost {
     return this.syncMetadataCache;
   }
 
-  /** A user-initiated sync really did just finish, so the timestamp may move. */
   markSyncedNow(): SyncMetadata {
     this.syncMetadataCache = null;
     return this.syncMetadata();
@@ -141,7 +137,7 @@ class DemoHost {
 
   setActiveProvider(provider: AnimeProviderId): AuthSnapshot {
     this.rebuild(provider);
-    // The Settings tab drives this switch, so the choice is remembered for the next reload.
+
     persistDemoProvider(provider);
     return this.authSnapshot();
   }
@@ -151,19 +147,27 @@ class DemoHost {
     return {
       status: 'ready',
       summary: profileSummaryFromModel(model, language, this.library.watched, this.provider),
-      // A demo has no history to compare against, and the UI copes with a missing baseline.
+
       delta: null,
       errorMessage: null,
     };
   }
 
-  search(query: string, offset: number = 0, limit: number = 20): AnimeSearchPage {
+  search(
+    query: string,
+    offset: number = 0,
+    limit: number = 20,
+    formats: readonly AnimeType[] = [],
+  ): AnimeSearchPage {
     const parsed = parseAnimeSearchQuery(query);
     if (parsed === null) return { results: [], hasMore: false };
     const safeOffset = Math.max(0, offset);
     const safeLimit = Math.max(0, limit);
     const records = fixtures.map((fixture) => buildRecord(fixture, this.provider));
-    const matches = records.filter((anime) => matchesAnimeSearchQuery(anime, parsed));
+    const matches = filterAnimeByFormats(
+      records.filter((anime) => matchesAnimeSearchQuery(anime, parsed)),
+      formats,
+    );
     const results = matches.slice(safeOffset, safeOffset + safeLimit);
     return { results, hasMore: safeOffset + results.length < matches.length };
   }

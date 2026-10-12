@@ -17,7 +17,7 @@
   --cyan: #86c8c5;
   --warning: #e2b37c;
   --success: #88c69e;
-  /* The design width of the dashboard, and so the popup window width — one place for the three uses of 700px to agree. */
+
   --popup-content-width: 700px;
 }
 
@@ -151,7 +151,7 @@ button:focus-visible {
   border-radius: 999px;
   padding: 3px 7px;
   margin-left: 2px;
-  transform: translate(-2px, 2px); /* X then Y; positive is down/right */
+  transform: translate(-2px, 2px);
   user-select: none;
 }
 .brand-icon {
@@ -489,6 +489,42 @@ button:focus-visible {
 .anime-search-more-block {
   display: grid;
   gap: 10px;
+}
+.anime-search-controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+}
+.anime-search-formats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+.anime-search-format {
+  padding: 3px 7px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--muted);
+  font-family: inherit;
+  font-size: 8px;
+  letter-spacing: 0.04em;
+  cursor: pointer;
+  transition:
+    background 160ms ease,
+    border-color 160ms ease,
+    color 160ms ease;
+}
+.anime-search-format:hover {
+  color: var(--text);
+  border-color: var(--muted);
+}
+.anime-search-format[aria-pressed='true'] {
+  border-color: var(--accent);
+  color: var(--accent);
+  background: var(--surface-raised);
 }
 
 .card {
@@ -1786,7 +1822,7 @@ button:focus-visible {
   background: rgb(184 165 255 / 8%);
   box-shadow: 0 10px 24px rgb(0 0 0 / 14%);
 }
-/* The gear is a stroked icon, so it needs a colour of its own rather than inheriting page text. */
+
 .settings-header-icon svg {
   color: #b8a5ff;
 }
@@ -2409,7 +2445,7 @@ button:focus-visible {
     opacity: 0;
     transform: translateY(4px);
   }
-  /* No `transform` on purpose: fill-mode: both would persist translateY(0), making the page the containing block for fixed descendants. */
+
   to {
     opacity: 1;
   }
@@ -2477,7 +2513,6 @@ button:focus-visible {
   }
 }
 
-/* Title block and its page-level action share a baseline. */
 .profile-header {
   display: flex;
   align-items: flex-start;
@@ -2501,7 +2536,7 @@ button:focus-visible {
 .modal-taste-card {
   max-width: 452px;
 }
-/* The stage holds the exported PNG, so the 1080px card is never laid out or scaled inside the 700px popup. */
+
 .taste-card-stage {
   position: relative;
   width: 100%;
@@ -2612,7 +2647,7 @@ button:focus-visible {
 }
 .top-picks-candidates {
   display: grid;
-  /* Without an explicit track the column sizes to the widest nowrap title and scrolls sideways. */
+
   grid-template-columns: minmax(0, 1fr);
   gap: 4px;
   max-height: 190px;
@@ -2678,7 +2713,7 @@ button:focus-visible {
 }
 .top-picks-candidate-score {
   flex: 0 0 auto;
-  /* So the scores line up as a column. */
+
   min-width: 20px;
   color: var(--cyan);
   font-size: 10px;
@@ -2698,7 +2733,7 @@ button:focus-visible {
 .top-picks-empty {
   margin: 0;
   padding: 12px 10px;
-  /* Reads as list content, so it aligns with the rows it replaces. */
+
   text-align: left;
 }
 .grid-slots {
@@ -2824,7 +2859,6 @@ button:focus-visible {
   text-transform: uppercase;
 }
 .taste-card-option {
-  /* `.setting-toggle-row`'s justify-content doesn't reach here, since this is a bare child of the options grid. */
   display: flex;
   align-items: center;
   justify-content: space-between;

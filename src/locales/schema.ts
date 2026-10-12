@@ -4,7 +4,6 @@ export type Language = 'fr' | 'en';
 
 export const LANGUAGES: readonly Language[] = ['fr', 'en'];
 
-// Every key here has to exist in each locale JSON with exactly the placeholders declared in MESSAGE_PARAMS, in any order; a missing key is a compile error and the locale-parity tests catch a drifted placeholder. `authErrorMessage` is the exception, since it's keyed by error code and each locale file carries an `authErrors` map for it.
 export interface AppCopy {
   readonly languageName: string;
   readonly newLabel: string;
@@ -120,7 +119,7 @@ export interface AppCopy {
   readonly profileDeltaEyebrow: string;
   readonly profileDeltaTitle: string;
   readonly profileDeltaUpdated: string;
-  /** Shown instead of the section when there's no baseline to diff against yet. */
+
   readonly profileDeltaBaseline: string;
   readonly profileDeltaStable: string;
   readonly profileDeltaSince: (date: string) => string;
@@ -150,9 +149,9 @@ export interface AppCopy {
   readonly tasteCardAffinity: string;
   readonly tasteCardNoGenres: string;
   readonly tasteCardFooter: string;
-  /** Fallback for when the provider has no username to print. */
+
   readonly tasteCardDefaultName: string;
-  /** Stays in Latin script in every language. */
+
   readonly brandWordmark: string;
   readonly betaBadge: string;
   readonly tasteCardFormat: string;
@@ -401,10 +400,16 @@ export interface AppCopy {
   readonly searchAuthRequired: (name: string) => string;
   readonly searchSessionExpired: (name: string) => string;
   readonly searchUnavailable: (name: string) => string;
+  readonly searchFormatFilterLabel: string;
+  readonly searchFormatTv: string;
+  readonly searchFormatMovie: string;
+  readonly searchFormatOva: string;
+  readonly searchFormatOna: string;
+  readonly searchFormatSpecial: string;
+  readonly searchFormatEmpty: string;
   readonly authErrorMessage: (code: AuthErrorCode | null, fallback: string) => string;
 }
 
-// Argument order mirrors each `AppCopy` member's parameter list, which is how the loader binds them — that's what lets a translation repeat or reorder its placeholders. Plain-string members are the ones absent from here, and `AssertCoverage` below fails to compile if a templated key is ever added without an entry.
 const MESSAGE_PARAMS = {
   updateAvailable: ['version'],
   currentVersion: ['version'],
@@ -481,7 +486,6 @@ const MESSAGE_PARAMS = {
   Partial<Record<Exclude<keyof AppCopy, 'authErrorMessage'>, readonly string[]>>
 >;
 
-/** A templated key is one whose `AppCopy` member takes arguments. */
 type TemplatedKey = {
   [K in keyof AppCopy]: K extends 'authErrorMessage'
     ? never

@@ -26,7 +26,7 @@ import {
   USER_LIST_QUERY,
   VIEWER_QUERY,
 } from './anilist-queries';
-import { findAniListGenre } from './anilist-taxonomy';
+import { findAniListGenre, toAniListFormats } from './anilist-taxonomy';
 import {
   isAniListListResponse,
   isAniListMedia,
@@ -198,16 +198,18 @@ export class AniListProvider implements AnimeProvider {
     );
     const page = Math.floor(Math.max(0, Math.floor(request.offset ?? 0)) / perPage) + 1;
     const genre = tag.length > 0 ? findAniListGenre(tag) : null;
+    const formatIn = toAniListFormats(request.formats ?? []);
+    const variables = {
+      ...(tag.length > 0
+        ? { genreIn: genre === null ? null : [genre], tagIn: genre === null ? [tag] : null }
+        : { search: normalizedQuery }),
+      ...(formatIn === null ? {} : { formatIn }),
+      page,
+      perPage,
+    };
     const data = await this.graphql.request<unknown>(
       tag.length > 0 ? SEARCH_ANIME_BY_TAG_QUERY : SEARCH_ANIME_QUERY,
-      tag.length > 0
-        ? {
-            genreIn: genre === null ? null : [genre],
-            tagIn: genre === null ? [tag] : null,
-            page,
-            perPage,
-          }
-        : { search: normalizedQuery, page, perPage },
+      variables,
       this.accessToken,
     );
     if (!isAniListPageResponse(data)) throw invalidResponse('anime search');
