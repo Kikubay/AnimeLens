@@ -1,8 +1,7 @@
 import type { Anime, AnimeProviderId } from '../domain/anime';
-import { MAL_GENRE_NAMES, MAL_THEME_NAMES } from '../api/mal-taxonomy';
+import { MAL_THEME_NAMES, findMalGenreId } from '../api/mal-taxonomy';
 import { normalizeAnime as normalizeAniList } from '../api/providers/anilist/anilist-normalizer';
 
-/** Shape of the committed JSON produced by `scripts/fetch-demo-data.mjs`. */
 export interface DemoAnimeFixture {
   readonly id: number;
   readonly malId: number;
@@ -38,30 +37,14 @@ export interface DemoFixture {
   readonly anime: readonly DemoAnimeFixture[];
 }
 
-/**
- * Ids only have to be stable and unique within a provider; every taste signal in the engine
- * keys on names. Deriving them from the exported MAL vocabulary keeps the MyAnimeList view
- * consistent without inventing ids that would look authoritative but be wrong.
- */
 function genreId(name: string): number {
-  const index = MAL_GENRE_NAMES.findIndex(
-    (candidate) => candidate.toLowerCase() === name.toLowerCase(),
-  );
-  return index >= 0 ? index + 1 : MAL_GENRE_NAMES.length + 1;
+  return findMalGenreId(name) ?? 9001;
 }
 
 function themeId(name: string): number {
-  const index = MAL_THEME_NAMES.findIndex(
-    (candidate) => candidate.toLowerCase() === name.toLowerCase(),
-  );
-  return index >= 0 ? index + 1000 : 9000;
+  return findMalGenreId(name) ?? 9000;
 }
 
-/**
- * AniList tags and MAL themes describe the same ideas under different labels, so the MAL
- * view re-labels the ones it recognises. Every target is a real entry of `MAL_THEME_NAMES`;
- * a tag with no equivalent is simply dropped, which is exactly how MAL treats its own themes.
- */
 const MAL_THEME_ALIASES: Readonly<Record<string, string>> = {
   'school life': 'School',
   superpowers: 'Super Power',
@@ -70,7 +53,6 @@ const MAL_THEME_ALIASES: Readonly<Record<string, string>> = {
   'non bipedal': 'Anthropomorphic',
 };
 
-/** The AniList view runs the real normalizer, so it stays honest to what the extension does. */
 export function toAniListRecord(fixture: DemoAnimeFixture): Anime {
   return normalizeAniList({
     id: fixture.id,
@@ -100,10 +82,6 @@ export function toAniListRecord(fixture: DemoAnimeFixture): Anime {
   });
 }
 
-/**
- * The MyAnimeList view is assembled from the same real titles, but with MAL's own id and its
- * genre/theme split so the dashboard exercises the same code path it does in the extension.
- */
 export function toMalRecord(fixture: DemoAnimeFixture): Anime {
   const genres = fixture.genres.map((name) => ({ id: genreId(name), name }));
   const seenThemes = new Set<string>();
@@ -141,8 +119,6 @@ export function toMalRecord(fixture: DemoAnimeFixture): Anime {
     season: normalizeSeason(fixture.season),
     status: normalizeStatus(fixture.status),
     type: normalizeType(fixture.format),
-    // MAL's rank is not published by AniList, and `memberCount` is what both consumers
-    // prefer anyway, so the rank stays null rather than carrying a fabricated position.
     popularity: null,
     memberCount: fixture.listMembers,
     contentRating: fixture.isAdult ? 'explicit' : 'safe',

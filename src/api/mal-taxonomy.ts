@@ -1,144 +1,119 @@
-// MAL's API has no `themes` field — it folds everything into `genres` — so we split by ID against the taxonomy on its browse page (extracted September 2026). Taste scoring and recommendation reasons both depend on that distinction.
+import { normalizeAnimeTag } from './anime-search-query';
 
-// Browse-page "Themes" IDs; core genres, demographics and explicit genres all stay in `genres`.
-const THEME_IDS: ReadonlySet<number> = new Set([
-  3, // Racing
-  6, // Mythology
-  11, // Strategy Game
-  13, // Historical
-  17, // Martial Arts
-  18, // Mecha
-  19, // Music
-  20, // Parody
-  21, // Samurai
-  23, // School
-  29, // Space
-  31, // Super Power
-  32, // Vampire
-  35, // Harem
-  38, // Military
-  39, // Detective
-  40, // Psychological
-  50, // Adult Cast
-  51, // Anthropomorphic
-  52, // CGDCT
-  53, // Childcare
-  54, // Combat Sports
-  55, // Delinquents
-  56, // Educational
-  57, // Gag Humor
-  58, // Gore
-  59, // High Stakes Game
-  60, // Idols (Female)
-  61, // Idols (Male)
-  62, // Isekai
-  63, // Iyashikei
-  64, // Love Polygon
-  65, // Magical Sex Shift
-  66, // Mahou Shoujo
-  67, // Medical
-  68, // Organized Crime
-  69, // Otaku Culture
-  70, // Performing Arts
-  71, // Pets
-  72, // Reincarnation
-  73, // Reverse Harem
-  74, // Love Status Quo
-  75, // Showbiz
-  76, // Survival
-  77, // Team Sports
-  78, // Time Travel
-  79, // Video Game
-  80, // Visual Arts
-  81, // Crossdressing
-  82, // Urban Fantasy
-  83, // Villainess
-]);
+export interface MalTaxonomyEntry {
+  readonly id: number;
+  readonly name: string;
+}
 
-export const MAL_GENRE_NAMES: readonly string[] = [
-  'Action',
-  'Adventure',
-  'Avant Garde',
-  'Award Winning',
-  'Boys Love',
-  'Comedy',
-  'Drama',
-  'Ecchi',
-  'Erotica',
-  'Fantasy',
-  'Girls Love',
-  'Gourmet',
-  'Hentai',
-  'Horror',
-  'Mystery',
-  'Romance',
-  'Sci-Fi',
-  'Sports',
-  'Supernatural',
-  'Suspense',
-  'Thriller',
+const MAL_GENRE_TAXONOMY: readonly MalTaxonomyEntry[] = [
+  { id: 1, name: 'Action' },
+  { id: 2, name: 'Adventure' },
+  { id: 4, name: 'Comedy' },
+  { id: 5, name: 'Avant Garde' },
+  { id: 7, name: 'Mystery' },
+  { id: 8, name: 'Drama' },
+  { id: 9, name: 'Ecchi' },
+  { id: 10, name: 'Fantasy' },
+  { id: 12, name: 'Hentai' },
+  { id: 14, name: 'Horror' },
+  { id: 15, name: 'Kids' },
+  { id: 22, name: 'Romance' },
+  { id: 24, name: 'Sci-Fi' },
+  { id: 25, name: 'Shoujo' },
+  { id: 26, name: 'Girls Love' },
+  { id: 27, name: 'Shounen' },
+  { id: 28, name: 'Boys Love' },
+  { id: 30, name: 'Sports' },
+  { id: 36, name: 'Slice of Life' },
+  { id: 37, name: 'Supernatural' },
+  { id: 41, name: 'Suspense' },
+  { id: 42, name: 'Seinen' },
+  { id: 43, name: 'Josei' },
+  { id: 46, name: 'Award Winning' },
+  { id: 47, name: 'Gourmet' },
+  { id: 48, name: 'Workplace' },
+  { id: 49, name: 'Erotica' },
 ];
 
-export const MAL_THEME_NAMES: readonly string[] = [
-  'Adult Cast',
-  'Anthropomorphic',
-  'CGDCT',
-  'Childcare',
-  'Combat Sports',
-  'Crossdressing',
-  'Delinquents',
-  'Detective',
-  'Educational',
-  'Gag Humor',
-  'Gore',
-  'Harem',
-  'High Stakes Game',
-  'Historical',
-  'Idols (Female)',
-  'Idols (Male)',
-  'Isekai',
-  'Iyashikei',
-  'Love Polygon',
-  'Love Status Quo',
-  'Magical Sex Shift',
-  'Mahou Shoujo',
-  'Martial Arts',
-  'Medical',
-  'Mecha',
-  'Military',
-  'Music',
-  'Mythology',
-  'Organized Crime',
-  'Otaku Culture',
-  'Parody',
-  'Performing Arts',
-  'Pets',
-  'Psychological',
-  'Racing',
-  'Reincarnation',
-  'Reverse Harem',
-  'Samurai',
-  'School',
-  'Showbiz',
-  'Space',
-  'Strategy Game',
-  'Super Power',
-  'Survival',
-  'Team Sports',
-  'Time Travel',
-  'Urban Fantasy',
-  'Vampire',
-  'Video Game',
-  'Villainess',
-  'Visual Arts',
+const MAL_THEME_TAXONOMY: readonly MalTaxonomyEntry[] = [
+  { id: 3, name: 'Racing' },
+  { id: 6, name: 'Mythology' },
+  { id: 11, name: 'Strategy Game' },
+  { id: 13, name: 'Historical' },
+  { id: 17, name: 'Martial Arts' },
+  { id: 18, name: 'Mecha' },
+  { id: 19, name: 'Music' },
+  { id: 20, name: 'Parody' },
+  { id: 21, name: 'Samurai' },
+  { id: 23, name: 'School' },
+  { id: 29, name: 'Space' },
+  { id: 31, name: 'Super Power' },
+  { id: 32, name: 'Vampire' },
+  { id: 35, name: 'Harem' },
+  { id: 38, name: 'Military' },
+  { id: 39, name: 'Detective' },
+  { id: 40, name: 'Psychological' },
+  { id: 50, name: 'Adult Cast' },
+  { id: 51, name: 'Anthropomorphic' },
+  { id: 52, name: 'CGDCT' },
+  { id: 53, name: 'Childcare' },
+  { id: 54, name: 'Combat Sports' },
+  { id: 55, name: 'Delinquents' },
+  { id: 56, name: 'Educational' },
+  { id: 57, name: 'Gag Humor' },
+  { id: 58, name: 'Gore' },
+  { id: 59, name: 'High Stakes Game' },
+  { id: 60, name: 'Idols (Female)' },
+  { id: 61, name: 'Idols (Male)' },
+  { id: 62, name: 'Isekai' },
+  { id: 63, name: 'Iyashikei' },
+  { id: 64, name: 'Love Polygon' },
+  { id: 65, name: 'Magical Sex Shift' },
+  { id: 66, name: 'Mahou Shoujo' },
+  { id: 67, name: 'Medical' },
+  { id: 68, name: 'Organized Crime' },
+  { id: 69, name: 'Otaku Culture' },
+  { id: 70, name: 'Performing Arts' },
+  { id: 71, name: 'Pets' },
+  { id: 72, name: 'Reincarnation' },
+  { id: 73, name: 'Reverse Harem' },
+  { id: 74, name: 'Love Status Quo' },
+  { id: 75, name: 'Showbiz' },
+  { id: 76, name: 'Survival' },
+  { id: 77, name: 'Team Sports' },
+  { id: 78, name: 'Time Travel' },
+  { id: 79, name: 'Video Game' },
+  { id: 80, name: 'Visual Arts' },
+  { id: 81, name: 'Crossdressing' },
+  { id: 82, name: 'Urban Fantasy' },
+  { id: 83, name: 'Villainess' },
 ];
+
+const THEME_IDS: ReadonlySet<number> = new Set(MAL_THEME_TAXONOMY.map((entry) => entry.id));
+
+function namesAlphabetically(entries: readonly MalTaxonomyEntry[]): readonly string[] {
+  return [...entries].map((entry) => entry.name).sort((left, right) => left.localeCompare(right));
+}
+
+export const MAL_GENRE_NAMES: readonly string[] = namesAlphabetically(MAL_GENRE_TAXONOMY);
+export const MAL_THEME_NAMES: readonly string[] = namesAlphabetically(MAL_THEME_TAXONOMY);
+
+const MAL_TAXONOMY_IDS: ReadonlyMap<string, number> = new Map(
+  [...MAL_GENRE_TAXONOMY, ...MAL_THEME_TAXONOMY].map((entry) => [
+    normalizeAnimeTag(entry.name),
+    entry.id,
+  ]),
+);
+
+export function findMalGenreId(tag: string): number | null {
+  return MAL_TAXONOMY_IDS.get(normalizeAnimeTag(tag)) ?? null;
+}
 
 export interface MalGenreSplit<T> {
   readonly genres: readonly T[];
   readonly themes: readonly T[];
 }
 
-// Unrecognised IDs (themes MAL adds later) land in `genres` so we never silently drop a signal.
 export function splitMalGenreArray<T extends { readonly id: number }>(
   values: readonly T[] | undefined,
 ): MalGenreSplit<T> {

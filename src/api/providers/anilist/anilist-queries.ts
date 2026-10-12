@@ -1,12 +1,10 @@
 export const ANILIST_GRAPHQL_URL = 'https://graphql.anilist.co';
 export const ANILIST_AUTHORIZATION_URL = 'https://anilist.co/api/v2/oauth/authorize';
 
-// `launchWebAuthFlow` can't finish AniList's implicit flow (the fragment redirect fails), so connect opens the authorize page in a normal tab and the user pastes the token this page shows. Must be registered as the app's Redirect URL.
 export const ANILIST_PIN_REDIRECT_URL = 'https://anilist.co/api/v2/oauth/pin';
 
 export function buildAnilistPinAuthorizeUrl(clientId: string): string {
   const url = new URL(ANILIST_AUTHORIZATION_URL);
-  // Only these two params — adding `redirect_uri` makes AniList reject the request with `unsupported_grant_type`.
   url.search = new URLSearchParams({
     response_type: 'token',
     client_id: clientId,
@@ -14,17 +12,14 @@ export function buildAnilistPinAuthorizeUrl(clientId: string): string {
   return url.toString();
 }
 
-/** Prefix of the pin-page redirect URL carrying the token in its fragment. */
 const ANILIST_PIN_TAB_URL_PREFIX = 'https://anilist.co/api/v2/oauth/pin#access_token=';
 
-// Chrome match patterns ignore fragments, so the token in `#access_token=…` can only be spotted by inspecting the full URL.
 export function isAniListPinTabUrl(url: string): boolean {
   return (
     url.startsWith(ANILIST_PIN_TAB_URL_PREFIX) && url.length > ANILIST_PIN_TAB_URL_PREFIX.length
   );
 }
 
-// Accepts a raw token or the whole pin-page URL, since that's what people copy out of the address bar.
 export function extractAccessToken(input: string): string {
   const match = /[#&?]access_token=([^&\s]+)/.exec(input);
   if (match !== null) {
@@ -37,11 +32,9 @@ export function extractAccessToken(input: string): string {
   return input.trim();
 }
 
-/** AniList caps `Page` queries at 50 results per page. */
 export const ANILIST_PAGE_SIZE = 50;
 export const ANILIST_SEARCH_PAGE_SIZE = 50;
 
-// `externalLinks` is correct, `externalSites` gets the API to reject the query — and since this fragment is spread across every anime query, that would 400 the whole integration. `type` is what separates real platforms from the official-site and social links in the same array; `tags` is AniList's version of MAL's split themes, see below.
 export const ANIME_MEDIA_FRAGMENT = `
 fragment AnimeMedia on Media {
   id
@@ -63,7 +56,6 @@ fragment AnimeMedia on Media {
 }
 `;
 
-// `tags` is selected on every node (see above), not just the detail one: the engine weights `themes` at 0.16 and wants genre+theme overlap, so leaving it detail-only kept that weight inert on every list and candidate record. `rank` is needed because the normalizer filters on it, which also bounds how many themes reach the cache.
 export const ANIME_MEDIA_DETAIL_FRAGMENT = `
 fragment AnimeMediaDetail on Media {
   ...AnimeMedia
@@ -113,14 +105,22 @@ query ($id: Int) {
 }
 `;
 
-// `pageInfo` is what keeps the "Load more" button honest; without it a full page is
-// indistinguishable from an exhausted catalogue.
 export const SEARCH_ANIME_QUERY = `
 ${ANIME_MEDIA_FRAGMENT}
 query ($search: String, $page: Int, $perPage: Int) {
   Page(page: $page, perPage: $perPage) {
     pageInfo { hasNextPage currentPage }
     media(search: $search, type: ANIME, sort: SEARCH_MATCH) { ...AnimeMedia }
+  }
+}
+`;
+
+export const SEARCH_ANIME_BY_TAG_QUERY = `
+${ANIME_MEDIA_FRAGMENT}
+query ($genreIn: [String], $tagIn: [String], $page: Int, $perPage: Int) {
+  Page(page: $page, perPage: $perPage) {
+    pageInfo { hasNextPage currentPage }
+    media(type: ANIME, sort: POPULARITY_DESC, genre_in: $genreIn, tag_in: $tagIn) { ...AnimeMedia }
   }
 }
 `;

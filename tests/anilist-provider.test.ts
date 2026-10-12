@@ -56,7 +56,6 @@ const MEDIA = {
   tags: [
     { id: 1, name: 'Contemporary', rank: 90 },
     { id: 2, name: 'School', rank: 85 },
-    // Under TAG_MIN_RANK, so it must not survive normalization.
     { id: 3, name: 'Male Protagonist', rank: 5 },
   ],
   format: 'TV',
@@ -117,7 +116,7 @@ function isTrendingQuery(query: string): boolean {
 }
 
 function isSearchQuery(query: string): boolean {
-  return query.includes('SEARCH_MATCH');
+  return query.includes('SEARCH_MATCH') || query.includes('genre_in');
 }
 
 describe('AniListProvider', () => {
@@ -144,18 +143,14 @@ describe('AniListProvider', () => {
     expect(entries).toHaveLength(2);
     expect(entries[0]?.anime.id).toBe(154587);
     expect(entries[0]?.status).toBe('completed');
-    // POINT_100 score 90 → domain 9.
     expect(entries[0]?.userScore).toBe(9);
     expect(entries[0]?.notes).toBe('great');
-    // CURRENT + repeat>0 → rewatching.
     expect(entries[1]?.status).toBe('watching');
     expect(entries[1]?.isRewatching).toBe(true);
-    // Unscored entries (0) map to null.
     expect(entries[1]?.userScore).toBeNull();
   });
 
   it('requests tags on the list query so list entries carry themes', async () => {
-    // Tags must sit in the shared fragment: on the detail query alone every list and candidate record lost its themes, so the engine's themes weight and theme-overlap provenance silently did nothing.
     const http = new RecordingHttpClient((query) =>
       isViewerQuery(query) ? VIEWER_PAYLOAD : LIST_PAYLOAD,
     );
@@ -251,6 +246,58 @@ describe('AniListProvider', () => {
 
     expect(page.results.map((anime) => anime.id)).toEqual([MEDIA.id]);
     expect(page.hasMore).toBe(false);
+  });
+
+  it('filters a #tag at the API by genre and ranks by popularity', async () => {
+    const http = new RecordingHttpClient((query) =>
+      isSearchQuery(query)
+        ? { data: { Page: { media: [MEDIA], pageInfo: { hasNextPage: true, currentPage: 1 } } } }
+        : VIEWER_PAYLOAD,
+    );
+    const provider = new AniListProvider(http, 'token');
+
+    await provider.searchAnime('action', { limit: 24, offset: 0, tag: 'Action' });
+
+    const request = http.requests[0];
+    expect(request?.query).toContain('POPULARITY_DESC');
+    expect(request?.query).not.toContain('SEARCH_MATCH');
+    expect(request?.variables).toEqual({
+      genreIn: ['Action'],
+      tagIn: null,
+      page: 1,
+      perPage: 24,
+    });
+  });
+
+  it('falls back to a tag filter for anything that is not an AniList genre', async () => {
+    const http = new RecordingHttpClient((query) =>
+      isSearchQuery(query)
+        ? { data: { Page: { media: [MEDIA], pageInfo: { hasNextPage: false, currentPage: 1 } } } }
+        : VIEWER_PAYLOAD,
+    );
+    const provider = new AniListProvider(http, 'token');
+
+    await provider.searchAnime('isekai', { limit: 24, offset: 0, tag: 'Isekai' });
+
+    expect(http.requests[0]?.variables).toEqual({
+      genreIn: null,
+      tagIn: ['Isekai'],
+      page: 1,
+      perPage: 24,
+    });
+  });
+
+  it('normalizes punctuation and case when resolving a genre', async () => {
+    const http = new RecordingHttpClient((query) =>
+      isSearchQuery(query)
+        ? { data: { Page: { media: [MEDIA], pageInfo: { hasNextPage: false, currentPage: 1 } } } }
+        : VIEWER_PAYLOAD,
+    );
+    const provider = new AniListProvider(http, 'token');
+
+    await provider.searchAnime('slice-of-life', { limit: 24, offset: 0, tag: 'Slice of Life' });
+
+    expect(http.requests[0]?.variables).toMatchObject({ genreIn: ['Slice of Life'], tagIn: null });
   });
 
   it('treats a missing pageInfo as the last page rather than a broken payload', async () => {
@@ -356,19 +403,17 @@ describe('AniList enum mapping', () => {
     expect(url.pathname).toBe('/api/v2/oauth/authorize');
     expect(url.searchParams.get('response_type')).toBe('token');
     expect(url.searchParams.get('client_id')).toBe('52110');
-    // AniList rejects the request outright if redirect_uri is present.
     expect(url.searchParams.has('redirect_uri')).toBe(false);
     expect(ANILIST_PIN_REDIRECT_URL).toBe('https://anilist.co/api/v2/oauth/pin');
   });
 
   it('decodes the JWT expiry from an AniList-shaped token', async () => {
     const { decodeAniListTokenExpiry } = await import('../src/providers/provider-registry');
-    const exp = 1_800_000_000; // unix seconds
+    const exp = 1_800_000_000;
     const base64url = btoa(JSON.stringify({ exp }))
       .replace(/\+/g, '-')
       .replace(/\//g, '_')
       .replace(/=+$/, '');
-    // Only the payload segment matters here; header and signature are throwaway.
     const token = `eyJhbGciOiJIUzI1NiJ9.${base64url}.sig`;
     expect(decodeAniListTokenExpiry(token)).toBe(exp * 1000);
   });
@@ -396,9 +441,7 @@ describe('AniList enum mapping', () => {
         'https://anilist.co/api/v2/oauth/pin#access_token=abc.def.ghi&token_type=Bearer',
       ),
     ).toBe(true);
-    // An empty token after the prefix is not a completion.
     expect(isAniListPinTabUrl('https://anilist.co/api/v2/oauth/pin#access_token=')).toBe(false);
-    // The consent page, before any fragment exists, is not one either.
     expect(isAniListPinTabUrl('https://anilist.co/api/v2/oauth/pin')).toBe(false);
     expect(isAniListPinTabUrl('https://anilist.co/anime/1')).toBe(false);
     expect(isAniListPinTabUrl('')).toBe(false);

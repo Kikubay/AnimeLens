@@ -49,7 +49,6 @@ describe('MalAnimeProvider', () => {
   });
 
   it('requests list_status (not my_list_status) on the user animelist endpoint', async () => {
-    // `list_status`, not `my_list_status`: asking for the latter here silently yields nodes with no status or score, freezing the profile stats at zero.
     const client = new StubHttpClient([{ data: [] }]);
     const provider = new MalAnimeProvider(client, 'test-token', 'https://mal.test/v2');
 
@@ -222,6 +221,91 @@ describe('MalAnimeProvider', () => {
 
     expect(page.results.map((anime) => anime.id)).toEqual([1]);
     expect(page.hasMore).toBe(false);
+  });
+
+  it('filters a tag against the popularity ranking instead of the title search', async () => {
+    const client = new StubHttpClient([
+      {
+        data: [
+          { node: { ...animeDto(1, 'Hit'), genres: [{ id: 1, name: 'Action' }] } },
+          { node: animeDto(2, 'Near miss') },
+        ],
+      },
+    ]);
+    const provider = new MalAnimeProvider(client, 'test-token', 'https://mal.test/v2');
+
+    const page = await provider.searchAnime('action', { limit: 24, offset: 0, tag: 'Action' });
+
+    const url = new URL(client.calls[0]?.url ?? '');
+    expect(url.pathname).toBe('/v2/anime/ranking');
+    expect(url.searchParams.get('ranking_type')).toBe('bypopularity');
+    expect(url.searchParams.get('limit')).toBe('500');
+    expect(url.searchParams.get('q')).toBeNull();
+    expect(client.calls).toHaveLength(1);
+    expect(page.results.map((anime) => anime.id)).toEqual([1]);
+  });
+
+  it('omits synopsis and studios from the tag walk to keep 500 rows affordable', async () => {
+    const client = new StubHttpClient([{ data: [{ node: animeDto(1, 'A') }] }]);
+    const provider = new MalAnimeProvider(client, 'test-token', 'https://mal.test/v2');
+
+    await provider.searchAnime('action', { limit: 24, offset: 0, tag: 'Action' });
+
+    const fields = new URL(client.calls[0]?.url ?? '').searchParams.get('fields') ?? '';
+    expect(fields).toContain('genres');
+    expect(fields).not.toContain('synopsis');
+    expect(fields).not.toContain('studios');
+  });
+
+  it('walks deeper ranking pages when one page holds too few exact tag matches', async () => {
+    const nearMiss = (id: number) => ({ node: animeDto(id, `Near miss ${id}`) });
+    const actionHit = (id: number) => ({
+      node: { ...animeDto(id, `Hit ${id}`), genres: [{ id: 1, name: 'Action' }] },
+    });
+    const first = Array.from({ length: 500 }, (_entry, index) => nearMiss(index + 1));
+    const second = [
+      ...Array.from({ length: 20 }, (_entry, index) => actionHit(200 + index)),
+      nearMiss(999),
+    ];
+    const client = new StubHttpClient([{ data: first }, { data: second }]);
+    const provider = new MalAnimeProvider(client, 'test-token', 'https://mal.test/v2');
+
+    const page = await provider.searchAnime('action', { limit: 24, offset: 0, tag: 'Action' });
+
+    expect(client.calls).toHaveLength(2);
+    expect(new URL(client.calls[1]?.url ?? '').searchParams.get('offset')).toBe('500');
+    expect(page.results).toHaveLength(20);
+    expect(
+      page.results.every((anime) => anime.genres.some((entry) => entry.name === 'Action')),
+    ).toBe(true);
+    expect(page.hasMore).toBe(false);
+  });
+
+  it('slices the tag walk by the caller offset so Load more stays stable', async () => {
+    const fullPage = Array.from({ length: 500 }, (_entry, index) => ({
+      node: {
+        ...animeDto(index + 1, `Hit ${index + 1}`),
+        genres: [{ id: 1, name: 'Action' }],
+      },
+    }));
+    const client = new StubHttpClient([{ data: fullPage }]);
+    const provider = new MalAnimeProvider(client, 'test-token', 'https://mal.test/v2');
+
+    const page = await provider.searchAnime('action', { limit: 24, offset: 24, tag: 'Action' });
+
+    expect(page.results.map((anime) => anime.id)).toEqual(
+      Array.from({ length: 24 }, (_entry, index) => index + 25),
+    );
+    expect(page.hasMore).toBe(true);
+  });
+
+  it('stops walking as soon as a short page proves MAL ran out', async () => {
+    const client = new StubHttpClient([{ data: [{ node: animeDto(1, 'Only') }] }]);
+    const provider = new MalAnimeProvider(client, 'test-token', 'https://mal.test/v2');
+
+    await provider.searchAnime('action', { limit: 24, offset: 0, tag: 'Action' });
+
+    expect(client.calls).toHaveLength(1);
   });
 
   it('falls back to a full page when MAL omits the paging envelope', async () => {

@@ -12,7 +12,13 @@ import type {
 import { EMPTY_SEARCH_PAGE } from '../../anime-provider';
 import { animeMatchesTag } from '../../anime-search-query';
 import type { HttpClient } from '../../http-client';
-import { MAL_API_BASE_URL, MAL_FIELDS, MAL_LIMITS, MAL_LIST_FIELDS } from './mal-config';
+import {
+  MAL_API_BASE_URL,
+  MAL_FIELDS,
+  MAL_LIMITS,
+  MAL_LIST_FIELDS,
+  MAL_TAG_SEARCH_FIELDS,
+} from './mal-config';
 import {
   isMalAnimeDto,
   isMalAnimeNodeDto,
@@ -25,6 +31,8 @@ import type { MalAnimeDto, MalAnimeListResponse, MalUserDto } from '../../mal-ty
 import { fetchMalStreamingPlatforms } from './mal-streaming';
 
 const MAX_PAGES = 100;
+
+const MAL_TAG_SEARCH_MAX_PAGES = 4;
 
 export class MalAnimeProvider implements AnimeProvider {
   readonly candidatePoolConfig: CandidatePoolConfig = {
@@ -130,7 +138,6 @@ export class MalAnimeProvider implements AnimeProvider {
     await this.requestListStatus(id, status);
   }
 
-  // The one MAL call that leaves the API. See mal-streaming.ts.
   async getStreamingLinks(id: number): Promise<readonly StreamingLink[]> {
     if (!Number.isInteger(id) || id <= 0) {
       throw new ApiError('Anime ID must be a positive integer.', { code: 'bad_request' });
@@ -138,17 +145,18 @@ export class MalAnimeProvider implements AnimeProvider {
     return fetchMalStreamingPlatforms(id);
   }
 
-  // `/anime?q=` reaches theme names too, so a `#tag` search sends the bare tag and the genre/theme
-  // check below is what makes the answer exact rather than merely plausible.
   async searchAnime(query: string, request: AnimeSearchRequest = {}): Promise<AnimeSearchPage> {
     const normalizedQuery = query.trim();
+    const tag = request.tag?.trim() ?? '';
     if (normalizedQuery.length === 0) return EMPTY_SEARCH_PAGE;
     const safeLimit = Math.max(
       1,
       Math.min(Math.floor(request.limit ?? MAL_LIMITS.animeSearch), MAL_LIMITS.animeSearch),
     );
     const safeOffset = Math.max(0, Math.floor(request.offset ?? 0));
-    const tag = request.tag ?? null;
+    if (tag.length > 0) {
+      return this.searchAnimeByTag(tag, safeLimit, safeOffset);
+    }
     const response = await this.request<MalAnimeListResponse>('/anime', {
       q: normalizedQuery,
       limit: String(safeLimit),
@@ -159,13 +167,38 @@ export class MalAnimeProvider implements AnimeProvider {
       throw invalidResponse('anime search');
     }
     const matches = response.data.map((item) => normalizeAnime(item.node));
-    const results = tag === null ? matches : matches.filter((anime) => animeMatchesTag(anime, tag));
-    // A short page means MAL ran out; a full one may still have more behind it.
     const hasMore =
       response.paging?.next !== undefined
         ? response.paging.next !== null
         : matches.length >= safeLimit;
-    return { results, hasMore };
+    return { results: matches, hasMore };
+  }
+
+  private async searchAnimeByTag(
+    tag: string,
+    limit: number,
+    offset: number,
+  ): Promise<AnimeSearchPage> {
+    const target = offset + limit;
+    const collected: Anime[] = [];
+    for (let page = 0; page < MAL_TAG_SEARCH_MAX_PAGES && collected.length < target; page += 1) {
+      const pageOffset = page * MAL_LIMITS.animeTagRanking;
+      const response = await this.request<MalAnimeListResponse>('/anime/ranking', {
+        ranking_type: 'bypopularity',
+        limit: String(MAL_LIMITS.animeTagRanking),
+        offset: String(pageOffset),
+        fields: MAL_TAG_SEARCH_FIELDS,
+      });
+      if (!isMalListResponse(response) || !response.data.every(isMalAnimeNodeDto)) {
+        throw invalidResponse('anime search');
+      }
+      for (const item of response.data) {
+        const anime = normalizeAnime(item.node);
+        if (animeMatchesTag(anime, tag)) collected.push(anime);
+      }
+      if (response.data.length < MAL_LIMITS.animeTagRanking) break;
+    }
+    return { results: collected.slice(offset, target), hasMore: collected.length > target };
   }
 
   private async requestListStatus(id: number, status: AnimeStatus): Promise<void> {

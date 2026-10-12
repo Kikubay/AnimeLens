@@ -20,11 +20,13 @@ import {
   ANIME_DETAIL_QUERY,
   RANKING_ANIME_QUERY,
   SAVE_LIST_ENTRY_MUTATION,
+  SEARCH_ANIME_BY_TAG_QUERY,
   SEARCH_ANIME_QUERY,
   TRENDING_ANIME_QUERY,
   USER_LIST_QUERY,
   VIEWER_QUERY,
 } from './anilist-queries';
+import { findAniListGenre } from './anilist-taxonomy';
 import {
   isAniListListResponse,
   isAniListMedia,
@@ -37,7 +39,6 @@ import {
   toMediaListStatus,
 } from './anilist-normalizer';
 
-/** GraphQL envelope: HTTP 200 can still carry a top-level `errors` array. */
 interface GraphQLResponse<T> {
   readonly data?: T;
   readonly errors?: readonly {
@@ -80,7 +81,6 @@ export class AniListGraphQLClient {
   }
 }
 
-/** Maps AniList's GraphQL `errors[]` onto the shared ApiError codes. */
 function toApiError(
   errors: readonly { readonly message?: string; readonly status?: number }[],
   headers: Headers,
@@ -104,7 +104,6 @@ function toApiError(
   return new ApiError(`AniList: ${message}`, {
     code,
     status,
-    // A 429 shows up as `errors[].status` inside an HTTP 200 body, so this mapper is the real rate-limit path — it still has to honour the HTTP-date form of Retry-After.
     retryAfterSeconds: parseRetryAfterSeconds(headers.get('Retry-After')),
   });
 }
@@ -144,7 +143,6 @@ export class AniListProvider implements AnimeProvider {
     const entries = data.MediaListCollection.lists.flatMap((list) =>
       list.entries.filter((entry) => isAniListMedia(entry.media)).map(normalizeAnimeListEntry),
     );
-    // One round-trip covers the whole list, so the count only lands at the end — reporting nothing at all left the sync panel pinned at zero for the entire fetch.
     options.onProgress?.({ page: 1, itemsFetched: entries.length, nextPageUrl: null });
     return entries;
   }
@@ -173,7 +171,6 @@ export class AniListProvider implements AnimeProvider {
     return data.Page.media.filter(isAniListMedia).map(normalizeAnime);
   }
 
-  // `offset` arrives MAL-style as an item offset, so translate it to a page number.
   async getAnimeRanking(limit: number = 50, offset: number = 0): Promise<Anime[]> {
     const safeLimit = Math.max(1, Math.min(Math.floor(limit), 50));
     const safeOffset = Math.max(0, Math.floor(offset));
@@ -193,22 +190,30 @@ export class AniListProvider implements AnimeProvider {
 
   async searchAnime(query: string, request: AnimeSearchRequest = {}): Promise<AnimeSearchPage> {
     const normalizedQuery = query.trim();
-    if (normalizedQuery.length === 0) return EMPTY_SEARCH_PAGE;
+    const tag = request.tag?.trim() ?? '';
+    if (normalizedQuery.length === 0 && tag.length === 0) return EMPTY_SEARCH_PAGE;
     const perPage = Math.max(
       1,
       Math.min(Math.floor(request.limit ?? ANILIST_SEARCH_PAGE_SIZE), ANILIST_SEARCH_PAGE_SIZE),
     );
-    // `offset` arrives as an item offset from the caller, but `Page` is addressed by number.
     const page = Math.floor(Math.max(0, Math.floor(request.offset ?? 0)) / perPage) + 1;
-    const tag = request.tag ?? null;
+    const genre = tag.length > 0 ? findAniListGenre(tag) : null;
     const data = await this.graphql.request<unknown>(
-      SEARCH_ANIME_QUERY,
-      { search: normalizedQuery, page, perPage },
+      tag.length > 0 ? SEARCH_ANIME_BY_TAG_QUERY : SEARCH_ANIME_QUERY,
+      tag.length > 0
+        ? {
+            genreIn: genre === null ? null : [genre],
+            tagIn: genre === null ? [tag] : null,
+            page,
+            perPage,
+          }
+        : { search: normalizedQuery, page, perPage },
       this.accessToken,
     );
     if (!isAniListPageResponse(data)) throw invalidResponse('anime search');
     const matches = data.Page.media.filter(isAniListMedia).map(normalizeAnime);
-    const results = tag === null ? matches : matches.filter((anime) => animeMatchesTag(anime, tag));
+    const results =
+      tag.length === 0 ? matches : matches.filter((anime) => animeMatchesTag(anime, tag));
     return { results, hasMore: readAniListHasNextPage(data) };
   }
 
@@ -227,7 +232,6 @@ export class AniListProvider implements AnimeProvider {
     );
   }
 
-  /** `Viewer` id captured at profile fetch; falls back to a live lookup. */
   private async resolveUserId(): Promise<number> {
     if (this.userId !== null) return this.userId;
     const data = await this.graphql.request<{ readonly Viewer: unknown }>(
