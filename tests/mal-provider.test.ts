@@ -217,8 +217,39 @@ describe('MalAnimeProvider', () => {
     ]);
     const provider = new MalAnimeProvider(client, 'test-token', 'https://mal.test/v2');
 
-    const page = await provider.searchAnime('isekai', { limit: 24, offset: 0, tag: 'isekai' });
+    const page = await provider.searchAnime('isekai', { limit: 24, offset: 0, tags: ['isekai'] });
 
+    expect(page.results.map((anime) => anime.id)).toEqual([1]);
+    expect(page.hasMore).toBe(false);
+  });
+
+  it('keeps only the ranking rows that carry every requested tag', async () => {
+    const client = new StubHttpClient([
+      {
+        data: [
+          {
+            node: {
+              ...animeDto(1, 'Both'),
+              genres: [
+                { id: 1, name: 'Action' },
+                { id: 10, name: 'Adventure' },
+              ],
+            },
+          },
+          { node: { ...animeDto(2, 'Action only'), genres: [{ id: 1, name: 'Action' }] } },
+          { node: animeDto(3, 'Untagged') },
+        ],
+      },
+    ]);
+    const provider = new MalAnimeProvider(client, 'test-token', 'https://mal.test/v2');
+
+    const page = await provider.searchAnime('action adventure', {
+      limit: 24,
+      offset: 0,
+      tags: ['Action', 'Adventure'],
+    });
+
+    expect(client.calls).toHaveLength(1);
     expect(page.results.map((anime) => anime.id)).toEqual([1]);
     expect(page.hasMore).toBe(false);
   });
@@ -234,7 +265,7 @@ describe('MalAnimeProvider', () => {
     ]);
     const provider = new MalAnimeProvider(client, 'test-token', 'https://mal.test/v2');
 
-    const page = await provider.searchAnime('action', { limit: 24, offset: 0, tag: 'Action' });
+    const page = await provider.searchAnime('action', { limit: 24, offset: 0, tags: ['Action'] });
 
     const url = new URL(client.calls[0]?.url ?? '');
     expect(url.pathname).toBe('/v2/anime/ranking');
@@ -249,7 +280,7 @@ describe('MalAnimeProvider', () => {
     const client = new StubHttpClient([{ data: [{ node: animeDto(1, 'A') }] }]);
     const provider = new MalAnimeProvider(client, 'test-token', 'https://mal.test/v2');
 
-    await provider.searchAnime('action', { limit: 24, offset: 0, tag: 'Action' });
+    await provider.searchAnime('action', { limit: 24, offset: 0, tags: ['Action'] });
 
     const fields = new URL(client.calls[0]?.url ?? '').searchParams.get('fields') ?? '';
     expect(fields).toContain('genres');
@@ -270,7 +301,7 @@ describe('MalAnimeProvider', () => {
     const client = new StubHttpClient([{ data: first }, { data: second }]);
     const provider = new MalAnimeProvider(client, 'test-token', 'https://mal.test/v2');
 
-    const page = await provider.searchAnime('action', { limit: 24, offset: 0, tag: 'Action' });
+    const page = await provider.searchAnime('action', { limit: 24, offset: 0, tags: ['Action'] });
 
     expect(client.calls).toHaveLength(2);
     expect(new URL(client.calls[1]?.url ?? '').searchParams.get('offset')).toBe('500');
@@ -291,7 +322,7 @@ describe('MalAnimeProvider', () => {
     const client = new StubHttpClient([{ data: fullPage }]);
     const provider = new MalAnimeProvider(client, 'test-token', 'https://mal.test/v2');
 
-    const page = await provider.searchAnime('action', { limit: 24, offset: 24, tag: 'Action' });
+    const page = await provider.searchAnime('action', { limit: 24, offset: 24, tags: ['Action'] });
 
     expect(page.results.map((anime) => anime.id)).toEqual(
       Array.from({ length: 24 }, (_entry, index) => index + 25),
@@ -303,7 +334,7 @@ describe('MalAnimeProvider', () => {
     const client = new StubHttpClient([{ data: [{ node: animeDto(1, 'Only') }] }]);
     const provider = new MalAnimeProvider(client, 'test-token', 'https://mal.test/v2');
 
-    await provider.searchAnime('action', { limit: 24, offset: 0, tag: 'Action' });
+    await provider.searchAnime('action', { limit: 24, offset: 0, tags: ['Action'] });
 
     expect(client.calls).toHaveLength(1);
   });

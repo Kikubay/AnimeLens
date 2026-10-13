@@ -394,7 +394,7 @@ export interface AppCopy {
   readonly searchMinChars: (count: number) => string;
   readonly searchEyebrow: string;
   readonly searchResultsTitle: string;
-  readonly searchTagResultsTitle: (tag: string) => string;
+  readonly searchTagResultsTitle: (tags: string) => string;
   readonly searchTagHint: string;
   readonly searchLoadMore: string;
   readonly searchLoadingMore: string;
@@ -482,7 +482,7 @@ const MESSAGE_PARAMS = {
   listRefused: ['name'],
   searchMinChars: ['count'],
   searchNoResults: ['query'],
-  searchTagResultsTitle: ['tag'],
+  searchTagResultsTitle: ['tags'],
   searchAuthRequired: ['name'],
   searchSessionExpired: ['name'],
   searchUnavailable: ['name'],

@@ -22,7 +22,7 @@ export interface AnimeSearchRequest {
   readonly limit?: number;
   readonly offset?: number;
 
-  readonly tag?: string | null;
+  readonly tags?: readonly string[] | null;
 
   readonly formats?: readonly AnimeType[];
 }

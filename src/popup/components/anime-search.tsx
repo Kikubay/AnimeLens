@@ -4,7 +4,7 @@ import {
   ANIME_SEARCH_PAGE_SIZE,
   requestAnimeSearch,
 } from '../../api/anime-search-messages';
-import { parseAnimeSearchQuery } from '../../api/anime-search-query';
+import { formatAnimeTagQuery, parseAnimeSearchQuery } from '../../api/anime-search-query';
 import type { Anime } from '../../domain/anime';
 import type { AppCopy } from '../../locales';
 import {
@@ -283,7 +283,9 @@ export function AnimeSearchPanel({
 
   const parsed = parseAnimeSearchQuery(state.query === '' ? normalized : state.query);
   const headingTitle =
-    parsed?.kind === 'tag' ? copy.searchTagResultsTitle(parsed.value) : copy.searchResultsTitle;
+    parsed?.kind === 'tag'
+      ? copy.searchTagResultsTitle(formatAnimeTagQuery(parsed.values))
+      : copy.searchResultsTitle;
 
   const heading = (
     <div className="section-heading">

@@ -6,11 +6,13 @@ import {
   isAnimeSearchMessage,
 } from '../src/api/anime-search-messages';
 import {
-  animeMatchesTag,
+  animeMatchesTags,
   filterAnimeByFormats,
+  formatAnimeTagQuery,
   matchesAnimeSearchQuery,
   normalizeAnimeTag,
   parseAnimeSearchQuery,
+  parseAnimeTags,
 } from '../src/api/anime-search-query';
 import { defaultMockAnime } from '../src/api/mocks/mock-fixtures';
 import { MockAnimeProvider } from '../src/api/providers/mock/mock-provider';
@@ -28,6 +30,10 @@ describe('anime search message', () => {
     expect(isAnimeSearchMessage({ type: 'anime.search', query: '  cowboy  ' })).toBe(true);
     expect(isAnimeSearchMessage({ type: 'anime.search', query: 'ab' })).toBe(true);
     expect(isAnimeSearchMessage({ type: 'anime.search', query: '#isekai' })).toBe(true);
+    expect(isAnimeSearchMessage({ type: 'anime.search', query: '#isekai #fantasy' })).toBe(true);
+    expect(
+      isAnimeSearchMessage({ type: 'anime.search', query: '#isekai #fantasy', offset: 24 }),
+    ).toBe(true);
     expect(isAnimeSearchMessage({ type: 'anime.search', query: 'naruto', offset: 24 })).toBe(true);
     expect(
       isAnimeSearchMessage({ type: 'anime.search', query: 'x'.repeat(ANIME_SEARCH_MAX_LENGTH) }),
@@ -59,13 +65,45 @@ describe('anime search message', () => {
 
 describe('search query parsing', () => {
   it('reads a leading # as a tag search rather than a title search', () => {
-    expect(parseAnimeSearchQuery('#isekai')).toEqual({ kind: 'tag', value: 'isekai' });
+    expect(parseAnimeSearchQuery('#isekai')).toEqual({ kind: 'tag', values: ['isekai'] });
     expect(parseAnimeSearchQuery('  #Slice of Life  ')).toEqual({
       kind: 'tag',
-      value: 'Slice of Life',
+      values: ['Slice of Life'],
     });
     expect(parseAnimeSearchQuery('#')).toBeNull();
     expect(parseAnimeSearchQuery('#a')).toBeNull();
+  });
+
+  it('collects every # prefixed tag of a multi-tag query', () => {
+    expect(parseAnimeSearchQuery('#isekai #fantasy #adventure')).toEqual({
+      kind: 'tag',
+      values: ['isekai', 'fantasy', 'adventure'],
+    });
+    expect(parseAnimeSearchQuery('  #ISekai   #Fantasy  ')).toEqual({
+      kind: 'tag',
+      values: ['ISekai', 'Fantasy'],
+    });
+  });
+
+  it('keeps unprefixed words with the tag they follow so multi-word tags survive', () => {
+    expect(parseAnimeSearchQuery('#slice of life #isekai')).toEqual({
+      kind: 'tag',
+      values: ['slice of life', 'isekai'],
+    });
+  });
+
+  it('discards tags that are too short or repeat an earlier spelling', () => {
+    expect(parseAnimeSearchQuery('#a #b #isekai')).toEqual({ kind: 'tag', values: ['isekai'] });
+    expect(parseAnimeSearchQuery('#isekai #Isekai #isekai')).toEqual({
+      kind: 'tag',
+      values: ['isekai'],
+    });
+    expect(parseAnimeSearchQuery('#a #b')).toBeNull();
+  });
+
+  it('parses and formats a tag list without losing the # separators', () => {
+    expect(parseAnimeTags('#isekai #slice of life')).toEqual(['isekai', 'slice of life']);
+    expect(formatAnimeTagQuery(['isekai', 'slice of life'])).toBe('#isekai #slice of life');
   });
 
   it('treats anything without the # prefix as a title search', () => {
@@ -91,20 +129,50 @@ describe('tag matching', () => {
     expect(anime).toBeDefined();
     const names = [...anime.genres, ...anime.themes].map((entry) => entry.name);
     for (const name of names) {
-      expect(animeMatchesTag(anime, name), name).toBe(true);
-      expect(animeMatchesTag(anime, name.toLowerCase()), name).toBe(true);
-      expect(animeMatchesTag(anime, name.replace(/ /g, '-')), name).toBe(true);
+      expect(animeMatchesTags(anime, [name]), name).toBe(true);
+      expect(animeMatchesTags(anime, [name.toLowerCase()]), name).toBe(true);
+      expect(animeMatchesTags(anime, [name.replace(/ /g, '-')]), name).toBe(true);
     }
-    expect(animeMatchesTag(anime, 'not-a-real-tag')).toBe(false);
-    expect(animeMatchesTag(anime, '   ')).toBe(false);
+    expect(animeMatchesTags(anime, ['not-a-real-tag'])).toBe(false);
+    expect(animeMatchesTags(anime, ['   '])).toBe(false);
+    expect(animeMatchesTags(anime, [])).toBe(false);
+  });
+
+  it('requires every tag of a multi-tag search to be present', () => {
+    const genre = anime.genres[0];
+    const theme = anime.themes[0];
+    expect(genre).toBeDefined();
+    expect(theme).toBeDefined();
+
+    expect(animeMatchesTags(anime, [genre?.name ?? '', theme?.name ?? ''])).toBe(true);
+    expect(animeMatchesTags(anime, [genre?.name ?? '', 'not-a-real-tag'])).toBe(false);
+    expect(
+      matchesAnimeSearchQuery(anime, {
+        kind: 'tag',
+        values: [genre?.name ?? '', theme?.name ?? ''],
+      }),
+    ).toBe(true);
+  });
+
+  it('narrows the result set as tags are added', () => {
+    const single = defaultMockAnime.filter((item) => animeMatchesTags(item, ['fantasy']));
+    const pair = defaultMockAnime.filter((item) =>
+      animeMatchesTags(item, ['fantasy', 'adventure']),
+    );
+    expect(single.length).toBeGreaterThan(0);
+    expect(pair.length).toBeLessThanOrEqual(single.length);
+    for (const item of pair) {
+      expect(animeMatchesTags(item, ['fantasy']), item.title.default).toBe(true);
+      expect(animeMatchesTags(item, ['adventure']), item.title.default).toBe(true);
+    }
   });
 
   it('keeps a tag search off titles that merely mention the word', () => {
-    const tagged = defaultMockAnime.filter((item) => animeMatchesTag(item, 'fantasy'));
+    const tagged = defaultMockAnime.filter((item) => animeMatchesTags(item, ['fantasy']));
     expect(tagged.length).toBeGreaterThan(0);
     for (const item of tagged) {
       expect(
-        matchesAnimeSearchQuery(item, { kind: 'tag', value: 'fantasy' }),
+        matchesAnimeSearchQuery(item, { kind: 'tag', values: ['fantasy'] }),
         item.title.default,
       ).toBe(true);
     }
@@ -150,16 +218,24 @@ describe('paged search', () => {
     })),
   ];
   const provider = new MockAnimeProvider(catalogue);
-  const isekai = catalogue.filter((item) => animeMatchesTag(item, 'isekai'));
+  const isekai = catalogue.filter((item) => animeMatchesTags(item, ['isekai']));
 
   it('walks a tag result set one page at a time and reports when it is exhausted', async () => {
     expect(isekai.length).toBeGreaterThan(1);
 
-    const first = await provider.searchAnime('isekai', { tag: 'isekai', limit: 2, offset: 0 });
+    const first = await provider.searchAnime('isekai', {
+      tags: ['isekai'],
+      limit: 2,
+      offset: 0,
+    });
     expect(first.results).toHaveLength(2);
     expect(first.hasMore).toBe(true);
 
-    const second = await provider.searchAnime('isekai', { tag: 'isekai', limit: 2, offset: 2 });
+    const second = await provider.searchAnime('isekai', {
+      tags: ['isekai'],
+      limit: 2,
+      offset: 2,
+    });
     expect(second.results).toHaveLength(isekai.length - 2);
     expect(second.hasMore).toBe(false);
 
@@ -168,7 +244,11 @@ describe('paged search', () => {
   });
 
   it('never reports more pages once the last row has been handed out', async () => {
-    const page = await provider.searchAnime('isekai', { tag: 'isekai', limit: 50, offset: 0 });
+    const page = await provider.searchAnime('isekai', {
+      tags: ['isekai'],
+      limit: 50,
+      offset: 0,
+    });
 
     expect(page.results).toHaveLength(isekai.length);
     expect(page.hasMore).toBe(false);
@@ -185,12 +265,47 @@ describe('paged search', () => {
 
   it('returns an empty terminal page for an unknown tag', async () => {
     const page = await provider.searchAnime('nonexistenttag', {
-      tag: 'nonexistenttag',
+      tags: ['nonexistenttag'],
       limit: 24,
       offset: 0,
     });
 
     expect(page).toEqual({ results: [], hasMore: false });
+  });
+
+  it('keeps only the anime carrying every requested tag', async () => {
+    const page = await provider.searchAnime('adventure isekai', {
+      tags: ['adventure', 'isekai'],
+      limit: 50,
+      offset: 0,
+    });
+
+    expect(page.results.length).toBeGreaterThan(0);
+    for (const item of page.results) {
+      expect(animeMatchesTags(item, ['adventure'])).toBe(true);
+      expect(animeMatchesTags(item, ['isekai'])).toBe(true);
+    }
+    expect(page.results.length, 'a second tag must never widen the result set').toBeLessThanOrEqual(
+      isekai.length,
+    );
+  });
+
+  it('pages a multi-tag result set without dropping or repeating a row', async () => {
+    const tags = ['adventure', 'isekai'];
+    const expected = catalogue.filter((item) => animeMatchesTags(item, tags));
+    let collected: readonly Anime[] = [];
+
+    for (let offset = 0; offset < expected.length; offset += 2) {
+      const page = await provider.searchAnime('adventure isekai', {
+        tags,
+        limit: 2,
+        offset,
+      });
+      collected = [...collected, ...page.results];
+      if (!page.hasMore) break;
+    }
+
+    expect(collected.map((item) => item.id)).toEqual(expected.map((item) => item.id));
   });
 });
 
@@ -278,7 +393,7 @@ describe('search format filter', () => {
       })),
     ]);
     const page = await paginated.searchAnime('isekai', {
-      tag: 'isekai',
+      tags: ['isekai'],
       limit: 24,
       offset: 0,
       formats: ['ova'],

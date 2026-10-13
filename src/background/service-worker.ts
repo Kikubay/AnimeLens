@@ -787,10 +787,10 @@ async function handleAnimeSearchMessage(message: AnimeSearchMessage): Promise<An
       await activeAuthService()
     ).withAccessToken(async (accessToken) => {
       const provider = await providerRegistry.createActiveProvider(accessToken);
-      return provider.searchAnime(parsed.value, {
+      return provider.searchAnime(parsed.kind === 'tag' ? (parsed.values[0] ?? '') : parsed.value, {
         limit: ANIME_SEARCH_PAGE_SIZE,
         offset,
-        tag: parsed.kind === 'tag' ? parsed.value : null,
+        tags: parsed.kind === 'tag' ? parsed.values : null,
         formats: message.formats ?? [],
       });
     });

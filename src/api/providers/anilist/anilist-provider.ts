@@ -12,7 +12,7 @@ import type {
   CandidatePoolConfig,
 } from '../../anime-provider';
 import { EMPTY_SEARCH_PAGE } from '../../anime-provider';
-import { animeMatchesTag } from '../../anime-search-query';
+import { animeMatchesTags } from '../../anime-search-query';
 import {
   ANILIST_GRAPHQL_URL,
   ANILIST_PAGE_SIZE,
@@ -190,32 +190,37 @@ export class AniListProvider implements AnimeProvider {
 
   async searchAnime(query: string, request: AnimeSearchRequest = {}): Promise<AnimeSearchPage> {
     const normalizedQuery = query.trim();
-    const tag = request.tag?.trim() ?? '';
-    if (normalizedQuery.length === 0 && tag.length === 0) return EMPTY_SEARCH_PAGE;
+    const tags = (request.tags ?? []).map((tag) => tag.trim()).filter((tag) => tag.length > 0);
+    if (normalizedQuery.length === 0 && tags.length === 0) return EMPTY_SEARCH_PAGE;
     const perPage = Math.max(
       1,
       Math.min(Math.floor(request.limit ?? ANILIST_SEARCH_PAGE_SIZE), ANILIST_SEARCH_PAGE_SIZE),
     );
     const page = Math.floor(Math.max(0, Math.floor(request.offset ?? 0)) / perPage) + 1;
-    const genre = tag.length > 0 ? findAniListGenre(tag) : null;
+    const genres = tags.map((tag) => findAniListGenre(tag));
+    const genreIn = genres.filter((genre): genre is string => genre !== null);
+    const tagIn = tags.filter((_tag, index) => genres[index] === null);
     const formatIn = toAniListFormats(request.formats ?? []);
     const variables = {
-      ...(tag.length > 0
-        ? { genreIn: genre === null ? null : [genre], tagIn: genre === null ? [tag] : null }
+      ...(tags.length > 0
+        ? {
+            genreIn: genreIn.length > 0 ? genreIn : null,
+            tagIn: tagIn.length > 0 ? tagIn : null,
+          }
         : { search: normalizedQuery }),
       ...(formatIn === null ? {} : { formatIn }),
       page,
       perPage,
     };
     const data = await this.graphql.request<unknown>(
-      tag.length > 0 ? SEARCH_ANIME_BY_TAG_QUERY : SEARCH_ANIME_QUERY,
+      tags.length > 0 ? SEARCH_ANIME_BY_TAG_QUERY : SEARCH_ANIME_QUERY,
       variables,
       this.accessToken,
     );
     if (!isAniListPageResponse(data)) throw invalidResponse('anime search');
     const matches = data.Page.media.filter(isAniListMedia).map(normalizeAnime);
     const results =
-      tag.length === 0 ? matches : matches.filter((anime) => animeMatchesTag(anime, tag));
+      tags.length === 0 ? matches : matches.filter((anime) => animeMatchesTags(anime, tags));
     return { results, hasMore: readAniListHasNextPage(data) };
   }
 

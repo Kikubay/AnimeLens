@@ -10,7 +10,7 @@ import type {
   CandidatePoolConfig,
 } from '../../anime-provider';
 import { EMPTY_SEARCH_PAGE } from '../../anime-provider';
-import { animeMatchesTag, filterAnimeByFormats } from '../../anime-search-query';
+import { animeMatchesTags, filterAnimeByFormats } from '../../anime-search-query';
 import type { HttpClient } from '../../http-client';
 import {
   MAL_API_BASE_URL,
@@ -149,16 +149,16 @@ export class MalAnimeProvider implements AnimeProvider {
 
   async searchAnime(query: string, request: AnimeSearchRequest = {}): Promise<AnimeSearchPage> {
     const normalizedQuery = query.trim();
-    const tag = request.tag?.trim() ?? '';
-    if (normalizedQuery.length === 0) return EMPTY_SEARCH_PAGE;
+    const tags = (request.tags ?? []).map((tag) => tag.trim()).filter((tag) => tag.length > 0);
+    if (normalizedQuery.length === 0 && tags.length === 0) return EMPTY_SEARCH_PAGE;
     const safeLimit = Math.max(
       1,
       Math.min(Math.floor(request.limit ?? MAL_LIMITS.animeSearch), MAL_LIMITS.animeSearch),
     );
     const safeOffset = Math.max(0, Math.floor(request.offset ?? 0));
     const formats = request.formats ?? [];
-    if (tag.length > 0) {
-      return this.searchAnimeByTag(tag, safeLimit, safeOffset, formats);
+    if (tags.length > 0) {
+      return this.searchAnimeByTags(tags, safeLimit, safeOffset, formats);
     }
     const response = await this.request<MalAnimeListResponse>('/anime', {
       q: normalizedQuery,
@@ -178,8 +178,8 @@ export class MalAnimeProvider implements AnimeProvider {
     return { results, hasMore };
   }
 
-  private async searchAnimeByTag(
-    tag: string,
+  private async searchAnimeByTags(
+    tags: readonly string[],
     limit: number,
     offset: number,
     formats: readonly AnimeType[],
@@ -201,7 +201,7 @@ export class MalAnimeProvider implements AnimeProvider {
       }
       for (const item of response.data) {
         const anime = normalizeAnime(item.node);
-        if (!animeMatchesTag(anime, tag)) continue;
+        if (!animeMatchesTags(anime, tags)) continue;
         if (formats.length > 0 && !formats.includes(anime.type)) continue;
         collected.push(anime);
       }

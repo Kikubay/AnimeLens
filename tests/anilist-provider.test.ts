@@ -246,10 +246,60 @@ describe('AniListProvider', () => {
         : VIEWER_PAYLOAD,
     );
     const provider = new AniListProvider(http, 'token');
-    const page = await provider.searchAnime('school', { limit: 24, offset: 0, tag: 'School' });
+    const page = await provider.searchAnime('school', { limit: 24, offset: 0, tags: ['School'] });
 
     expect(page.results.map((anime) => anime.id)).toEqual([MEDIA.id]);
     expect(page.hasMore).toBe(false);
+  });
+
+  it('sends every tag of a multi-tag search, genres and raw tags apart', async () => {
+    const http = new RecordingHttpClient((query) =>
+      isSearchQuery(query)
+        ? { data: { Page: { media: [MEDIA], pageInfo: { hasNextPage: false, currentPage: 1 } } } }
+        : VIEWER_PAYLOAD,
+    );
+    const provider = new AniListProvider(http, 'token');
+
+    await provider.searchAnime('action isekai school', {
+      limit: 24,
+      offset: 0,
+      tags: ['Action', 'Isekai', 'School'],
+    });
+
+    expect(http.requests[0]?.variables).toMatchObject({
+      genreIn: ['Action'],
+      tagIn: ['Isekai', 'School'],
+    });
+  });
+
+  it('drops a multi-tag result that carries only some of the tags', async () => {
+    const partial = { ...MEDIA, id: 200286, tags: [{ id: 2, name: 'School', rank: 85 }] };
+    const isekaiTagged = {
+      ...MEDIA,
+      id: 200287,
+      tags: [{ id: 9, name: 'Isekai', rank: 90 }],
+    };
+    const http = new RecordingHttpClient((query) =>
+      isSearchQuery(query)
+        ? {
+            data: {
+              Page: {
+                media: [partial, isekaiTagged],
+                pageInfo: { hasNextPage: false, currentPage: 1 },
+              },
+            },
+          }
+        : VIEWER_PAYLOAD,
+    );
+    const provider = new AniListProvider(http, 'token');
+
+    const page = await provider.searchAnime('action isekai', {
+      limit: 24,
+      offset: 0,
+      tags: ['Action', 'Isekai'],
+    });
+
+    expect(page.results.map((anime) => anime.id)).toEqual([isekaiTagged.id]);
   });
 
   it('filters a #tag at the API by genre and ranks by popularity', async () => {
@@ -260,7 +310,7 @@ describe('AniListProvider', () => {
     );
     const provider = new AniListProvider(http, 'token');
 
-    await provider.searchAnime('action', { limit: 24, offset: 0, tag: 'Action' });
+    await provider.searchAnime('action', { limit: 24, offset: 0, tags: ['Action'] });
 
     const request = http.requests[0];
     expect(request?.query).toContain('POPULARITY_DESC');
@@ -285,7 +335,7 @@ describe('AniListProvider', () => {
     await provider.searchAnime('action', {
       limit: 24,
       offset: 0,
-      tag: 'Action',
+      tags: ['Action'],
       formats: ['ova', 'special'],
     });
 
@@ -303,7 +353,7 @@ describe('AniListProvider', () => {
     await provider.searchAnime('action', {
       limit: 24,
       offset: 0,
-      tag: 'Action',
+      tags: ['Action'],
       formats: ['unknown'],
     });
 
@@ -318,7 +368,7 @@ describe('AniListProvider', () => {
     );
     const provider = new AniListProvider(http, 'token');
 
-    await provider.searchAnime('isekai', { limit: 24, offset: 0, tag: 'Isekai' });
+    await provider.searchAnime('isekai', { limit: 24, offset: 0, tags: ['Isekai'] });
 
     expect(http.requests[0]?.variables).toEqual({
       genreIn: null,
@@ -336,7 +386,7 @@ describe('AniListProvider', () => {
     );
     const provider = new AniListProvider(http, 'token');
 
-    await provider.searchAnime('slice-of-life', { limit: 24, offset: 0, tag: 'Slice of Life' });
+    await provider.searchAnime('slice-of-life', { limit: 24, offset: 0, tags: ['Slice of Life'] });
 
     expect(http.requests[0]?.variables).toMatchObject({ genreIn: ['Slice of Life'], tagIn: null });
   });
