@@ -405,6 +405,7 @@
     "searchClear": "Effacer la recherche",
     "searchMinChars": "Saisissez au moins {count} caractères pour rechercher.",
     "searchTagHint": "Préfixez des genres ou thèmes par # et combinez-les, par exemple #isekai #fantasy.",
+    "searchTagSuggestions": "Suggestions de tags",
     "searchEyebrow": "RÉSULTATS DE RECHERCHE",
     "searchResultsTitle": "Résultats de votre recherche",
     "searchTagResultsTitle": "Anime tagués {tags}",

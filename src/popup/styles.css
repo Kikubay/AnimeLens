@@ -358,6 +358,7 @@ button:focus-visible {
   margin-top: 10px;
 }
 .anime-search-field {
+  position: relative;
   display: flex;
   align-items: center;
   gap: 8px;
@@ -412,6 +413,49 @@ button:focus-visible {
   color: var(--dim);
   font-size: 8px;
   line-height: 1.4;
+}
+.anime-search-suggestions {
+  position: absolute;
+  z-index: 12;
+  top: calc(100% + 4px);
+  right: 0;
+  left: 0;
+  display: grid;
+  max-height: 190px;
+  margin: 0;
+  padding: 4px;
+  overflow-y: auto;
+  list-style: none;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface-raised);
+  box-shadow: 0 14px 30px rgb(0 0 0 / 24%);
+}
+.anime-search-suggestion {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 7px 8px;
+  border-radius: 5px;
+  color: var(--muted);
+  cursor: pointer;
+  font-size: 9px;
+}
+.anime-search-suggestion:hover,
+.anime-search-suggestion[aria-selected='true'] {
+  color: var(--text);
+  background: var(--surface);
+}
+.anime-search-suggestion[aria-selected='true'] {
+  color: var(--accent);
+}
+.anime-search-suggestion-kind {
+  flex: 0 0 auto;
+  color: var(--dim);
+  font-size: 8px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
 }
 .anime-search-panel {
   margin-top: 4px;

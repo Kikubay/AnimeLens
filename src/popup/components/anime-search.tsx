@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react';
 import {
   ANIME_SEARCH_MAX_LENGTH,
   ANIME_SEARCH_PAGE_SIZE,
@@ -13,6 +13,7 @@ import {
   searchFormatTypes,
   toggleSearchFormat,
 } from '../search-state';
+import { applyTagSuggestion, searchTagSuggestions } from '../tag-suggestions';
 import type { AnimeCardData } from './anime';
 import { Button, EmptyState, ErrorState, Icon, Skeleton } from './ui';
 
@@ -49,8 +50,27 @@ export function AnimeSearchField({
   readonly onQueryChange: (query: string) => void;
   readonly copy: AppCopy;
 }) {
+  const listboxId = `${useId()}-listbox`;
+  const fieldRef = useRef<HTMLDivElement>(null);
+  const [activeIndex, setActiveIndex] = useState(-1);
+  const [dismissedQuery, setDismissedQuery] = useState<string | null>(null);
+  const suggestions = useMemo(() => searchTagSuggestions(query), [query]);
+  const isOpen = suggestions.length > 0 && dismissedQuery !== query;
+  const selectedIndex =
+    suggestions.length === 0 ? -1 : Math.min(activeIndex, suggestions.length - 1);
+
+  const accept = useCallback(
+    (index: number) => {
+      const suggestion = suggestions[index];
+      if (suggestion === undefined) return;
+      onQueryChange(applyTagSuggestion(query, suggestion.name));
+      setActiveIndex(-1);
+    },
+    [onQueryChange, query, suggestions],
+  );
+
   return (
-    <div className="anime-search-field">
+    <div className="anime-search-field" ref={fieldRef}>
       <Icon name="search" size={14} />
 
       <input
@@ -59,12 +79,50 @@ export function AnimeSearchField({
         value={query}
         placeholder={copy.searchPlaceholder}
         aria-label={copy.searchFieldLabel}
+        role="combobox"
+        aria-expanded={isOpen}
+        aria-controls={listboxId}
+        aria-autocomplete="list"
+        aria-activedescendant={
+          isOpen && selectedIndex >= 0 ? `${listboxId}-option-${selectedIndex}` : undefined
+        }
         maxLength={ANIME_SEARCH_MAX_LENGTH}
         autoComplete="off"
         spellCheck={false}
-        onChange={(event) => onQueryChange(event.target.value)}
+        onBlur={(event) => {
+          if (!fieldRef.current?.contains(event.relatedTarget as Node | null)) {
+            setDismissedQuery(query);
+          }
+        }}
+        onChange={(event) => {
+          setActiveIndex(-1);
+          onQueryChange(event.target.value);
+        }}
         onKeyDown={(event) => {
-          if (event.key === 'Escape') onQueryChange('');
+          if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
+            if (!isOpen) return;
+            event.preventDefault();
+            const step = event.key === 'ArrowDown' ? 1 : -1;
+            setActiveIndex((current) => {
+              if (current < 0) return step === 1 ? 0 : suggestions.length - 1;
+              return (current + step + suggestions.length) % suggestions.length;
+            });
+            return;
+          }
+          if (event.key === 'Enter' || event.key === 'Tab') {
+            if (!isOpen || selectedIndex < 0) return;
+            event.preventDefault();
+            accept(selectedIndex);
+            return;
+          }
+          if (event.key === 'Escape') {
+            if (isOpen) {
+              event.preventDefault();
+              setDismissedQuery(query);
+              return;
+            }
+            onQueryChange('');
+          }
         }}
       />
 
@@ -78,6 +136,34 @@ export function AnimeSearchField({
         >
           <Icon name="close" size={13} />
         </button>
+      )}
+
+      {isOpen && suggestions.length > 0 && (
+        <ul
+          className="anime-search-suggestions"
+          id={listboxId}
+          role="listbox"
+          aria-label={copy.searchTagSuggestions}
+        >
+          {suggestions.map((suggestion, index) => (
+            <li
+              key={`${suggestion.kind}-${suggestion.name}`}
+              id={`${listboxId}-option-${index}`}
+              className="anime-search-suggestion"
+              role="option"
+              aria-selected={index === selectedIndex}
+              onMouseDown={(event) => {
+                event.preventDefault();
+                accept(index);
+              }}
+            >
+              <span>{`#${suggestion.name}`}</span>
+              <span className="anime-search-suggestion-kind">
+                {suggestion.kind === 'genre' ? copy.genre : copy.theme}
+              </span>
+            </li>
+          ))}
+        </ul>
       )}
     </div>
   );

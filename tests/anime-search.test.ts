@@ -23,6 +23,12 @@ import {
   searchFormatTypes,
   toggleSearchFormat,
 } from '../src/popup/search-state';
+import {
+  TAG_SUGGESTION_LIMIT,
+  activeTagFragment,
+  applyTagSuggestion,
+  searchTagSuggestions,
+} from '../src/popup/tag-suggestions';
 
 describe('anime search message', () => {
   it('accepts a trimmed query of at least the minimum length', () => {
@@ -306,6 +312,64 @@ describe('paged search', () => {
     }
 
     expect(collected.map((item) => item.id)).toEqual(expected.map((item) => item.id));
+  });
+});
+
+describe('tag suggestions', () => {
+  const names = (query: string): readonly string[] =>
+    searchTagSuggestions(query).map((suggestion) => suggestion.name);
+
+  it('reads only the trailing # tag as the fragment being typed', () => {
+    expect(activeTagFragment('#act')).toBe('act');
+    expect(activeTagFragment('#isekai #act')).toBe('act');
+    expect(activeTagFragment('#slice of li')).toBe('slice of li');
+    expect(activeTagFragment('#isekai #')).toBe('');
+    expect(activeTagFragment('#isekai ')).toBe('');
+    expect(activeTagFragment('naruto')).toBe('');
+  });
+
+  it('completes a partial tag to its canonical name', () => {
+    expect(names('#act')).toContain('Action');
+    expect(names('#ise')).toContain('Isekai');
+    expect(names('#sci')).toContain('Sci-Fi');
+    expect(names('#lice')).toContain('Slice of Life');
+  });
+
+  it('puts name prefixes ahead of the looser substring hits', () => {
+    const suggestions = names('#ac');
+
+    expect(suggestions[0]).toBe('Action');
+    expect(suggestions).toContain('Racing');
+    expect(suggestions).toContain('Workplace');
+    expect(suggestions.indexOf('Racing')).toBeGreaterThan(suggestions.indexOf('Action'));
+  });
+
+  it('tells a genre apart from a theme on every suggestion', () => {
+    const suggestions = searchTagSuggestions('#act');
+
+    expect(suggestions).toHaveLength(1);
+    expect(suggestions[0]).toEqual({ name: 'Action', kind: 'genre' });
+  });
+
+  it('stays silent until a # fragment exists and never exceeds its cap', () => {
+    expect(searchTagSuggestions('')).toEqual([]);
+    expect(searchTagSuggestions('naruto')).toEqual([]);
+    expect(searchTagSuggestions('#')).toEqual([]);
+    expect(searchTagSuggestions('#isekai ')).toEqual([]);
+
+    const many = names('#s');
+    expect(many.length).toBe(TAG_SUGGESTION_LIMIT);
+  });
+
+  it('never suggests a tag the query already carries', () => {
+    expect(names('#act #action')).not.toContain('Action');
+    expect(names('#act')).toContain('Action');
+  });
+
+  it('replaces the partial token and leaves room for the next tag', () => {
+    expect(applyTagSuggestion('#act', 'Action')).toBe('#Action ');
+    expect(applyTagSuggestion('#isekai #act', 'Action')).toBe('#isekai #Action ');
+    expect(applyTagSuggestion('#slice of li', 'Slice of Life')).toBe('#Slice of Life ');
   });
 });
 

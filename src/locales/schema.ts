@@ -396,6 +396,7 @@ export interface AppCopy {
   readonly searchResultsTitle: string;
   readonly searchTagResultsTitle: (tags: string) => string;
   readonly searchTagHint: string;
+  readonly searchTagSuggestions: string;
   readonly searchLoadMore: string;
   readonly searchLoadingMore: string;
   readonly searching: string;
