@@ -336,6 +336,7 @@ export interface AppCopy {
   readonly reasonTheme: (name: string) => string;
   readonly reasonStudio: (studio: string) => string;
   readonly reasonStaff: string;
+  readonly reasonSimilarTo: string;
   readonly reasonRating: string;
   readonly reasonSafePick: string;
   readonly reasonProfileFit: string;

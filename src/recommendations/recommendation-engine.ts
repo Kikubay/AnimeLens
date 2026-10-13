@@ -18,6 +18,8 @@ import {
   type FeaturePreference,
   type FeaturePreferenceMap,
   type FeatureVector,
+  type RecommendationAttribution,
+  type RecommendationDiscoveryPreferences,
   type RecommendationGenerationOptions,
   type RecommendationInput,
   type RecommendationProfile,
@@ -40,14 +42,40 @@ const HIDDEN_GEM_MIN_RATING = 7;
 const HIDDEN_GEM_MAX_MEMBERS = 150_000;
 const HIDDEN_GEM_MIN_POPULARITY_RANK = 400;
 const BECAUSE_YOU_LIKED_MIN_RATING = 7;
-const BECAUSE_YOU_LIKED_MIN_SHARED_FEATURES = 2;
-// Below this many liked entries, any overlap is inherently specific — a tiny cohort can't saturate the feature space.
-const BECAUSE_YOU_LIKED_SMALL_COHORT = 3;
-// Past this cohort size two shared features is the base rate, so a deeper match is the only
-// attribution that still means anything.
-const BECAUSE_YOU_LIKED_SHALLOW_COHORT_LIMIT = 12;
-const BECAUSE_YOU_LIKED_MIN_DEEP_SHARED_FEATURES = 3;
-const BECAUSE_YOU_LIKED_MAX_SIMILAR_SHARE = 0.4;
+// Provenance is claimed by lift: how much better a title matches its best liked entry than it matches
+// the liked cohort on average. A shared-feature count cannot express that, because the same two
+// features are the base rate on a broad library and the entire reason for a match on a narrow one.
+//
+// The bar is on similarity itself, not on the rating-weighted strength used to choose between liked
+// entries. Weighting by rating answers "which entry explains this best"; letting it also answer "are
+// these similar at all" put a single shared genre over the line, and on a large library that is every
+// candidate, which turned the reason into noise on every card.
+const BECAUSE_YOU_LIKED_MIN_SIMILARITY = 0.5;
+const BECAUSE_YOU_LIKED_MIN_LIFT = 0.06;
+// The cohort mean is what makes provenance specific: a title that matches everything matches nothing
+// in particular. Too few liked entries and there is no mean worth comparing against, so on a short
+// library strength alone decides — gating on lift there would empty the section for exactly the users
+// with the smallest libraries.
+const BECAUSE_YOU_LIKED_MIN_COHORT_FOR_LIFT = 3;
+// Cosine overlap is taken per dimension and combined here. Genres and themes carry taste, a studio
+// carries a house style, and staff carries an individual.
+const SIMILARITY_DIMENSIONS = [
+  { key: 'genres', weight: 0.45 },
+  { key: 'themes', weight: 0.3 },
+  { key: 'studios', weight: 0.15 },
+  { key: 'staff', weight: 0.1 },
+] as const;
+// What a stated discovery preference is worth next to a learned taste signal, on a scale where the
+// default weights sum to 1.
+const DISCOVERY_PREFERENCE_WEIGHT = 0.12;
+// Repulsion is charged on the share of the picks already made that a candidate repeats, not on raw
+// counts, so a hundred-title list can never accumulate a penalty bigger than the score it subtracts
+// from and start promoting the worst remaining title.
+const CATEGORY_DISPERSION_PENALTY = 0.35;
+const GENRE_DISPERSION_PENALTY = 0.25;
+const STUDIO_DISPERSION_PENALTY = 0.1;
+const COLD_START_EXPLORE_BONUS = 0.02;
+const COLD_START_EXPLORE_TITLES = 4;
 
 export function extractFeatures(anime: Anime): FeatureVector {
   return {
@@ -143,7 +171,10 @@ export function buildUserPreferenceProfile(
 export function scoreRecommendation(
   anime: Anime,
   profile: RecommendationProfile | UserTasteProfile,
-  options: Pick<RecommendationGenerationOptions, 'weights' | 'nowYear' | 'language'> = {},
+  options: Pick<
+    RecommendationGenerationOptions,
+    'weights' | 'nowYear' | 'language' | 'discovery' | 'attribution'
+  > = {},
 ): RecommendationScore {
   const normalizedProfile = isRecommendationProfile(profile) ? profile : fromLegacyProfile(profile);
   const weights = mergeWeights(options.weights);
@@ -160,17 +191,29 @@ export function scoreRecommendation(
     popularity: scorePopularity(features.popularity, anime.memberCount),
   };
 
-  const weightedTotal =
-    featureScores.genres * weights.genres +
-    featureScores.themes * weights.themes +
-    featureScores.studios * weights.studios +
-    featureScores.staff * weights.staff +
-    featureScores.type * weights.type +
-    featureScores.season * weights.season +
-    featureScores.year * weights.year +
-    featureScores.quality * weights.quality +
-    featureScores.popularity * weights.popularity;
-  const totalWeight = sumWeights(weights);
+  // Kept free of bonuses so the categorisation bands are judged on the same number the card shows.
+  let weightedTotal = 0;
+  let totalWeight = 0;
+  const addTerm = (value: number, weight: number): void => {
+    weightedTotal += value * weight;
+    totalWeight += weight;
+  };
+  addTerm(featureScores.genres ?? 0, weights.genres);
+  addTerm(featureScores.themes ?? 0, weights.themes);
+  addTerm(featureScores.studios ?? 0, weights.studios);
+  addTerm(featureScores.staff ?? 0, weights.staff);
+  addTerm(featureScores.type ?? 0, weights.type);
+  addTerm(featureScores.season ?? 0, weights.season);
+  addTerm(featureScores.year ?? 0, weights.year);
+  addTerm(featureScores.quality ?? 0, weights.quality);
+  addTerm(featureScores.popularity ?? 0, weights.popularity);
+
+  const statedPreference = statedPreferenceTerm(options.discovery);
+  if (statedPreference !== null) {
+    featureScores.discovery = scoreStatedPreference(anime, statedPreference);
+    addTerm(featureScores.discovery, DISCOVERY_PREFERENCE_WEIGHT);
+  }
+
   const rawValue = totalWeight === 0 ? 0.5 : clamp(weightedTotal / totalWeight, 0, 1);
   const confidence = calculateConfidence(normalizedProfile, features);
   const normalized = Math.round(clamp(rawValue * MAX_SCORE, 0, MAX_SCORE));
@@ -180,8 +223,49 @@ export function scoreRecommendation(
     normalized,
     confidence,
     featureScores,
-    reasons: createReasons(anime, features, normalizedProfile, featureScores, options.language),
+    reasons: createReasons(
+      anime,
+      features,
+      normalizedProfile,
+      featureScores,
+      options.language,
+      options.attribution ?? null,
+    ),
   };
+}
+
+/**
+ * The wishlist half of discovery: what the user asked for, as opposed to what their history implies.
+ * Null when they asked for nothing, so the term never dilutes a purely learned score.
+ */
+function statedPreferenceTerm(
+  preferences: Partial<RecommendationDiscoveryPreferences> | undefined,
+): StatedPreference | null {
+  const genres = preferences?.preferredGenres ?? [];
+  const formats = preferences?.preferredFormats ?? [];
+  const seasons = preferences?.preferredSeasons ?? [];
+  if (genres.length === 0 && formats.length === 0 && seasons.length === 0) return null;
+  return { genres: new Set(genres.map(normalizeName)), formats, seasons };
+}
+
+function scoreStatedPreference(anime: Anime, term: StatedPreference): number {
+  const dimensions: number[] = [];
+  if (term.genres.size > 0) {
+    const matched = anime.genres.filter((genre) =>
+      term.genres.has(normalizeName(genre.name)),
+    ).length;
+    // The share of the wishlist covered, not the share of the title's own genres, so one requested
+    // genre is satisfied by one appearance rather than diluted across a broad catalogue entry.
+    dimensions.push(clamp(matched / term.genres.size, 0, 1));
+  }
+  if (term.formats.length > 0) {
+    dimensions.push(term.formats.includes(anime.type) ? 1 : 0);
+  }
+  if (term.seasons.length > 0) {
+    dimensions.push(anime.season !== null && term.seasons.includes(anime.season) ? 1 : 0);
+  }
+  if (dimensions.length === 0) return 0.5;
+  return dimensions.reduce((sum, value) => sum + value, 0) / dimensions.length;
 }
 
 export function generateRecommendations(
@@ -207,6 +291,7 @@ export function generateRecommendations(
     ...(options.excludedAnimeIds ?? []),
   ]);
   const discovery = normalizeDiscoveryPreferences(options.discovery);
+  const likedAffinity = buildLikedAffinity(input.watched);
   const rejectedGenres = new Set(
     [
       ...(input.rejectedGenres ?? []),
@@ -238,15 +323,22 @@ export function generateRecommendations(
           : anime.contentRating === undefined || anime.contentRating === 'safe',
     )
     .map((anime) => {
-      // Kept free of bonuses so the categorisation bands are judged on the same number the card shows.
+      const provenance = attributeProvenance(anime, likedAffinity);
       const score = scoreRecommendation(anime, profile, {
         ...options,
         weights: effectiveWeights(options.weights, discovery),
+        attribution:
+          provenance === null
+            ? null
+            : {
+                title: provenance.entry.anime.title.default,
+                strength: provenance.strength,
+              },
       });
       return {
         anime,
         score,
-        category: categorize(anime, score, input.watched),
+        category: categorize(anime, score, provenance),
       };
     })
     .filter((candidate) => candidate.score.normalized >= discovery.minimumCompatibilityScore)
@@ -276,9 +368,18 @@ const SECTION_MEMBERSHIP: readonly {
 /**
  * A longer library has earned more shelf space in every section, so the floor rises with it. Capped
  * well under the per-section display cap so a pool smaller than four times the floor still works.
+ *
+ * Supply is the binding constraint whenever it binds, not library size. The floor is served in
+ * section order out of whatever sits above it, so a floor four sections cannot meet runs the donors
+ * down to exactly the floor and starves whichever section is served last. That is reachable in
+ * practice: AniList ranks the whole catalogue by score, so its pool is uniformly top-rated and
+ * collapses into one band, and it asks for a third fewer candidates than MyAnimeList because a page
+ * is capped at 50. A user whose library already covers most of those titles is left with too few
+ * candidates to serve four sections at the floor their library size alone would imply.
  */
-function minimumSectionTitles(analyzedCount: number): number {
-  return clamp(Math.round(5 + (analyzedCount - 10) * 0.08), 5, 16);
+function minimumSectionTitles(analyzedCount: number, supply: number): number {
+  const desired = clamp(Math.round(5 + (analyzedCount - 10) * 0.08), 5, 16);
+  return Math.min(desired, Math.floor(supply / SECTION_MEMBERSHIP.length));
 }
 
 function sectionKeyOf(category: RecommendationCategory): string {
@@ -291,35 +392,68 @@ function sectionKeyOf(category: RecommendationCategory): string {
  * The bands alone leave sections empty on a short library, because every candidate scores into the
  * same band. Titles are moved rather than copied, so none can appear twice, and a donor section is
  * never taken below its own floor; a moved title keeps its score, which is what makes its band bend.
+ *
+ * A move may only land a title in a band its own compatibility supports. Without that, filling the
+ * floor manufactures the sections it is meant to rescue: a title scoring 34 shown under Highly
+ * Compatible breaks a promise the card itself displays, and the band stops meaning anything.
  */
 function ensureSectionMinimums(
   recommendations: readonly Recommendation[],
   analyzedCount: number,
 ): Recommendation[] {
-  const minimum = minimumSectionTitles(analyzedCount);
+  const minimum = minimumSectionTitles(analyzedCount, recommendations.length);
   const result = recommendations.map((item) => ({ ...item }));
   const sectionCount = (key: string): number =>
     result.filter((item) => sectionKeyOf(item.category) === key).length;
+  const movableInto = (
+    donorKey: string,
+    targetCategory: RecommendationCategory,
+  ): number | undefined => {
+    // A bounded band wants the closest match from below; the open-ended discovery band wants its
+    // least certain titles, since the confident ones have nowhere left to be discovered.
+    const byProximity =
+      targetCategory === 'highly-compatible'
+        ? (left: Recommendation, right: Recommendation) =>
+            right.compatibilityScore - left.compatibilityScore
+        : (left: Recommendation, right: Recommendation) =>
+            left.compatibilityScore - right.compatibilityScore;
+    return result
+      .map((item, index) => ({ item, index }))
+      .filter((entry) => sectionKeyOf(entry.item.category) === donorKey)
+      .filter((entry) => admitsToSection(targetCategory, entry.item.compatibilityScore))
+      .sort((left, right) => byProximity(left.item, right.item))[0]?.index;
+  };
 
   for (const target of SECTION_MEMBERSHIP) {
     const targetCategory = target.categories[0];
     if (targetCategory === undefined) continue;
     while (sectionCount(target.key) < minimum) {
-      const donorKey = SECTION_MEMBERSHIP.filter(
+      // Donors are tried largest-first, but a donor that holds nothing this band can accept is not a
+      // donor, so the search skips past it rather than ending the whole section.
+      let donorIndex: number | undefined;
+      for (const donor of SECTION_MEMBERSHIP.filter(
         (section) => section.key !== target.key && sectionCount(section.key) > minimum,
-      ).sort((left, right) => sectionCount(right.key) - sectionCount(left.key))[0]?.key;
-      if (donorKey === undefined) break;
-      const donorIndex = result
-        .map((item, index) => ({ item, index }))
-        .filter((entry) => sectionKeyOf(entry.item.category) === donorKey)
-        .sort(
-          (left, right) => right.item.compatibilityScore - left.item.compatibilityScore,
-        )[0]?.index;
+      ).sort((left, right) => sectionCount(right.key) - sectionCount(left.key))) {
+        donorIndex = movableInto(donor.key, targetCategory);
+        if (donorIndex !== undefined) break;
+      }
       if (donorIndex === undefined) break;
       result[donorIndex] = { ...result[donorIndex], category: targetCategory };
     }
   }
   return result;
+}
+
+/**
+ * Whether a title's own compatibility justifies a floor moving it into this section.
+ *
+ * Only Highly Compatible is guarded, because it is defined by nothing but a score threshold: moving
+ * a 34% title in displays a percentage the section title directly contradicts. The other bands carry
+ * qualitative conditions a moved title already bends, which the band-bending above relies on, and the
+ * discovery band has no threshold at all.
+ */
+function admitsToSection(category: RecommendationCategory, compatibilityScore: number): boolean {
+  return category !== 'highly-compatible' || compatibilityScore >= HIGHLY_COMPATIBLE_MIN_SCORE;
 }
 
 function ensureDiscoveryVariety(candidates: readonly ScoredCandidate[]): ScoredCandidate[] {
@@ -357,13 +491,20 @@ function diversify(
   const selected: ScoredCandidate[] = [];
   const categoryCounts = new Map<RecommendationCategory, number>();
   const genreCounts = new Map<string, number>();
+  const studioCounts = new Map<string, number>();
 
   while (remaining.length > 0 && selected.length < safeLimit) {
     let bestIndex = 0;
     let bestUtility = Number.NEGATIVE_INFINITY;
     for (let index = 0; index < remaining.length; index += 1) {
       const candidate = remaining[index];
-      const utility = diversityUtility(candidate, categoryCounts, genreCounts, selected.length);
+      const utility = diversityUtility(
+        candidate,
+        categoryCounts,
+        genreCounts,
+        studioCounts,
+        selected.length,
+      );
       if (utility > bestUtility) {
         bestUtility = utility;
         bestIndex = index;
@@ -374,6 +515,8 @@ function diversify(
     selected.push(candidate);
     increment(categoryCounts, candidate.category);
     for (const genre of candidate.anime.genres) increment(genreCounts, normalizeName(genre.name));
+    for (const studio of candidate.anime.studios)
+      increment(studioCounts, normalizeName(studio.name));
   }
 
   return selected.map((candidate) => ({
@@ -557,10 +700,6 @@ function effectiveWeights(
   return weights ?? {};
 }
 
-function sumWeights(weights: RecommendationWeights): number {
-  return Object.values(weights).reduce((total, value) => total + Math.max(0, value), 0);
-}
-
 // An unseen feature scores 0, not a neutral 0.5: scoring it as average fit gave every unknown
 // title 40+ free points, which floored the composite and emptied the lower bands for large
 // libraries. An empty profile still scores 0.5, because then there is no signal either way.
@@ -637,12 +776,24 @@ function createReasons(
   profile: RecommendationProfile,
   scores: Readonly<Record<string, number>>,
   language: Language = 'en',
+  attribution: RecommendationAttribution | null = null,
 ): RecommendationReason[] {
   const copy = getCopy(language);
   const reasons: RecommendationReason[] = [];
   const add = (reason: RecommendationReason) => {
     if (reasons.length < MAX_REASON_COUNT) reasons.push(reason);
   };
+
+  // Named first, since it is the only explanation that points at a specific title rather than a
+  // pattern, and the reason cap would otherwise drop it in favour of the broadest match.
+  if (attribution !== null) {
+    add({
+      kind: 'similarity',
+      label: copy.reasonSimilarTo,
+      detail: attribution.title,
+      weight: clamp(attribution.strength, 0, 1),
+    });
+  }
 
   for (const genre of features.genres) {
     const score = preferenceToScore(profile.genres.get(normalizeName(genre)));
@@ -691,14 +842,14 @@ function reason(
 function categorize(
   anime: Anime,
   score: RecommendationScore,
-  watched: readonly AnimeListEntry[],
+  provenance: Provenance | null,
 ): RecommendationCategory {
   const compatibility = score.normalized;
   if (compatibility >= HIGHLY_COMPATIBLE_MIN_SCORE) return 'highly-compatible';
   if (
     compatibility >= BECAUSE_YOU_LIKED_MIN_SCORE &&
     compatibility < HIGHLY_COMPATIBLE_MIN_SCORE &&
-    becauseYouLikedSource(anime, watched) !== undefined
+    provenance !== null
   ) {
     return 'because-you-liked';
   }
@@ -713,45 +864,90 @@ function categorize(
   return 'explore';
 }
 
-// Provenance only has to clear a distinctiveness bar once the cohort is big enough for the bar to
-// mean anything. On a short list every candidate overlaps several liked entries simply because the
-// list spans few genres, so applying it there emptied this section for exactly the users with the
-// smallest libraries.
-function becauseYouLikedSource(
-  anime: Anime,
-  watched: readonly AnimeListEntry[],
-): AnimeListEntry | undefined {
-  let best: { readonly entry: AnimeListEntry; readonly shared: number } | null = null;
-  let likedCount = 0;
-  let similarCount = 0;
-  for (const entry of watched) {
-    if ((entry.userScore ?? 0) < BECAUSE_YOU_LIKED_MIN_RATING) continue;
-    likedCount += 1;
-    const shared = sharedFeatureCount(anime, entry.anime);
-    if (shared < BECAUSE_YOU_LIKED_MIN_SHARED_FEATURES) continue;
-    similarCount += 1;
-    if (best === null || shared > best.shared) best = { entry, shared };
-  }
-  if (best === null) return undefined;
-  if (likedCount <= BECAUSE_YOU_LIKED_SMALL_COHORT) return best.entry;
-  if (likedCount > BECAUSE_YOU_LIKED_SHALLOW_COHORT_LIMIT) {
-    if (best.shared < BECAUSE_YOU_LIKED_MIN_DEEP_SHARED_FEATURES) return undefined;
-    const similarShare = similarCount / likedCount;
-    if (similarShare >= BECAUSE_YOU_LIKED_MAX_SIMILAR_SHARE) return undefined;
-  }
-  return best.entry;
+interface LikedAffinity {
+  readonly entry: AnimeListEntry;
+  readonly features: FeatureVector;
+  readonly weight: number;
 }
 
-function sharedFeatureCount(left: Anime, right: Anime): number {
-  const leftGenres = new Set(left.genres.map((item) => normalizeName(item.name)));
-  const sharedGenres = right.genres.filter((item) =>
-    leftGenres.has(normalizeName(item.name)),
-  ).length;
-  const leftThemes = new Set(left.themes.map((item) => normalizeName(item.name)));
-  const sharedThemes = right.themes.filter((item) =>
-    leftThemes.has(normalizeName(item.name)),
-  ).length;
-  return sharedGenres + sharedThemes;
+interface Provenance {
+  readonly entry: AnimeListEntry;
+  readonly strength: number;
+  readonly similarity: number;
+}
+
+interface StatedPreference {
+  readonly genres: ReadonlySet<string>;
+  readonly formats: readonly AnimeType[];
+  readonly seasons: readonly AnimeSeason[];
+}
+
+/**
+ * Liked entries, with their features extracted once per build. A rating above the floor contributes
+ * more than one at it, so a title is explained by what the user loved rather than merely finished.
+ */
+function buildLikedAffinity(watched: readonly AnimeListEntry[]): readonly LikedAffinity[] {
+  const result: LikedAffinity[] = [];
+  for (const entry of watched) {
+    if (!isValidAnime(entry.anime)) continue;
+    const rating = entry.userScore ?? entry.anime.userScore;
+    if (rating === null || rating < BECAUSE_YOU_LIKED_MIN_RATING) continue;
+    result.push({
+      entry,
+      features: extractFeatures(entry.anime),
+      weight: 0.5 + 0.5 * clamp((rating - BECAUSE_YOU_LIKED_MIN_RATING) / 3, 0, 1),
+    });
+  }
+  return result;
+}
+
+/**
+ * The liked entry that explains a title best, provided that entry explains it better than the liked
+ * cohort does on average. The lift is what keeps a title that merely matches the shape of the whole
+ * library — every entry sharing one action genre and one theme — from claiming a specific source,
+ * however large the library is.
+ */
+function attributeProvenance(
+  anime: Anime,
+  likedAffinity: readonly LikedAffinity[],
+): Provenance | null {
+  if (likedAffinity.length === 0) return null;
+  const features = extractFeatures(anime);
+  let best: Provenance | null = null;
+  let strengthTotal = 0;
+  for (const liked of likedAffinity) {
+    const strength = featureSimilarity(features, liked.features) * liked.weight;
+    strengthTotal += strength;
+    if (best !== null && strength <= best.strength) continue;
+    best = {
+      entry: liked.entry,
+      strength,
+      similarity: featureSimilarity(features, liked.features),
+    };
+  }
+  if (best === null || best.similarity < BECAUSE_YOU_LIKED_MIN_SIMILARITY) return null;
+  if (likedAffinity.length < BECAUSE_YOU_LIKED_MIN_COHORT_FOR_LIFT) return best;
+  const lift = best.strength - strengthTotal / likedAffinity.length;
+  return lift >= BECAUSE_YOU_LIKED_MIN_LIFT ? best : null;
+}
+
+function featureSimilarity(left: FeatureVector, right: FeatureVector): number {
+  return SIMILARITY_DIMENSIONS.reduce(
+    (sum, dimension) =>
+      sum + dimension.weight * overlapCoefficient(left[dimension.key], right[dimension.key]),
+    0,
+  );
+}
+
+/** Cosine similarity between two indicator vectors: shared mass over total mass. */
+function overlapCoefficient(left: readonly string[], right: readonly string[]): number {
+  if (left.length === 0 || right.length === 0) return 0;
+  const rightNames = new Set(right.map(normalizeName));
+  let shared = 0;
+  for (const value of left) {
+    if (rightNames.has(normalizeName(value))) shared += 1;
+  }
+  return shared === 0 ? 0 : shared / Math.sqrt(left.length * right.length);
 }
 
 // Obscurity no longer defines the category; this only backs the `includeHiddenGems` pool
@@ -786,16 +982,37 @@ function diversityUtility(
   candidate: ScoredCandidate,
   categoryCounts: ReadonlyMap<RecommendationCategory, number>,
   genreCounts: ReadonlyMap<string, number>,
+  studioCounts: ReadonlyMap<string, number>,
   selectedCount: number,
 ): number {
-  const categoryPenalty = (categoryCounts.get(candidate.category) ?? 0) * 0.08;
-  const genrePenalty =
-    candidate.anime.genres.reduce(
-      (sum, genre) => sum + (genreCounts.get(normalizeName(genre.name)) ?? 0),
-      0,
-    ) * 0.025;
-  const coldStartBonus = selectedCount < 4 && candidate.category === 'explore' ? 0.02 : 0;
-  return candidate.score.normalized / MAX_SCORE - categoryPenalty - genrePenalty + coldStartBonus;
+  const denominator = Math.max(1, selectedCount);
+  const categoryShare = (categoryCounts.get(candidate.category) ?? 0) / denominator;
+  const genreShare = repeatedShare(candidate.anime.genres, genreCounts, denominator);
+  const studioShare = repeatedShare(candidate.anime.studios, studioCounts, denominator);
+  const coldStartBonus =
+    selectedCount < COLD_START_EXPLORE_TITLES && candidate.category === 'explore'
+      ? COLD_START_EXPLORE_BONUS
+      : 0;
+  return (
+    candidate.score.normalized / MAX_SCORE -
+    CATEGORY_DISPERSION_PENALTY * categoryShare -
+    GENRE_DISPERSION_PENALTY * genreShare -
+    STUDIO_DISPERSION_PENALTY * studioShare +
+    coldStartBonus
+  );
+}
+
+/** The largest share of the picks already made that any one of a candidate's values repeats. */
+function repeatedShare(
+  values: readonly { readonly name: string }[],
+  counts: ReadonlyMap<string, number>,
+  denominator: number,
+): number {
+  let share = 0;
+  for (const value of values) {
+    share = Math.max(share, (counts.get(normalizeName(value.name)) ?? 0) / denominator);
+  }
+  return share;
 }
 
 function increment<T>(map: Map<T, number>, key: T): void {

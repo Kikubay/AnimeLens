@@ -7,7 +7,10 @@ import {
   generateRecommendations,
   scoreRecommendation,
 } from '../src/recommendations/recommendation-engine';
-import type { RecommendationProfile } from '../src/recommendations/recommendation-types';
+import type {
+  RecommendationDiscoveryPreferences,
+  RecommendationProfile,
+} from '../src/recommendations/recommendation-types';
 
 function anime(id: number, overrides: Partial<Anime> = {}): Anime {
   return {
@@ -313,7 +316,7 @@ describe('recommendation pipeline', () => {
     expect(result.map((item) => item.anime.id)).toEqual([52]);
   });
 
-  it('supports exploratory mode, preferred genres, and a minimum score', () => {
+  it('supports exploratory mode and a minimum score', () => {
     const result = generateRecommendations(
       {
         watched: [],
@@ -333,7 +336,6 @@ describe('recommendation pipeline', () => {
       {
         discovery: {
           recommendationMode: 'exploratory',
-          preferredGenres: ['Fantasy'],
           minimumCompatibilityScore: 55,
         },
       },
@@ -341,6 +343,56 @@ describe('recommendation pipeline', () => {
 
     expect(result).toHaveLength(1);
     expect(result[0]?.anime.id).toBe(31);
+  });
+
+  it('honors a stated genre preference, which used to be normalized and then ignored', () => {
+    const build = (preferredGenres: string[]) =>
+      generateRecommendations(
+        {
+          watched: [],
+          candidates: [
+            anime(30, {
+              genres: [{ id: 1, name: 'Fantasy' }],
+              score: 8,
+              memberCount: 100_000,
+            }),
+            anime(31, {
+              genres: [{ id: 2, name: 'Drama' }],
+              score: 8,
+              memberCount: 100_000,
+            }),
+          ],
+        },
+        { discovery: { preferredGenres } },
+      );
+
+    // Otherwise identical titles, so the preference is the only thing that can order them.
+    expect(build(['Fantasy']).map((item) => item.anime.id)).toEqual([30, 31]);
+    expect(build(['Drama']).map((item) => item.anime.id)).toEqual([31, 30]);
+    expect(build([]).map((item) => item.anime.id)).toEqual([30, 31]);
+  });
+
+  it('ranks stated format and season preferences instead of filtering on them', () => {
+    // Each candidate satisfies a different number of stated dimensions, so only the wishlist can
+    // order them; the excluded lists are where the pool itself gets cut. The rating is held below the
+    // acclaim threshold so nothing is diverted into a banded section, which diversifies its own way.
+    const candidates = [
+      anime(60, { type: 'tv', season: 'summer', score: 6.5 }),
+      anime(61, { type: 'movie', season: 'summer', score: 6.5 }),
+      anime(62, { type: 'tv', season: 'winter', score: 6.5 }),
+      anime(63, { type: 'movie', season: 'winter', score: 6.5 }),
+    ];
+    const build = (discovery: Partial<RecommendationDiscoveryPreferences>) =>
+      generateRecommendations({ watched: [], candidates }, { discovery }).map(
+        (item) => item.anime.id,
+      );
+
+    expect(build({ preferredFormats: ['movie'], preferredSeasons: ['winter'] })).toEqual([
+      63, 61, 62, 60,
+    ]);
+    expect(build({ preferredFormats: ['tv'], preferredSeasons: ['summer'] })).toEqual([
+      60, 61, 62, 63,
+    ]);
   });
 
   it('keeps a rejected genre below the candidate set even when its score is high', () => {
@@ -418,7 +470,9 @@ describe('recommendation pipeline', () => {
     expect(result[0]?.category).toBe('because-you-liked');
   });
 
-  it('still demands a deeper overlap on a large liked cohort, where two is the base rate', () => {
+  it('attributes a single liked entry on a large library, where one overlap is not the base rate', () => {
+    // Twenty liked entries, each on its own genre and theme, so sharing one of each with exactly one
+    // of them is a specific match. A cohort-size rule could not tell this apart from the next case.
     const watched = Array.from({ length: 20 }, (_, index) =>
       entry(index + 1, 9, {
         genres: [{ id: index, name: `Genre ${index}` }],
@@ -426,7 +480,7 @@ describe('recommendation pipeline', () => {
         studios: [],
       }),
     );
-    const shallowOverlap = anime(501, {
+    const narrowOverlap = anime(501, {
       genres: [
         { id: 3, name: 'Genre 3' },
         { id: 99, name: 'Sci-Fi' },
@@ -439,7 +493,39 @@ describe('recommendation pipeline', () => {
       memberCount: 400_000,
     });
     const result = generateRecommendations(
-      { watched, candidates: [shallowOverlap] },
+      { watched, candidates: [narrowOverlap] },
+      { limit: 5, generatedAt: '2026-01-01T00:00:00.000Z' },
+    );
+
+    expect(result[0]?.compatibilityScore).toBeGreaterThanOrEqual(50);
+    expect(result[0]?.compatibilityScore).toBeLessThan(70);
+    expect(result[0]?.category).toBe('because-you-liked');
+  });
+
+  it('refuses provenance when the overlap is shared by much of a large liked cohort', () => {
+    // The case a cohort-size rule was really standing in for: every liked entry carries the pair, so
+    // the candidate matches the library's shape rather than any one entry.
+    const shared = Array.from({ length: 24 }, (_, index) =>
+      entry(index + 1, 9, {
+        genres: [
+          { id: 1, name: 'Action' },
+          { id: index, name: `Genre ${index}` },
+        ],
+        themes: [{ id: 10, name: 'Super Power' }],
+        studios: [],
+      }),
+    );
+    const matchesTheWholeLibrary = anime(503, {
+      genres: [
+        { id: 1, name: 'Action' },
+        { id: 50, name: 'Action' },
+      ],
+      themes: [{ id: 10, name: 'Super Power' }],
+      score: 7,
+      memberCount: 400_000,
+    });
+    const result = generateRecommendations(
+      { watched: shared, candidates: [matchesTheWholeLibrary] },
       { limit: 5, generatedAt: '2026-01-01T00:00:00.000Z' },
     );
 
@@ -556,6 +642,67 @@ describe('recommendation pipeline', () => {
     expect(unacclaimed[0]?.category).not.toBe('hidden-gem');
   });
 
+  it('names the liked entry a title was traced back to, so the section title is not a guess', () => {
+    // A single liked entry, which has no cohort mean to be distinguished from. Provenance here rests
+    // on similarity alone, and the source still has to be named. The 7 keeps the pair's preference
+    // score modest, so the title lands in the provenance band rather than the top one.
+    const watched = [
+      entry(1, 7, {
+        genres: [{ id: 1, name: 'Action' }],
+        themes: [{ id: 10, name: 'Super Power' }],
+        studios: [],
+      }),
+    ];
+    const sibling = anime(700, {
+      genres: [{ id: 1, name: 'Action' }],
+      themes: [{ id: 10, name: 'Super Power' }],
+      studios: [],
+      score: 6,
+      memberCount: 5_000,
+    });
+    const result = generateRecommendations(
+      { watched, candidates: [sibling] },
+      { limit: 5, generatedAt: '2026-01-01T00:00:00.000Z' },
+    );
+
+    expect(result[0]?.category).toBe('because-you-liked');
+    expect(result[0]?.reasons[0]).toMatchObject({
+      kind: 'similarity',
+      label: 'Similar to',
+      detail: 'Anime 1',
+    });
+    expect(result[0]?.reasons.length).toBeLessThanOrEqual(3);
+  });
+
+  // Regression: the similarity gate was measured on rating-weighted strength, so one shared genre
+  // cleared it. On a large library that is nearly every candidate, and "Similar to" ended up on every
+  // card, which told the user nothing about what anything was similar to.
+  it('does not name a source for a title that shares only a single genre', () => {
+    const watched = Array.from({ length: 40 }, (_, index) =>
+      entry(index + 1, 10, {
+        genres: [
+          { id: 1, name: 'Action' },
+          { id: index, name: `Genre ${index}` },
+        ],
+        studios: [],
+      }),
+    );
+    const oneGenreApart = anime(701, {
+      genres: [{ id: 1, name: 'Action' }],
+      themes: [],
+      studios: [],
+      score: 7,
+      memberCount: 400_000,
+    });
+    const result = generateRecommendations(
+      { watched, candidates: [oneGenreApart] },
+      { limit: 5, generatedAt: '2026-01-01T00:00:00.000Z' },
+    );
+
+    expect(result[0]?.category).not.toBe('because-you-liked');
+    expect(result[0]?.reasons.some((reason) => reason.detail === 'Anime 1')).toBe(false);
+  });
+
   it('never puts one anime in more than one section', () => {
     const watched = Array.from({ length: 12 }, (_, index) =>
       entry(index + 1, index % 2 === 0 ? 9 : 4, {
@@ -583,6 +730,83 @@ describe('recommendation pipeline', () => {
     for (const item of result) {
       expect(SECTION_MEMBERS.map((section) => section.categories).flat()).toContain(item.category);
     }
+  });
+
+  it('orders a homogeneous pool by score, so a dispersion penalty cannot outlive its group', () => {
+    // Fifty-one candidates sharing one category and one genre take the same penalty at every depth,
+    // so score alone decides. A penalty charged per prior appearance rather than per share would grow
+    // with the list and eventually reorder a group this uniform.
+    const candidates = Array.from({ length: 51 }, (_, index) =>
+      anime(3000 + index, {
+        genres: [{ id: 1, name: 'Action' }],
+        score: 5 + (index % 5),
+        memberCount: 100_000,
+      }),
+    );
+    const result = generateRecommendations(
+      { watched: [], candidates },
+      { limit: 51, generatedAt: '2026-01-01T00:00:00.000Z' },
+    );
+    const scores = result.map((item) => item.compatibilityScore);
+
+    expect(result).toHaveLength(51);
+    expect([...scores].sort((left, right) => right - left)).toEqual(scores);
+  });
+
+  // Regression: AniList ranks the whole catalogue by score, so its pool is uniformly top-rated and
+  // collapses into one band, and it supplies fewer candidates than MyAnimeList. Explore is the section
+  // served last, so the sequential fill used to run every other section down onto its floor first and
+  // leave nothing to donate, emptying Explore entirely.
+  it('keeps Explore populated when a provider pool collapses into a single band', () => {
+    const watched = Array.from({ length: 200 }, (_, index) =>
+      entry(index + 1, 9 + (index % 2), {
+        genres: [{ id: 1, name: 'Fantasy' }],
+        studios: [],
+      }),
+    );
+    // Every candidate is a strong match, which is exactly the shape of a top-rated ranking page.
+    const candidates = Array.from({ length: 20 }, (_, index) =>
+      anime(2000 + index, { genres: [{ id: 1, name: 'Fantasy' }], score: 9, memberCount: 900_000 }),
+    );
+    const result = generateRecommendations(
+      { watched, candidates },
+      { limit: 100, generatedAt: '2026-01-01T00:00:00.000Z' },
+    );
+
+    const explore = result.filter(
+      (item) => item.category === 'explore' || item.category === 'genre-discovery',
+    );
+    expect(result).toHaveLength(20);
+    expect(explore.length).toBeGreaterThan(0);
+  });
+
+  it('never relocates a title into Highly Compatible below the band it advertises', () => {
+    const watched = [
+      entry(1, 10, { genres: [{ id: 1, name: 'Loved' }], studios: [] }),
+      entry(2, 10, { genres: [{ id: 5, name: 'Loved2' }], studios: [] }),
+    ];
+    // Nothing matches the library, so every title scores into the bottom bands and the floor has to
+    // move titles to satisfy the sections — but not into the one that displays a compatibility score.
+    const candidates = Array.from({ length: 8 }, (_, index) =>
+      anime(3000 + index, {
+        genres: [{ id: 90 + index, name: `Unrelated ${index}` }],
+        themes: [],
+        studios: [],
+        score: 6,
+        memberCount: 20_000,
+      }),
+    );
+    const result = generateRecommendations(
+      { watched, candidates },
+      { limit: 100, generatedAt: '2026-01-01T00:00:00.000Z' },
+    );
+
+    const highlyCompatible = result.filter((item) => item.category === 'highly-compatible');
+    expect(highlyCompatible.every((item) => item.compatibilityScore >= 70)).toBe(true);
+    expect(
+      result.filter((item) => item.category === 'explore' || item.category === 'genre-discovery')
+        .length,
+    ).toBeGreaterThan(0);
   });
 
   it.each([10, 100])('scales every section floor with the library size (%i entries)', (size) => {

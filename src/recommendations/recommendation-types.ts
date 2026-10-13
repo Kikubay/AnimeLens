@@ -50,15 +50,17 @@ export interface RecommendationWeights {
 }
 
 export const DEFAULT_RECOMMENDATION_WEIGHTS: RecommendationWeights = {
-  genres: 0.28,
-  themes: 0.16,
-  studios: 0.1,
-  staff: 0.1,
-  type: 0.08,
-  season: 0.04,
+  genres: 0.3,
+  themes: 0.18,
+  studios: 0.09,
+  // Staff is a real taste signal but a noisy one: lists are long and names recur across unrelated
+  // titles, so the dimension earns less than the house style it sits beside.
+  staff: 0.07,
+  type: 0.07,
+  season: 0.03,
   year: 0.05,
-  quality: 0.12,
-  popularity: 0.07,
+  quality: 0.13,
+  popularity: 0.08,
 };
 
 export interface RecommendationScore {
@@ -85,6 +87,11 @@ export interface RecommendationDiscoveryPreferences {
   readonly minimumCompatibilityScore: number;
 }
 
+export interface RecommendationAttribution {
+  readonly title: string;
+  readonly strength: number;
+}
+
 export interface RecommendationGenerationOptions {
   readonly limit?: number;
   readonly weights?: Partial<RecommendationWeights>;
@@ -95,6 +102,8 @@ export interface RecommendationGenerationOptions {
   readonly excludedAnimeIds?: readonly number[];
   readonly generatedAt?: string;
   readonly now?: string;
+  /** The liked entry a title was traced back to, so the explanation can name it. */
+  readonly attribution?: RecommendationAttribution | null;
   /** Defaults to English. */
   readonly language?: Language;
 }
