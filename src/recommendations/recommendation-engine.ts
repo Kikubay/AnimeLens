@@ -32,45 +32,23 @@ const MAX_SCORE = 100;
 const DEFAULT_GENERATED_AT = '1970-01-01T00:00:00.000Z';
 const MIN_VALID_ID = 1;
 const MAX_REASON_COUNT = 3;
-// Half-open bands, walked top-down, so a title qualifying for a higher tier never falls into a
-// lower one however well it matches that tier's qualitative condition.
 const HIGHLY_COMPATIBLE_MIN_SCORE = 70;
 const BECAUSE_YOU_LIKED_MIN_SCORE = 50;
 const HIDDEN_GEM_MIN_SCORE = 30;
-// "Demonstrably high community rating": the provider mean, on a 0-10 scale.
 const HIDDEN_GEM_MIN_RATING = 7;
 const HIDDEN_GEM_MAX_MEMBERS = 150_000;
 const HIDDEN_GEM_MIN_POPULARITY_RANK = 400;
 const BECAUSE_YOU_LIKED_MIN_RATING = 7;
-// Provenance is claimed by lift: how much better a title matches its best liked entry than it matches
-// the liked cohort on average. A shared-feature count cannot express that, because the same two
-// features are the base rate on a broad library and the entire reason for a match on a narrow one.
-//
-// The bar is on similarity itself, not on the rating-weighted strength used to choose between liked
-// entries. Weighting by rating answers "which entry explains this best"; letting it also answer "are
-// these similar at all" put a single shared genre over the line, and on a large library that is every
-// candidate, which turned the reason into noise on every card.
 const BECAUSE_YOU_LIKED_MIN_SIMILARITY = 0.5;
 const BECAUSE_YOU_LIKED_MIN_LIFT = 0.06;
-// The cohort mean is what makes provenance specific: a title that matches everything matches nothing
-// in particular. Too few liked entries and there is no mean worth comparing against, so on a short
-// library strength alone decides — gating on lift there would empty the section for exactly the users
-// with the smallest libraries.
 const BECAUSE_YOU_LIKED_MIN_COHORT_FOR_LIFT = 3;
-// Cosine overlap is taken per dimension and combined here. Genres and themes carry taste, a studio
-// carries a house style, and staff carries an individual.
 const SIMILARITY_DIMENSIONS = [
   { key: 'genres', weight: 0.45 },
   { key: 'themes', weight: 0.3 },
   { key: 'studios', weight: 0.15 },
   { key: 'staff', weight: 0.1 },
 ] as const;
-// What a stated discovery preference is worth next to a learned taste signal, on a scale where the
-// default weights sum to 1.
 const DISCOVERY_PREFERENCE_WEIGHT = 0.12;
-// Repulsion is charged on the share of the picks already made that a candidate repeats, not on raw
-// counts, so a hundred-title list can never accumulate a penalty bigger than the score it subtracts
-// from and start promoting the worst remaining title.
 const CATEGORY_DISPERSION_PENALTY = 0.35;
 const GENRE_DISPERSION_PENALTY = 0.25;
 const STUDIO_DISPERSION_PENALTY = 0.1;
@@ -191,7 +169,6 @@ export function scoreRecommendation(
     popularity: scorePopularity(features.popularity, anime.memberCount),
   };
 
-  // Kept free of bonuses so the categorisation bands are judged on the same number the card shows.
   let weightedTotal = 0;
   let totalWeight = 0;
   const addTerm = (value: number, weight: number): void => {
@@ -234,10 +211,6 @@ export function scoreRecommendation(
   };
 }
 
-/**
- * The wishlist half of discovery: what the user asked for, as opposed to what their history implies.
- * Null when they asked for nothing, so the term never dilutes a purely learned score.
- */
 function statedPreferenceTerm(
   preferences: Partial<RecommendationDiscoveryPreferences> | undefined,
 ): StatedPreference | null {
@@ -254,8 +227,6 @@ function scoreStatedPreference(anime: Anime, term: StatedPreference): number {
     const matched = anime.genres.filter((genre) =>
       term.genres.has(normalizeName(genre.name)),
     ).length;
-    // The share of the wishlist covered, not the share of the title's own genres, so one requested
-    // genre is satisfied by one appearance rather than diluted across a broad catalogue entry.
     dimensions.push(clamp(matched / term.genres.size, 0, 1));
   }
   if (term.formats.length > 0) {
@@ -354,7 +325,6 @@ export function generateRecommendations(
   );
 }
 
-/** Mirrors the dashboard's section split, so shortfalls are measured against what the user sees. */
 const SECTION_MEMBERSHIP: readonly {
   readonly key: string;
   readonly categories: readonly RecommendationCategory[];
@@ -365,18 +335,6 @@ const SECTION_MEMBERSHIP: readonly {
   { key: 'explore', categories: ['explore', 'genre-discovery'] },
 ];
 
-/**
- * A longer library has earned more shelf space in every section, so the floor rises with it. Capped
- * well under the per-section display cap so a pool smaller than four times the floor still works.
- *
- * Supply is the binding constraint whenever it binds, not library size. The floor is served in
- * section order out of whatever sits above it, so a floor four sections cannot meet runs the donors
- * down to exactly the floor and starves whichever section is served last. That is reachable in
- * practice: AniList ranks the whole catalogue by score, so its pool is uniformly top-rated and
- * collapses into one band, and it asks for a third fewer candidates than MyAnimeList because a page
- * is capped at 50. A user whose library already covers most of those titles is left with too few
- * candidates to serve four sections at the floor their library size alone would imply.
- */
 function minimumSectionTitles(analyzedCount: number, supply: number): number {
   const desired = clamp(Math.round(5 + (analyzedCount - 10) * 0.08), 5, 16);
   return Math.min(desired, Math.floor(supply / SECTION_MEMBERSHIP.length));
@@ -388,15 +346,6 @@ function sectionKeyOf(category: RecommendationCategory): string {
   );
 }
 
-/**
- * The bands alone leave sections empty on a short library, because every candidate scores into the
- * same band. Titles are moved rather than copied, so none can appear twice, and a donor section is
- * never taken below its own floor; a moved title keeps its score, which is what makes its band bend.
- *
- * A move may only land a title in a band its own compatibility supports. Without that, filling the
- * floor manufactures the sections it is meant to rescue: a title scoring 34 shown under Highly
- * Compatible breaks a promise the card itself displays, and the band stops meaning anything.
- */
 function ensureSectionMinimums(
   recommendations: readonly Recommendation[],
   analyzedCount: number,
@@ -409,8 +358,6 @@ function ensureSectionMinimums(
     donorKey: string,
     targetCategory: RecommendationCategory,
   ): number | undefined => {
-    // A bounded band wants the closest match from below; the open-ended discovery band wants its
-    // least certain titles, since the confident ones have nowhere left to be discovered.
     const byProximity =
       targetCategory === 'highly-compatible'
         ? (left: Recommendation, right: Recommendation) =>
@@ -428,8 +375,6 @@ function ensureSectionMinimums(
     const targetCategory = target.categories[0];
     if (targetCategory === undefined) continue;
     while (sectionCount(target.key) < minimum) {
-      // Donors are tried largest-first, but a donor that holds nothing this band can accept is not a
-      // donor, so the search skips past it rather than ending the whole section.
       let donorIndex: number | undefined;
       for (const donor of SECTION_MEMBERSHIP.filter(
         (section) => section.key !== target.key && sectionCount(section.key) > minimum,
@@ -444,14 +389,6 @@ function ensureSectionMinimums(
   return result;
 }
 
-/**
- * Whether a title's own compatibility justifies a floor moving it into this section.
- *
- * Only Highly Compatible is guarded, because it is defined by nothing but a score threshold: moving
- * a 34% title in displays a percentage the section title directly contradicts. The other bands carry
- * qualitative conditions a moved title already bends, which the band-bending above relies on, and the
- * discovery band has no threshold at all.
- */
 function admitsToSection(category: RecommendationCategory, compatibilityScore: number): boolean {
   return category !== 'highly-compatible' || compatibilityScore >= HIGHLY_COMPATIBLE_MIN_SCORE;
 }
@@ -462,8 +399,6 @@ function ensureDiscoveryVariety(candidates: readonly ScoredCandidate[]): ScoredC
   const result = [...candidates];
   const count = (category: RecommendationCategory) =>
     result.filter((candidate) => candidate.category === category).length;
-  // Genre-discovery is the only donor, since moving a title out of a banded section would break the
-  // rule that an 85% match stays Highly Compatible.
   const reclassifyDiscovery = (replacement: RecommendationCategory): void => {
     if (count('genre-discovery') < 2) return;
     const index = [...result]
@@ -475,8 +410,6 @@ function ensureDiscoveryVariety(candidates: readonly ScoredCandidate[]): ScoredC
     if (candidate !== undefined) result[actualIndex] = { ...candidate, category: replacement };
   };
 
-  // Explore is the only section that can be topped up this way; a starved genre-discovery is left as
-  // the engine scored it rather than taking from a banded section.
   if (count('explore') === 0) reclassifyDiscovery('explore');
   return result;
 }
@@ -700,9 +633,6 @@ function effectiveWeights(
   return weights ?? {};
 }
 
-// An unseen feature scores 0, not a neutral 0.5: scoring it as average fit gave every unknown
-// title 40+ free points, which floored the composite and emptied the lower bands for large
-// libraries. An empty profile still scores 0.5, because then there is no signal either way.
 function scoreNamedFeatures(values: readonly string[], preferences: FeaturePreferenceMap): number {
   if (preferences.size === 0) return 0.5;
   if (values.length === 0) return 0;
@@ -784,8 +714,6 @@ function createReasons(
     if (reasons.length < MAX_REASON_COUNT) reasons.push(reason);
   };
 
-  // Named first, since it is the only explanation that points at a specific title rather than a
-  // pattern, and the reason cap would otherwise drop it in favour of the broadest match.
   if (attribution !== null) {
     add({
       kind: 'similarity',
@@ -882,10 +810,6 @@ interface StatedPreference {
   readonly seasons: readonly AnimeSeason[];
 }
 
-/**
- * Liked entries, with their features extracted once per build. A rating above the floor contributes
- * more than one at it, so a title is explained by what the user loved rather than merely finished.
- */
 function buildLikedAffinity(watched: readonly AnimeListEntry[]): readonly LikedAffinity[] {
   const result: LikedAffinity[] = [];
   for (const entry of watched) {
@@ -901,12 +825,6 @@ function buildLikedAffinity(watched: readonly AnimeListEntry[]): readonly LikedA
   return result;
 }
 
-/**
- * The liked entry that explains a title best, provided that entry explains it better than the liked
- * cohort does on average. The lift is what keeps a title that merely matches the shape of the whole
- * library — every entry sharing one action genre and one theme — from claiming a specific source,
- * however large the library is.
- */
 function attributeProvenance(
   anime: Anime,
   likedAffinity: readonly LikedAffinity[],
@@ -939,7 +857,6 @@ function featureSimilarity(left: FeatureVector, right: FeatureVector): number {
   );
 }
 
-/** Cosine similarity between two indicator vectors: shared mass over total mass. */
 function overlapCoefficient(left: readonly string[], right: readonly string[]): number {
   if (left.length === 0 || right.length === 0) return 0;
   const rightNames = new Set(right.map(normalizeName));
@@ -950,15 +867,11 @@ function overlapCoefficient(left: readonly string[], right: readonly string[]): 
   return shared === 0 ? 0 : shared / Math.sqrt(left.length * right.length);
 }
 
-// Obscurity no longer defines the category; this only backs the `includeHiddenGems` pool
-// preference, which is about how mainstream a title is.
 function isObscure(anime: Anime): boolean {
   if (anime.memberCount !== null) return anime.memberCount < HIDDEN_GEM_MAX_MEMBERS;
   return anime.popularity !== null && anime.popularity > HIDDEN_GEM_MIN_POPULARITY_RANK;
 }
 
-// Acclaim rather than obscurity: the section exists to surface quality the baseline underestimates,
-// and an obscurity-only test rated a 1.0 title with a few thousand members as a Hidden Gem.
 function hasCommunityAcclaim(anime: Anime): boolean {
   return anime.score !== null && anime.score >= HIDDEN_GEM_MIN_RATING;
 }
@@ -1002,7 +915,6 @@ function diversityUtility(
   );
 }
 
-/** The largest share of the picks already made that any one of a candidate's values repeats. */
 function repeatedShare(
   values: readonly { readonly name: string }[],
   counts: ReadonlyMap<string, number>,

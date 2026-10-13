@@ -87,7 +87,6 @@ import {
 
 export type PageId = 'dashboard' | 'detail' | 'profile' | 'settings';
 
-// Titles arrive English-only from the background, so they're localized here.
 function sectionTitle(id: RecommendationSectionId, copy: AppCopy): string {
   switch (id) {
     case 'highly-compatible':
@@ -101,10 +100,6 @@ function sectionTitle(id: RecommendationSectionId, copy: AppCopy): string {
   }
 }
 
-/**
- * A card has one clamped line for its reason, so a reason that names the title it compared against has
- * to carry that title inline. Rendered alone, "Similar to" says nothing about what it is similar to.
- */
 function reasonHeadline(reason: RecommendationReason | undefined): string | null {
   if (reason === undefined) return null;
   const detail = reason.detail;
@@ -573,7 +568,6 @@ export function DetailPage({
     setListError(null);
   }, [anime?.id]);
 
-  // Older cache entries predate the field and some endpoints never send links, so ask per title and skip the round-trip when we already have them.
   useEffect(() => {
     const embedded = anime?.streamingSites;
     if (anime === null || anime === undefined) return;
@@ -973,7 +967,7 @@ function ProfileSummary({
   }, []);
 
   const plan = summary.topPicks;
-  // Grid mode is session-only, mirroring the fact that a stored preference can only be List or Triangle.
+
   const [sessionLayout, setSessionLayout] = useState<TasteCardPicksLayout>(
     preferences.tasteCard.picksLayout,
   );
@@ -991,7 +985,7 @@ function ProfileSummary({
     () => buildTasteCardModel(summary, profile, providerName, resolvedPicks),
     [summary, profile, providerName, resolvedPicks],
   );
-  // No point asking the user to break a tie for a section that won't be drawn, and grid mode has its own flow.
+
   const shouldPromptForPicks =
     !isGridLayout && plan.needsChoice && shouldRenderTopPicks(tasteCardModel, cardOptions);
 
@@ -999,7 +993,7 @@ function ProfileSummary({
     (next: TasteCardRenderOptions) => {
       if (onPreferencesChange === undefined) return;
       setSessionLayout(next.picksLayout);
-      // Session-only, so persisting it would open the next visit onto an empty collage.
+
       const tasteCard = { ...next, picksLayout: persistableTasteCardPicksLayout(next.picksLayout) };
       onPreferencesChange({ ...preferences, tasteCard });
       void updateSettings({ ...preferences, tasteCard }).catch(() => undefined);
@@ -1007,7 +1001,6 @@ function ProfileSummary({
     [onPreferencesChange, preferences],
   );
 
-  // The picker only ever opens from this click, never on load.
   const openShareFlow = useCallback(() => {
     if (isPreparingShare) return;
     setPreparingShare(true);
@@ -1034,7 +1027,7 @@ function ProfileSummary({
       })
       .catch(() => {
         if (!mountedRef.current) return;
-        // Unreadable storage shouldn't block sharing.
+
         setRanking(null);
         setTasteCardOpen(true);
         onFeedback(copy.topPicksLoadFailed);
@@ -1052,12 +1045,11 @@ function ProfileSummary({
 
   const handleCardClose = useCallback(() => {
     setTasteCardOpen(false);
-    // Dismissal leaves grid mode, since staying in it would reopen onto an empty collage; the other layouts stay as the user set them.
+
     const next = layoutAfterCardClose(cardOptions);
     if (next !== cardOptions.picksLayout) saveCardOptions({ ...cardOptions, picksLayout: next });
   }, [cardOptions, saveCardOptions]);
 
-  // Deliberately not gated on the grid being full: the picker is the only way into grid mode, so gating here would make it unreachable.
   const canShare = summary.hasData;
 
   const completeTopPicks = (selected: readonly number[]) => {
@@ -1070,7 +1062,6 @@ function ProfileSummary({
   };
 
   const skipTopPicks = () => {
-    // Nothing saved, so the automatic most-recently-updated order stays in effect.
     setRanking(null);
     setTopPicksOpen(false);
     setTasteCardOpen(true);
@@ -1102,7 +1093,7 @@ function ProfileSummary({
           <h2>{copy.animeProfile}</h2>
           <p>{copy.profileIntro}</p>
         </div>
-        {/* An action on the data, not a stranded button between the intro and the hero stat. */}
+
         <Button
           size="sm"
           icon="sparkles"
@@ -1207,7 +1198,6 @@ function ProfileSummary({
         onFeedback={onFeedback}
         onRequestGridPicker={openGridPicker}
         onChangePicks={
-          // In grid mode the same button reopens the picker, seeded with the nine already chosen.
           isGridLayout
             ? openGridPicker
             : ranking === null || !shouldPromptForPicks
@@ -1304,11 +1294,11 @@ export function SettingsPage({
   const [isSavingAnilistClientId, setIsSavingAnilistClientId] = useState(false);
   const [providerActionInFlight, setProviderActionInFlight] = useState<ProviderId | null>(null);
   const [pinTabToken, setPinTabToken] = useState<string | null>(null);
-  // Only the extension can read tabs, so only the extension can lift the token off the pin redirect.
+
   const canAutoDetectPinToken = !isDesktopHost();
-  // Hosts that can't inspect tabs — the desktop app — have no auto-detect and rely on this instead.
+
   const [pinTokenDraft, setPinTokenDraft] = useState('');
-  // Set as soon as the flow starts, so the panel is reachable before any token shows up.
+
   const [pinFlowActive, setPinFlowActive] = useState(false);
   const [isVerifyingPin, setIsVerifyingPin] = useState(false);
   const anilistProvider = providers.find((provider) => provider.id === 'anilist');
@@ -1361,13 +1351,10 @@ export function SettingsPage({
       disposed.current = true;
       requestSequence.current += 1;
     };
-    // loadSettings is intentionally scoped to this page instance.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => applyThemePreference(snapshot.preferences.theme), [snapshot.preferences.theme]);
 
-  // The background owns the tab watching, because clicking into the authorize tab is what closes this popup.
   useEffect(() => {
     if (anilistSignedIn || !canAutoDetectPinToken) {
       setPinTabToken(null);
@@ -1458,13 +1445,12 @@ export function SettingsPage({
           : disconnectProvider(providerId);
     void request
       .then((authSnapshot) => {
-        // The authorize tab is open; the pin-tab watcher above completes the sign-in.
         if (action === 'connect' && authSnapshot.errorCode === 'pin_flow_started') {
           setPinFlowActive(true);
           onFeedback(copy.pinInstructions);
           return undefined;
         }
-        // Anything short of authenticated means the provider refused the flow.
+
         if (
           action === 'connect' &&
           (authSnapshot.status !== 'authenticated' || authSnapshot.profile === null)
@@ -1506,7 +1492,6 @@ export function SettingsPage({
   };
 
   const submitPinToken = () => {
-    // A typed token wins over one lifted from a tab URL: it's the more deliberate of the two.
     const token = pinTokenDraft.trim() || pinTabToken?.trim() || '';
     if (token.length === 0 || isVerifyingPin) return;
     setIsVerifyingPin(true);
@@ -1550,7 +1535,7 @@ export function SettingsPage({
       if (disposed.current) return;
       preferencesRef.current = value.preferences;
       setSnapshot({ status: 'ready', ...value, errorMessage: null });
-      // Hand back what was persisted, since the background normalizes and clamps it.
+
       onPreferencesChanged?.(value.preferences);
       onFeedback(message);
     });
@@ -1722,7 +1707,7 @@ export function SettingsPage({
             }
           />
         ))}
-        {/* Extension: waits for a lifted token so the panel never shows a dead button. Desktop: opens with the flow and takes a pasted token. */}
+
         {(canAutoDetectPinToken ? pinTabToken !== null : pinFlowActive || pinTabToken !== null) &&
           !anilistSignedIn && (
             <div className="pin-signin-panel">

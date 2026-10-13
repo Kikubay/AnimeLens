@@ -57,7 +57,6 @@ function emptyProfile(): RecommendationProfile {
   return buildUserPreferenceProfile([]);
 }
 
-// Mirrors the dashboard's sections, so section-level assertions test what the user sees.
 const SECTION_MEMBERS: readonly {
   readonly key: string;
   readonly categories: readonly string[];
@@ -366,16 +365,12 @@ describe('recommendation pipeline', () => {
         { discovery: { preferredGenres } },
       );
 
-    // Otherwise identical titles, so the preference is the only thing that can order them.
     expect(build(['Fantasy']).map((item) => item.anime.id)).toEqual([30, 31]);
     expect(build(['Drama']).map((item) => item.anime.id)).toEqual([31, 30]);
     expect(build([]).map((item) => item.anime.id)).toEqual([30, 31]);
   });
 
   it('ranks stated format and season preferences instead of filtering on them', () => {
-    // Each candidate satisfies a different number of stated dimensions, so only the wishlist can
-    // order them; the excluded lists are where the pool itself gets cut. The rating is held below the
-    // acclaim threshold so nothing is diverted into a banded section, which diversifies its own way.
     const candidates = [
       anime(60, { type: 'tv', season: 'summer', score: 6.5 }),
       anime(61, { type: 'movie', season: 'summer', score: 6.5 }),
@@ -431,14 +426,12 @@ describe('recommendation pipeline', () => {
       { limit: 5, generatedAt: '2026-01-01T00:00:00.000Z' },
     );
 
-    // Traces back to a 10/10 favourite, but at 70%+ the top band wins over provenance.
     expect(result).toHaveLength(1);
     expect(result[0]?.compatibilityScore).toBeGreaterThanOrEqual(70);
     expect(result[0]?.category).toBe('highly-compatible');
   });
 
   it('attributes a two-feature overlap on a moderate liked cohort, which used to fall through', () => {
-    // Past the tiny-cohort exemption but under the shallow limit, so two shared features still count.
     const watched = Array.from({ length: 8 }, (_, index) =>
       entry(index + 1, 9, {
         genres: [{ id: index, name: `Genre ${index}` }],
@@ -446,7 +439,6 @@ describe('recommendation pipeline', () => {
         studios: [],
       }),
     );
-    // Tuned to land inside the 50-69 band; at 70 or above the top band claims it regardless of provenance.
     const sibling = anime(500, {
       genres: [
         { id: 3, name: 'Genre 3' },
@@ -471,8 +463,6 @@ describe('recommendation pipeline', () => {
   });
 
   it('attributes a single liked entry on a large library, where one overlap is not the base rate', () => {
-    // Twenty liked entries, each on its own genre and theme, so sharing one of each with exactly one
-    // of them is a specific match. A cohort-size rule could not tell this apart from the next case.
     const watched = Array.from({ length: 20 }, (_, index) =>
       entry(index + 1, 9, {
         genres: [{ id: index, name: `Genre ${index}` }],
@@ -503,8 +493,6 @@ describe('recommendation pipeline', () => {
   });
 
   it('refuses provenance when the overlap is shared by much of a large liked cohort', () => {
-    // The case a cohort-size rule was really standing in for: every liked entry carries the pair, so
-    // the candidate matches the library's shape rather than any one entry.
     const shared = Array.from({ length: 24 }, (_, index) =>
       entry(index + 1, 9, {
         genres: [
@@ -533,7 +521,6 @@ describe('recommendation pipeline', () => {
   });
 
   it('keeps provenance attributed to a single source instead of the whole cohort', () => {
-    // Every liked entry shares the same pair, so nothing is distinctive enough to claim provenance.
     const watched = Array.from({ length: 8 }, (_, index) =>
       entry(index + 1, 9, {
         genres: [
@@ -562,7 +549,6 @@ describe('recommendation pipeline', () => {
   });
 
   it('categorizes strong broad-affinity matches as highly-compatible', () => {
-    // Overlaps each rated entry on at most one feature, so only broad affinity can place it.
     const watched = [
       entry(1, 10, {
         genres: [{ id: 1, name: 'Action' }],
@@ -607,7 +593,6 @@ describe('recommendation pipeline', () => {
   });
 
   it('categorizes a mid-band candidate with a strong community rating as hidden-gem', () => {
-    // The disliked overlap is what drops the composite into the 30-49 band.
     const watched = [
       entry(1, 10, { genres: [{ id: 1, name: 'Loved' }], themes: [], studios: [] }),
       entry(2, 1, { genres: [{ id: 2, name: 'Disliked' }], themes: [], studios: [] }),
@@ -634,7 +619,6 @@ describe('recommendation pipeline', () => {
     expect(acclaimed[0]?.compatibilityScore).toBeLessThan(50);
     expect(acclaimed[0]?.category).toBe('hidden-gem');
 
-    // Only the rating differs, so this isolates the acclaim condition from obscurity.
     const unacclaimed = generateRecommendations(
       { watched, candidates: [makeGem(6.5)] },
       { limit: 5, generatedAt: '2026-01-01T00:00:00.000Z' },
@@ -643,9 +627,6 @@ describe('recommendation pipeline', () => {
   });
 
   it('names the liked entry a title was traced back to, so the section title is not a guess', () => {
-    // A single liked entry, which has no cohort mean to be distinguished from. Provenance here rests
-    // on similarity alone, and the source still has to be named. The 7 keeps the pair's preference
-    // score modest, so the title lands in the provenance band rather than the top one.
     const watched = [
       entry(1, 7, {
         genres: [{ id: 1, name: 'Action' }],
@@ -674,9 +655,6 @@ describe('recommendation pipeline', () => {
     expect(result[0]?.reasons.length).toBeLessThanOrEqual(3);
   });
 
-  // Regression: the similarity gate was measured on rating-weighted strength, so one shared genre
-  // cleared it. On a large library that is nearly every candidate, and "Similar to" ended up on every
-  // card, which told the user nothing about what anything was similar to.
   it('does not name a source for a title that shares only a single genre', () => {
     const watched = Array.from({ length: 40 }, (_, index) =>
       entry(index + 1, 10, {
@@ -733,9 +711,6 @@ describe('recommendation pipeline', () => {
   });
 
   it('orders a homogeneous pool by score, so a dispersion penalty cannot outlive its group', () => {
-    // Fifty-one candidates sharing one category and one genre take the same penalty at every depth,
-    // so score alone decides. A penalty charged per prior appearance rather than per share would grow
-    // with the list and eventually reorder a group this uniform.
     const candidates = Array.from({ length: 51 }, (_, index) =>
       anime(3000 + index, {
         genres: [{ id: 1, name: 'Action' }],
@@ -753,10 +728,6 @@ describe('recommendation pipeline', () => {
     expect([...scores].sort((left, right) => right - left)).toEqual(scores);
   });
 
-  // Regression: AniList ranks the whole catalogue by score, so its pool is uniformly top-rated and
-  // collapses into one band, and it supplies fewer candidates than MyAnimeList. Explore is the section
-  // served last, so the sequential fill used to run every other section down onto its floor first and
-  // leave nothing to donate, emptying Explore entirely.
   it('keeps Explore populated when a provider pool collapses into a single band', () => {
     const watched = Array.from({ length: 200 }, (_, index) =>
       entry(index + 1, 9 + (index % 2), {
@@ -764,7 +735,6 @@ describe('recommendation pipeline', () => {
         studios: [],
       }),
     );
-    // Every candidate is a strong match, which is exactly the shape of a top-rated ranking page.
     const candidates = Array.from({ length: 20 }, (_, index) =>
       anime(2000 + index, { genres: [{ id: 1, name: 'Fantasy' }], score: 9, memberCount: 900_000 }),
     );
@@ -785,8 +755,6 @@ describe('recommendation pipeline', () => {
       entry(1, 10, { genres: [{ id: 1, name: 'Loved' }], studios: [] }),
       entry(2, 10, { genres: [{ id: 5, name: 'Loved2' }], studios: [] }),
     ];
-    // Nothing matches the library, so every title scores into the bottom bands and the floor has to
-    // move titles to satisfy the sections — but not into the one that displays a compatibility score.
     const candidates = Array.from({ length: 8 }, (_, index) =>
       anime(3000 + index, {
         genres: [{ id: 90 + index, name: `Unrelated ${index}` }],
@@ -834,7 +802,6 @@ describe('recommendation pipeline', () => {
       { limit: 100, generatedAt: '2026-01-01T00:00:00.000Z' },
     );
 
-    // Five at ten entries, growing past ten by a hundred, so the floor rewards a richer profile.
     const minimum = size >= 100 ? 11 : 5;
     for (const section of SECTION_MEMBERS) {
       const titles = result.filter((item) => section.categories.includes(item.category));
@@ -844,8 +811,6 @@ describe('recommendation pipeline', () => {
     expect(new Set(ids).size, 'filling a section must not duplicate an anime').toBe(ids.length);
   });
 
-  // Regression: scoring unseen features as neutral 0.5 floored the composite near 51, leaving the
-  // 30-49 band unreachable for exactly the users with the largest libraries.
   it('lets a large library reach the lower compatibility bands', () => {
     const genres = [
       'Action',
@@ -869,7 +834,6 @@ describe('recommendation pipeline', () => {
       }),
     );
 
-    // The case that used to bottom out near 51.
     const stranger = scoreRecommendation(
       anime(9000, {
         genres: [{ id: 77, name: 'Totally Unrelated' }],
@@ -888,7 +852,6 @@ describe('recommendation pipeline', () => {
     );
     expect(stranger.featureScores.genres, 'an unseen feature is not neutral').toBe(0);
 
-    // The top band must still be reachable, or the fix just flattened everything.
     const favourite = scoreRecommendation(
       anime(9001, {
         genres: [{ id: 1, name: 'Action' }],
@@ -940,7 +903,6 @@ describe('recommendation pipeline', () => {
   });
 
   it('keeps discovery sections populated on a large list', () => {
-    // Candidates overlap liked entries constantly and land in the 60-85 band, which used to collapse everything into one category.
     const genres = [
       'Action',
       'Adventure',
@@ -994,7 +956,6 @@ describe('recommendation pipeline', () => {
         ],
       };
     };
-    // Most of the list clusters on the user's favourites, which is what makes provenance fire everywhere.
     const tasteFeatures = () => {
       const features = randomFeatures();
       return random() < 0.7
@@ -1022,7 +983,6 @@ describe('recommendation pipeline', () => {
               : 3 + Math.floor(random() * 2);
         return entry(index + 1, score, tasteFeatures());
       }),
-      // Rated badly, to give the hidden-gem candidates below a negative signal.
       ...Array.from({ length: 8 }, (_, index) =>
         entry(500 + index, 2, {
           genres: [{ id: 700 + index, name: `Dud ${index}` }],
@@ -1031,7 +991,6 @@ describe('recommendation pipeline', () => {
         }),
       ),
     ];
-    // Mirrors the pool the background worker builds: suggestions plus a deep-ranking page.
     const candidates = [
       ...Array.from({ length: 40 }, (_, index) =>
         anime(2000 + index, {
@@ -1047,8 +1006,6 @@ describe('recommendation pipeline', () => {
           score: 6 + random() * 3,
         }),
       ),
-      // Off-taste but well reviewed, which is what Hidden Gems is for; the "Dud" overlap with the
-      // low-rated entries above is what pushes them into the 30-49 band.
       ...Array.from({ length: 20 }, (_, index) =>
         anime(4000 + index, {
           genres: [
@@ -1079,7 +1036,6 @@ describe('recommendation pipeline', () => {
     expect(byCategory.get('because-you-liked') ?? 0).toBeLessThan(result.length);
   });
 
-  // Regression: AniList's `popularity` is a member count, not the rank the domain documents; reading it as a rank left Highly Compatible permanently empty.
   describe('anilist popularity semantics', () => {
     const buildProfile = (): RecommendationProfile => {
       const watched = Array.from({ length: 60 }, (_, index) =>
@@ -1155,7 +1111,6 @@ describe('recommendation pipeline', () => {
           studios: [],
         }),
       );
-      // Trending titles carry mainstream list-member counts, which must not read as obscure.
       const candidates = Array.from({ length: 30 }, (_, index) =>
         normalizeAniList({
           id: 50_000 + index,
