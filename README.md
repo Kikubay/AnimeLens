@@ -172,6 +172,29 @@ The desktop app talks to MyAnimeList and AniList directly and keeps your data in
 See [CONTRIBUTING.md](CONTRIBUTING.md) for how the desktop app and the two extension builds share one codebase.
 </details>
 
+<details>
+<summary>Option 1e: Self-hosted with Docker</summary>
+
+> For people who would rather not install anything on the machine they browse from. This runs the
+> desktop app in a container and streams it to your browser, so it is the right choice for a NAS, a
+> home server or a machine you reach remotely.
+
+```sh
+git clone https://github.com/Kikubay/AnimeLens.git
+cd AnimeLens
+cp docker/.env.example docker/.env   # then set VNC_PASSWORD
+docker compose --file docker/docker-compose.yml up --detach
+```
+
+Then open **<http://localhost:6080/vnc.html>** and enter the VNC password.
+
+This is **not** a backend you have to operate. AnimeLens still calls MyAnimeList and AniList
+directly from the container, your tokens stay in the container's own volume, and there is nothing
+to migrate or seed. Read [SELF_HOSTING.md](SELF_HOSTING.md) before exposing it to a network you do
+not fully control — the noVNC session is a plain VNC connection and wants a reverse proxy in front
+of it.
+</details>
+
 #### Option 2: Build from Source
 
 1. Clone this repository:
@@ -290,6 +313,7 @@ When a newer version is available:
    - Chromium browsers: open `chrome://extensions` (`edge://extensions` on Edge) and click **Reload** on AnimeLens.
    - Firefox: open `about:debugging#/runtime/this-firefox`, select AnimeLens and click **Reload**.
    - Desktop app: download and run the new installer over the old one.
+   - Self-hosted container: `docker compose --file docker/docker-compose.yml pull && docker compose --file docker/docker-compose.yml up --detach`.
 
 Browsers do not automatically update extensions installed from an unpacked folder, so this
 is a manual step. A signed build installed from the Chrome Web Store or addons.mozilla.org
@@ -395,6 +419,7 @@ updates itself.
 - AniList authorization is read from the pin-page tab URL and stored locally; it is never sent anywhere except to AniList's own API.
 - OAuth sessions, preferences, synchronized anime data, and recommendation feedback are stored locally in your browser's extension storage.
 - Requests are made directly from the extension to MyAnimeList, AniList, and GitHub.
+- This holds for the self-hosted Docker image too: it runs the desktop app in a container and adds no server, so requests still leave the container for the providers directly.
 
 ---
 

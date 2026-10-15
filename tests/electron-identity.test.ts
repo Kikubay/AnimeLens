@@ -14,14 +14,15 @@ vi.mock('electron', () => ({
 
 const shims: IdentityShim[] = [];
 
-function newShim(): IdentityShim {
-  const shim = new IdentityShim();
+function newShim(bindHost?: string): IdentityShim {
+  const shim = new IdentityShim(bindHost);
   shims.push(shim);
   return shim;
 }
 
 afterEach(() => {
   while (shims.length > 0) shims.pop()?.dispose();
+  delete process.env.ANIMELENS_AUTH_BIND_HOST;
   openExternal.mockClear();
   vi.restoreAllMocks();
 });
@@ -127,5 +128,34 @@ describe('IdentityShim', () => {
     const shim = newShim();
     shim.dispose();
     await expect(shim.start()).resolves.toBeGreaterThan(0);
+  });
+
+  it('stays on loopback when nothing configures otherwise', async () => {
+    process.env.ANIMELENS_AUTH_BIND_HOST = '   ';
+
+    const shim = newShim();
+    const port = await shim.start();
+
+    expect(shim.getRedirectURL()).toBe(`http://127.0.0.1:${port}/`);
+    await expect(fetch(`http://127.0.0.1:${port}/callback?code=c`)).resolves.toHaveProperty(
+      'status',
+      200,
+    );
+  });
+
+  it('binds the configured host while still advertising loopback to the provider', async () => {
+    process.env.ANIMELENS_AUTH_BIND_HOST = '0.0.0.0';
+
+    const shim = newShim();
+    const port = await shim.start();
+    const flow = shim.launchWebAuthFlow({
+      url: 'https://myanimelist.net/v1/oauth2/authorize?state=abc123&response_type=code',
+      interactive: true,
+    });
+
+    // A wide bind is only worth anything if the callback still arrives over the loopback address MAL is registered against.
+    expect(shim.getRedirectURL()).toBe(`http://127.0.0.1:${port}/`);
+    await fetch(`http://127.0.0.1:${port}/callback?code=c&state=abc123`);
+    await expect(flow).resolves.toBe(`http://127.0.0.1:${port}/callback?code=c&state=abc123`);
   });
 });

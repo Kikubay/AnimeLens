@@ -169,6 +169,29 @@ L'application de bureau communique directement avec MyAnimeList et AniList et co
 Consultez [CONTRIBUTING.md](CONTRIBUTING.md) pour savoir comment l'application de bureau et les deux versions de l'extension partagent une base de code unique.
 </details>
 
+<details>
+<summary>Option 1e : Auto-hébergement avec Docker</summary>
+
+> Pour celles et ceux qui préfèrent n'installer rien sur la machine depuis laquelle ils naviguent.
+> L'application de bureau tourne dans un conteneur et est diffusée vers votre navigateur : c'est le
+> bon choix pour un NAS, un serveur domestique ou une machine que vous joignez à distance.
+
+```sh
+git clone https://github.com/Kikubay/AnimeLens.git
+cd AnimeLens
+cp docker/.env.example docker/.env   # puis renseignez VNC_PASSWORD
+docker compose --file docker/docker-compose.yml up --detach
+```
+
+Ouvrez ensuite **<http://localhost:6080/vnc.html>** et saisissez le mot de passe VNC.
+
+Ce n'est **pas** un backend à administrer. AnimeLens continue d'appeler MyAnimeList et AniList
+directement depuis le conteneur, vos jetons restent dans le volume du conteneur, et il n'y a rien à
+migrer ni à initialiser. Lisez [SELF_HOSTING.md](SELF_HOSTING.md) avant d'exposer le conteneur à un
+réseau que vous ne contrôlez pas entièrement — la session noVNC est une connexion VNC brute et
+appelle un proxy inverse devant elle.
+</details>
+
 #### Option 2 : Compiler depuis le code source
 1. Clonez ce dépôt :
    ```bash
@@ -274,6 +297,7 @@ Lorsqu'une version plus récente est disponible :
    - **Navigateurs Chromium** : ouvrez `chrome://extensions` (`edge://extensions` sur Edge) et cliquez sur **Recharger** sur AnimeLens.
    - **Firefox** : ouvrez `about:debugging#/runtime/this-firefox`, sélectionnez AnimeLens et cliquez sur **Recharger**.
    - **Application de bureau** : téléchargez et exécutez le nouvel installateur par-dessus l'ancien.
+   - **Conteneur auto-hébergé** : `docker compose --file docker/docker-compose.yml pull && docker compose --file docker/docker-compose.yml up --detach`.
 
 Les navigateurs ne mettent pas à jour automatiquement les extensions installées depuis un dossier non empaqueté, il s'agit donc d'une étape manuelle. Une version signée installée depuis le Chrome Web Store ou addons.mozilla.org se met à jour elle-même.
 
@@ -377,6 +401,7 @@ ___
 - L'autorisation AniList est lue depuis l'URL de l'onglet de la page pin et stockée localement ; elle n'est jamais envoyée nulle part sauf à l'API propre d'AniList.
 - Les sessions OAuth, les préférences, les données d'animés synchronisées et les retours sur les recommandations sont stockés localement dans le stockage de l'extension de votre navigateur.
 - Les requêtes sont faites directement depuis l'extension vers MyAnimeList, AniList et GitHub.
+- Cela vaut aussi pour l'image Docker auto-hébergée : elle exécute l'application de bureau dans un conteneur et n'ajoute aucun serveur, les requêtes quittent donc toujours le conteneur pour les fournisseurs.
 
 ___
 

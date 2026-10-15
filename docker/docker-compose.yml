@@ -1,0 +1,42 @@
+# AnimeLens is self-contained: this container is the desktop app plus a virtual screen, not a
+# backend. AnimeLens still talks to MyAnimeList and AniList directly from the container, and your
+# tokens stay in the /config volume rather than in a service you have to operate.
+services:
+  animelens:
+    image: ghcr.io/kikubay/animelens:latest
+    container_name: animelens
+    restart: unless-stopped
+
+    # Bound to loopback on the host because the noVNC client is a plain VNC session, which
+    # authenticates with an eight-character password and sends no traffic in clear TLS.
+    # Put a reverse proxy with real authentication in front of it before exposing it.
+    ports:
+      - '127.0.0.1:6080:6080'
+
+      # MAL sign-in. The OAuth callback lands on the browser's own loopback address, so this
+      # port has to reach the same machine the browser is on: forward it with
+      # `ssh -L 8976:127.0.0.1:8976 <host>`, then the browser resolves the redirect unaided.
+      - '127.0.0.1:8976:8976'
+
+    environment:
+      # Choose your own. Left unset, the entrypoint generates one and logs it once.
+      VNC_PASSWORD: ${VNC_PASSWORD:?Set VNC_PASSWORD in docker/.env}
+
+      # MAL matches its registered redirect URI character for character, so it must be a
+      # loopback address even though the listener itself has to bind more widely than that to be
+      # reachable through a published port.
+      ANIMELENS_AUTH_BIND_HOST: 0.0.0.0
+
+    # The app draws to a virtual display and holds no privilege on the host, so it runs with no
+    # capabilities at all. Drop these two lines only if a hardened kernel or cgroup setup stops
+    # the container from starting.
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+
+    volumes:
+      - animelens-config:/config
+
+volumes:
+  animelens-config:

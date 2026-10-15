@@ -175,6 +175,12 @@ by anyone who installs the extension — treat those values as public.
 You can also skip the environment entirely and enter client IDs in
 **Settings → Configuration** at runtime, which is usually easier for local work.
 
+One variable is read at runtime rather than baked in at build time, and only by
+the desktop shell: `ANIMELENS_AUTH_BIND_HOST` changes the address the MAL OAuth
+callback listener binds, defaulting to `127.0.0.1`. It exists so the self-hosted
+container can be reached through a published port; the redirect URI advertised to
+MAL stays a loopback address regardless, because MAL accepts nothing else.
+
 ## Running the checks
 
 ```bash
@@ -197,24 +203,29 @@ npx vitest tests/recommendation-engine.test.ts   # a single file
 
 ## Project layout
 
-| Directory             | Responsibility                                                                 |
-| --------------------- | ------------------------------------------------------------------------------ |
-| `src/domain`          | Pure data types and invariants. No I/O, no browser APIs.                       |
-| `src/api`             | Provider implementations: MyAnimeList, AniList, and a mock provider for tests. |
-| `src/auth`            | OAuth flows, session storage, and PKCE. Never handles client secrets.          |
-| `src/storage`         | Thin wrappers over `chrome.storage`.                                           |
-| `src/sync`            | List synchronization and its on-disk cache.                                    |
-| `src/recommendations` | The recommendation engine and dashboard assembly.                              |
-| `src/profile`         | Profile summaries, taste-card modelling, and top-picks ranking.                |
-| `src/feedback`        | Per-anime like/dislike signals.                                                |
-| `src/settings`        | Preferences, themes, and persisted settings.                                   |
-| `src/updates`         | GitHub release checking.                                                       |
-| `src/popup`           | The React UI: pages, components, and the taste-card canvas painter.            |
-| `src/locales`         | All user-facing text. See [below](#adding-a-user-facing-string).               |
-| `src/background`      | The MV3 service worker that owns all message handling.                         |
-| `src/platform`        | Target wiring that all builds share. See [below](#the-three-build-targets).    |
-| `electron`            | The desktop shell: main process, preload, and the `chrome.*` adapter.          |
-| `src/providers`       | The provider registry that ties the above together.                            |
+| Directory             | Responsibility                                                                                                      |
+| --------------------- | ------------------------------------------------------------------------------------------------------------------- |
+| `src/domain`          | Pure data types and invariants. No I/O, no browser APIs.                                                            |
+| `src/api`             | Provider implementations: MyAnimeList, AniList, and a mock provider for tests.                                      |
+| `src/auth`            | OAuth flows, session storage, and PKCE. Never handles client secrets.                                               |
+| `src/storage`         | Thin wrappers over `chrome.storage`.                                                                                |
+| `src/sync`            | List synchronization and its on-disk cache.                                                                         |
+| `src/recommendations` | The recommendation engine and dashboard assembly.                                                                   |
+| `src/profile`         | Profile summaries, taste-card modelling, and top-picks ranking.                                                     |
+| `src/feedback`        | Per-anime like/dislike signals.                                                                                     |
+| `src/settings`        | Preferences, themes, and persisted settings.                                                                        |
+| `src/updates`         | GitHub release checking.                                                                                            |
+| `src/popup`           | The React UI: pages, components, and the taste-card canvas painter.                                                 |
+| `src/locales`         | All user-facing text. See [below](#adding-a-user-facing-string).                                                    |
+| `src/background`      | The MV3 service worker that owns all message handling.                                                              |
+| `src/platform`        | Target wiring that all builds share. See [below](#the-three-build-targets).                                         |
+| `electron`            | The desktop shell: main process, preload, and the `chrome.*` adapter.                                               |
+| `src/providers`       | The provider registry that ties the above together.                                                                 |
+| `docker`              | The self-hosted image: it runs the desktop build against a virtual display. See [SELF_HOSTING.md](SELF_HOSTING.md). |
+
+The container is a deployment target, not a fourth implementation. It compiles the same
+`electron/` shell and ships no application code of its own, so anything new belongs in `src/`
+or `electron/` as usual.
 
 Two structural rules matter:
 

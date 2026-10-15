@@ -7,6 +7,15 @@ const FALLBACK_PORTS = [0];
 /** Long enough for a consent screen, short enough that a hung flow self-heals. */
 const FLOW_TIMEOUT_MS = 10 * 60 * 1000;
 
+/** The only host MAL accepts in a redirect URI, so it is also the only one ever advertised to a provider. */
+const LOOPBACK_HOST = '127.0.0.1';
+const BIND_HOST_VARIABLE = 'ANIMELENS_AUTH_BIND_HOST';
+
+function resolveBindHost(): string {
+  const configured = process.env[BIND_HOST_VARIABLE]?.trim();
+  return configured === undefined || configured.length === 0 ? LOOPBACK_HOST : configured;
+}
+
 export interface WebAuthFlowDetails {
   readonly url: string;
   readonly interactive: boolean;
@@ -34,6 +43,12 @@ export class IdentityShim {
   private disposed = false;
   private readonly pending = new Set<PendingFlow>();
 
+  /**
+   * The interface a published port reaches is the container's, not its loopback, so a containerised
+   * instance has to bind more widely than the host it advertises to MAL.
+   */
+  constructor(private readonly bindHost: string = resolveBindHost()) {}
+
   private listen(port: number): Promise<number> {
     return new Promise<number>((resolve, reject) => {
       const server = createServer((request, response) => {
@@ -46,7 +61,7 @@ export class IdentityShim {
       server.on('error', onBindFailed);
       // Closing before the bind completes never emits `listening` or `error`, so the promise would otherwise stay pending for good.
       server.on('close', onClosedEarly);
-      server.listen(port, '127.0.0.1', () => {
+      server.listen(port, this.bindHost, () => {
         server.removeListener('error', onBindFailed);
         server.removeListener('close', onClosedEarly);
         server.on('error', () => undefined);
@@ -80,7 +95,7 @@ export class IdentityShim {
   // Chrome returns the registered origin root when given no path, and MAL rejects a redirect URI carrying an extra one.
   getRedirectURL(path?: string): string {
     const port = this.starting === null ? DEFAULT_LOOPBACK_PORT : this.actualPort();
-    const origin = `http://127.0.0.1:${port}`;
+    const origin = `http://${LOOPBACK_HOST}:${port}`;
     return path === undefined || path.length === 0 ? `${origin}/` : `${origin}/${path}`;
   }
 
@@ -90,7 +105,7 @@ export class IdentityShim {
   }
 
   private handleRequest(request: IncomingMessage, response: ServerResponse): void {
-    const requestUrl = new URL(request.url ?? '/', `http://127.0.0.1:${this.actualPort()}`);
+    const requestUrl = new URL(request.url ?? '/', `http://${LOOPBACK_HOST}:${this.actualPort()}`);
     const state = requestUrl.searchParams.get('state');
     const matched = [...this.pending].find((flow) => flow.state === null || flow.state === state);
 
@@ -104,7 +119,7 @@ export class IdentityShim {
     );
 
     if (matched === undefined) return;
-    const callback = `http://127.0.0.1:${this.actualPort()}${requestUrl.pathname}${requestUrl.search}`;
+    const callback = `http://${LOOPBACK_HOST}:${this.actualPort()}${requestUrl.pathname}${requestUrl.search}`;
     this.settle(matched, () => matched.resolve(callback));
   }
 
