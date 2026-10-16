@@ -35,4 +35,14 @@ export {
   xpRequiredForLevel,
 } from './taste-level';
 export type { TasteLevel, TasteSource, TasteSourceKey } from './taste-level';
+export {
+  DISCERNING_TASTE_MIN_AVERAGE,
+  PROFILE_SIGNAL_KEYS,
+  REFINED_PROFILE_MIN_FEEDBACK,
+  RICH_WORLDS_MIN_GENRES,
+  evaluateProfileSignals,
+} from './profile-signals';
+export type { ProfileSignalInput, ProfileSignalKey, ProfileSignalState } from './profile-signals';
+export { computeProfileStrength } from './profile-strength';
+export type { ProfileStrength, ProfileStrengthSignal } from './profile-strength';
 export type { ProfileMessage, ProfileMessageResponse } from './profile-messages';

@@ -78,8 +78,18 @@ describe('buildTasteCardModel', () => {
     const model = buildTasteCardModel(
       summary({
         detectedPreferences: [
-          { label: 'Taste for rich worlds', detail: 'Action keeps coming back.', score: 92 },
-          { label: 'Complex characters', detail: 'Character-driven stories.', score: 78 },
+          {
+            key: 'richWorlds',
+            label: 'Taste for rich worlds',
+            detail: 'Action keeps coming back.',
+            score: 92,
+          },
+          {
+            key: 'complexCharacters',
+            label: 'Complex characters',
+            detail: 'Character-driven stories.',
+            score: 78,
+          },
         ],
       }),
       null,

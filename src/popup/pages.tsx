@@ -23,6 +23,7 @@ import type { DislikeReason } from '../domain/feedback';
 import { requestProfileSnapshot } from '../profile/profile-messages';
 import type { ProfileSnapshot, UserProfileSummary } from '../profile/profile-types';
 import { computeTasteLevel, type TasteLevel } from '../profile/taste-level';
+import { computeProfileStrength } from '../profile/profile-strength';
 import {
   buildTasteCardModel,
   layoutAfterCardClose,
@@ -990,6 +991,10 @@ function ProfileSummary({
     () => computeTasteLevel(summary, preferences.language),
     [summary, preferences.language],
   );
+  const strength = useMemo(
+    () => computeProfileStrength(summary, preferences.language),
+    [summary, preferences.language],
+  );
 
   const shouldPromptForPicks =
     !isGridLayout && plan.needsChoice && shouldRenderTopPicks(tasteCardModel, cardOptions);
@@ -1129,28 +1134,45 @@ function ProfileSummary({
       <Card className="detected-card">
         <div className="section-heading">
           <div>
-            <p className="eyebrow">{copy.detectedPreferences}</p>
-            <h2>{copy.detectedPreferences}</h2>
+            <p className="eyebrow">{copy.profileStrengthEyebrow}</p>
+            <h2>{copy.profileStrengthTitle}</h2>
           </div>
-          <Badge tone="success">{copy.learned}</Badge>
+          <Badge tone="success">
+            {copy.profileStrengthCount(strength.unlocked, strength.total)}
+          </Badge>
         </div>
-        {summary.detectedPreferences.length === 0 ? (
-          <p className="profile-muted">{copy.profileHint}</p>
-        ) : (
-          <div className="detected-list">
-            {summary.detectedPreferences.map((preference) => (
-              <div className="detected-item" key={preference.label}>
+        <Progress value={strength.strength} />
+        <div className="detected-list">
+          {strength.signals.map((signal) => {
+            const detail = detectedDetail(summary.detectedPreferences, signal.key);
+            return (
+              <div
+                className={`detected-item${signal.unlocked ? '' : ' is-locked'}`}
+                key={signal.key}
+              >
                 <span className="feedback-positive">
-                  <Icon name="sparkles" size={14} />
+                  <Icon name={signal.unlocked ? 'sparkles' : 'lock'} size={14} />
                 </span>
                 <div>
-                  <strong>{preference.label}</strong>
-                  <p>{preference.detail}</p>
+                  <strong>{signal.label}</strong>
+                  <p>
+                    {signal.unlocked
+                      ? (detail ?? copy.profileStrengthUnlocked)
+                      : signal.requirement}
+                  </p>
                 </div>
-                <span className="detected-score">{preference.score}%</span>
+                <span className="detected-score">
+                  {signal.unlocked ? copy.profileStrengthUnlocked : `${signal.progress}%`}
+                </span>
               </div>
-            ))}
-          </div>
+            );
+          })}
+        </div>
+        {strength.nextSignal !== null && (
+          <p className="profile-muted strength-next">
+            {copy.profileStrengthNext}: {strength.nextSignal.label} ({strength.nextSignal.progress}
+            %)
+          </p>
         )}
       </Card>
       <PreferenceSection
@@ -1209,6 +1231,13 @@ function ProfileSummary({
       />
     </div>
   );
+}
+
+function detectedDetail(
+  preferences: readonly { readonly key: string; readonly detail: string }[],
+  key: string,
+): string | null {
+  return preferences.find((preference) => preference.key === key)?.detail ?? null;
 }
 
 function TasteLevelCard({ level, copy }: { readonly level: TasteLevel; readonly copy: AppCopy }) {

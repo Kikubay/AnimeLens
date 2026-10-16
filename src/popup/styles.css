@@ -1734,6 +1734,25 @@ button:focus-visible {
   font-family: ui-monospace, monospace;
   font-size: 9px;
 }
+.detected-item.is-locked .feedback-positive {
+  color: var(--dim);
+  background: rgb(255 255 255 / 4%);
+}
+.detected-item.is-locked strong {
+  color: var(--muted);
+}
+.detected-item.is-locked p {
+  color: var(--dim);
+}
+.detected-item.is-locked .detected-score {
+  color: var(--dim);
+}
+.detected-card .progress-wrap {
+  margin-bottom: 14px;
+}
+.strength-next {
+  margin-top: 12px;
+}
 .profile-refresh-row {
   display: flex;
   align-items: center;

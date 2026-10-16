@@ -140,6 +140,20 @@ export interface AppCopy {
   readonly favoriteStudios: string;
   readonly detectedPreferences: string;
   readonly learned: string;
+  readonly profileStrengthEyebrow: string;
+  readonly profileStrengthTitle: string;
+  readonly profileStrengthCount: (unlocked: number, total: number) => string;
+  readonly profileStrengthUnlocked: string;
+  readonly profileStrengthLocked: string;
+  readonly profileStrengthNext: string;
+  readonly profileStrengthLabelGenres: string;
+  readonly profileStrengthLabelStories: string;
+  readonly profileStrengthLabelAverage: string;
+  readonly profileStrengthLabelFeedback: string;
+  readonly profileStrengthNeedGenres: string;
+  readonly profileStrengthNeedStory: string;
+  readonly profileStrengthNeedAverage: string;
+  readonly profileStrengthNeedFeedback: string;
   readonly noSignals: string;
   readonly positiveSignal: string;
   readonly negativeSignal: string;
@@ -454,6 +468,7 @@ const MESSAGE_PARAMS = {
   topPicksIntroTie: ['count', 'score'],
   topPicksIntroManual: ['count', 'score'],
   topPicksSelectSlot: ['position'],
+  profileStrengthCount: ['unlocked', 'total'],
   tasteLevelBadge: ['level'],
   tasteLevelProgress: ['xp', 'target'],
   tasteLevelNextTitle: ['title'],

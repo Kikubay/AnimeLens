@@ -1,6 +1,7 @@
 import type { AnimeListEntry } from '../domain/anime';
 import type { RecommendationProfile } from '../recommendations/recommendation-types';
 import { getCopy, type Language } from '../locales';
+import { evaluateProfileSignals, type ProfileSignalKey } from './profile-signals';
 import { emptyTopPickPlan, planTopPicks, type TopPickPlan } from './top-picks';
 import type { ProfileDelta } from './profile-delta';
 
@@ -13,6 +14,7 @@ export interface ProfilePreferenceItem {
 }
 
 export interface DetectedPreference {
+  readonly key: ProfileSignalKey;
   readonly label: string;
   readonly detail: string;
   readonly score: number;
@@ -164,36 +166,52 @@ function detectPreferences(
   language: Language,
 ): DetectedPreference[] {
   const copy = getCopy(language);
+  const signals = evaluateProfileSignals({
+    favoriteGenres: genres,
+    favoriteThemes: themes,
+    ratedAnimeCount: profile.ratedAnimeCount,
+    averageScore: profile.averageScore,
+    feedbackCount: profile.feedbackCount,
+  });
   const detected: DetectedPreference[] = [];
-  if (genres.length >= 2) {
-    detected.push({
-      label: copy.detectedRichWorlds,
-      detail: copy.detectedRichWorldsDetail(genres[0]?.name ?? null),
-      score: genres[0]?.score ?? 0,
-    });
+
+  for (const signal of signals) {
+    if (!signal.unlocked) continue;
+    if (signal.key === 'richWorlds') {
+      detected.push({
+        key: signal.key,
+        label: copy.detectedRichWorlds,
+        detail: copy.detectedRichWorldsDetail(genres[0]?.name ?? null),
+        score: genres[0]?.score ?? 0,
+      });
+    }
+    if (signal.key === 'complexCharacters') {
+      detected.push({
+        key: signal.key,
+        label: copy.detectedComplexCharacters,
+        detail: copy.detectedComplexCharactersDetail,
+        score: 78,
+      });
+    }
+    if (signal.key === 'discerningTaste') {
+      detected.push({
+        key: signal.key,
+        label: copy.detectedDiscerningTaste,
+        detail: copy.detectedDiscerningTasteDetail(profile.averageScore?.toFixed(1) ?? '0'),
+        score: Math.round((profile.averageScore ?? 0) * 10),
+      });
+    }
+    if (signal.key === 'refinedProfile') {
+      detected.push({
+        key: signal.key,
+        label: copy.detectedRefinedProfile,
+        detail: copy.detectedRefinedProfileDetail(profile.feedbackCount),
+        score: Math.min(100, 50 + profile.feedbackCount * 10),
+      });
+    }
   }
-  if (themes.some((item) => /psych|myst|emotion|drama|character|story/i.test(item.name))) {
-    detected.push({
-      label: copy.detectedComplexCharacters,
-      detail: copy.detectedComplexCharactersDetail,
-      score: 78,
-    });
-  }
-  if (profile.ratedAnimeCount > 0 && profile.averageScore !== null && profile.averageScore >= 8) {
-    detected.push({
-      label: copy.detectedDiscerningTaste,
-      detail: copy.detectedDiscerningTasteDetail(profile.averageScore.toFixed(1)),
-      score: Math.round(profile.averageScore * 10),
-    });
-  }
-  if (profile.feedbackCount >= 2) {
-    detected.push({
-      label: copy.detectedRefinedProfile,
-      detail: copy.detectedRefinedProfileDetail(profile.feedbackCount),
-      score: Math.min(100, 50 + profile.feedbackCount * 10),
-    });
-  }
-  return detected.slice(0, 4);
+
+  return detected;
 }
 
 function titleCase(value: string): string {

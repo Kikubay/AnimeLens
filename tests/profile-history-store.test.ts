@@ -68,7 +68,9 @@ describe('profile history store', () => {
     await store.record(
       'mal',
       summary({
-        detectedPreferences: [{ label: 'Detected rich worlds', detail: 'Action', score: 90 }],
+        detectedPreferences: [
+          { key: 'richWorlds', label: 'Detected rich worlds', detail: 'Action', score: 90 },
+        ],
       }),
     );
 

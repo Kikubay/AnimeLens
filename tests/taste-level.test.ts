@@ -17,7 +17,7 @@ function preference(name: string) {
 }
 
 function detected(label: string) {
-  return { label, detail: 'detail', score: 80 };
+  return { key: 'richWorlds' as const, label, detail: 'detail', score: 80 };
 }
 
 describe('xpRequiredForLevel', () => {

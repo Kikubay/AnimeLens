@@ -16,6 +16,7 @@ export type IconName =
   | 'home'
   | 'info'
   | 'list'
+  | 'lock'
   | 'moon'
   | 'more'
   | 'play'
@@ -110,6 +111,12 @@ export function Icon({ name, size = 18, strokeWidth = 1.8 }: IconProps) {
         <path d="M4 6h.01" />
         <path d="M4 12h.01" />
         <path d="M4 18h.01" />
+      </>
+    ),
+    lock: (
+      <>
+        <rect x="4" y="10" width="16" height="11" rx="2" />
+        <path d="M8 10V7a4 4 0 0 1 8 0v3" />
       </>
     ),
     moon: <path d="M20.5 15.5A8.5 8.5 0 0 1 8.5 3.5 8.5 8.5 0 1 0 20.5 15.5Z" />,
