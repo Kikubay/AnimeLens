@@ -20,40 +20,6 @@ const DEFAULT_GECKO: GeckoSettings = {
   strictMinVersion: DEFAULT_STRICT_MIN_VERSION,
 };
 
-/** The popup window is sized from its content, so a fixed-width body can never fit a Firefox scrollbar that reserves space — hiding it is the only way out. */
-const GECKO_SCROLLBAR_HIDING_CSS = `
-/*
- * Injected by \`geckoScrollbarPlugin\` for the Gecko build only.
- *
- * Firefox's scrollbar takes width out of the viewport, while the popup window is sized to the
- * content that has to live inside it. Hiding the scrollbar is what lets the layout keep its
- * full width instead of spilling a horizontal scrollbar.
- */
-html {
-  scrollbar-width: none;
-}
-html::-webkit-scrollbar {
-  display: none;
-}
-`;
-
-/** Pure, and appended last so it wins on source order alone rather than needing `!important`. */
-export function applyGeckoScrollbarHiding(css: string): string {
-  return `${css}\n${GECKO_SCROLLBAR_HIDING_CSS}`;
-}
-
-/** Lets the Firefox popup window hold its own layout width instead of spilling a horizontal scrollbar. */
-export function geckoScrollbarPlugin(): Plugin {
-  return {
-    name: 'animelens:gecko-scrollbar',
-    transform(code, id) {
-      // Windows separators would otherwise defeat the suffix match below.
-      if (!id.replace(/\\/g, '/').endsWith('src/popup/styles.css')) return null;
-      return { code: applyGeckoScrollbarHiding(code), map: null };
-    },
-  };
-}
-
 /** Firefox has no `background.service_worker`, so the same bundle runs there as an event page; everything else here is standard MV3 both accept. */
 export function applyTargetManifest(
   manifest: Record<string, unknown>,

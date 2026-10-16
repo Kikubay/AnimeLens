@@ -2,13 +2,7 @@ import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
-import {
-  DEFAULT_GECKO_ID,
-  applyGeckoScrollbarHiding,
-  applyTargetManifest,
-  geckoScrollbarPlugin,
-  type ExtensionTarget,
-} from '../vite.manifest';
+import { DEFAULT_GECKO_ID, applyTargetManifest, type ExtensionTarget } from '../vite.manifest';
 
 const baseManifest = JSON.parse(
   readFileSync(resolve(__dirname, '..', 'public', 'manifest.json'), 'utf8'),
@@ -90,12 +84,28 @@ describe('applyTargetManifest', () => {
 });
 
 describe('popup scrollbar gutter', () => {
-  it('leaves the scrollbar alone for every non-Firefox target', () => {
-    expect(popupCss).not.toMatch(/^\s*html\s*\{[^}]*scrollbar-width/m);
+  it('hides the root scrollbar in every build, not just Firefox', () => {
+    // The popup window is sized from its content, so a root scrollbar that appears and disappears
+    // between tabs changes the measured width and the browser resizes the window.
+    expect(popupCss).toMatch(/html\s*\{\s*scrollbar-width:\s*none;/);
+    expect(popupCss).toMatch(/html::-webkit-scrollbar\s*\{\s*display:\s*none;/);
+  });
+
+  it('hides it on the scrolling element rather than on a child', () => {
+    // `body` is not the viewport scroller here; styling it would hide nothing.
+    expect(popupCss).toMatch(/html\s*\{[^}]*scrollbar-width/m);
+  });
+
+  it('keeps the page scrollable rather than clipping it', () => {
+    const scrollbarBlock = /html\s*\{[^}]*\}|html::-webkit-scrollbar\s*\{[^}]*\}/.exec(
+      popupCss,
+    )?.[0];
+    expect(scrollbarBlock).toBeDefined();
+    expect(scrollbarBlock).not.toContain('overflow: hidden');
   });
 
   it('still pins the popup body to the design width in the shared stylesheet', () => {
-    // Widening this can't fix Firefox: the window grows by exactly what you add, leaving the scrollbar just as unaccounted for.
+    // Widening this can't fix the scrollbar: the window grows by exactly what you add, leaving it just as unaccounted for.
     expect(popupCss).toMatch(/body\s*\{[^}]*min-width:\s*var\(--popup-content-width\)/);
   });
 
@@ -103,41 +113,8 @@ describe('popup scrollbar gutter', () => {
     expect(popupCss).toMatch(/\.app-shell\s*\{[^}]*max-width:\s*var\(--popup-content-width\)/);
   });
 
-  it('hides the scrollbar on the scrolling element, not on a child', () => {
-    const patched = applyGeckoScrollbarHiding(popupCss);
-    // `body` is not the viewport scroller here; styling it would hide nothing.
-    expect(patched).toMatch(/html\s*\{\s*scrollbar-width:\s*none;/);
-    expect(patched).toMatch(/html::-webkit-scrollbar\s*\{\s*display:\s*none;/);
-  });
-
-  it('keeps the page scrollable rather than clipping it', () => {
-    const injected = applyGeckoScrollbarHiding(popupCss).slice(popupCss.length);
-    expect(injected).not.toContain('overflow: hidden');
-    expect(injected).not.toContain('!important');
-  });
-
-  it('appends the override last so it wins on source order alone', () => {
-    const patched = applyGeckoScrollbarHiding(popupCss);
-    expect(patched.startsWith(popupCss)).toBe(true);
-    expect(patched.lastIndexOf('scrollbar-width: none')).toBeGreaterThan(
-      popupCss.lastIndexOf('scrollbar-width'),
-    );
-  });
-
   it('keeps the popup inside the 800px width browsers cap popups at', () => {
     const designWidth = Number(/--popup-content-width:\s*(\d+)px/.exec(popupCss)?.[1]);
     expect(designWidth).toBeLessThanOrEqual(800);
-  });
-
-  it('only touches the popup stylesheet', () => {
-    const transform = geckoScrollbarPlugin().transform as (
-      code: string,
-      id: string,
-    ) => { code: string } | null;
-    expect(transform(popupCss, '/repo/src/popup/styles.css')).not.toBeNull();
-    expect(transform(popupCss, '/repo/src/other/styles.css')).toBeNull();
-    expect(transform(popupCss, '/repo/src/popup/pages.tsx')).toBeNull();
-    // Vite hands out Windows paths on Windows, which a bare suffix match would miss.
-    expect(transform(popupCss, 'C:\\repo\\src\\popup\\styles.css')).not.toBeNull();
   });
 });
