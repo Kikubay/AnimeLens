@@ -208,7 +208,7 @@ button:focus-visible {
 }
 
 .page-content {
-  padding: 28px 20px 92px;
+  padding: 28px 20px 35px;
   animation: page-in 260ms ease both;
 }
 .welcome-block {
@@ -1617,6 +1617,47 @@ button:focus-visible {
   margin-top: 10px;
   padding: 13px;
 }
+.recap-card {
+  margin-top: 10px;
+  padding: 13px;
+}
+.recap-window {
+  margin: 0 0 10px;
+  color: var(--dim);
+  font-family: ui-monospace, monospace;
+  font-size: 9px;
+}
+.recap-stats {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+}
+.recap-stats div {
+  padding-right: 8px;
+  border-right: 1px solid var(--line);
+}
+.recap-stats div:last-child {
+  padding-right: 0;
+  border-right: 0;
+}
+.recap-stats strong {
+  display: block;
+  font-size: 20px;
+  letter-spacing: -0.07em;
+}
+.recap-stats span {
+  display: block;
+  margin-top: 2px;
+  color: var(--muted);
+  font-size: 8px;
+  line-height: 1.3;
+}
+.recap-average {
+  margin: 11px 0 0;
+  color: var(--success);
+  font-size: 10px;
+  line-height: 1.3;
+}
 .taste-level-hero {
   display: flex;
   flex-direction: column;
@@ -1758,7 +1799,7 @@ button:focus-visible {
   align-items: center;
   justify-content: space-between;
   gap: 8px;
-  margin-top: 16px;
+  margin-top: 8px;
   color: var(--dim);
   font-size: 8px;
 }

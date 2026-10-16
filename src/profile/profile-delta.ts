@@ -3,7 +3,7 @@ import type { UserProfileSummary } from './profile-types';
 
 export const PROFILE_HISTORY_VERSION = 1;
 
-export const PROFILE_HISTORY_CAPACITY = 4;
+export const PROFILE_HISTORY_CAPACITY = 8;
 
 // A score is `positive / count`, so an item backed by one or two entries swings 30-50 points on a single addition — that's arithmetic, not taste.
 export const MIN_SAMPLE_COUNT = 3;

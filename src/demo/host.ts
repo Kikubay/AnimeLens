@@ -149,6 +149,7 @@ class DemoHost {
       summary: profileSummaryFromModel(model, language, this.library.watched, this.provider),
 
       delta: null,
+      recap: null,
       errorMessage: null,
     };
   }

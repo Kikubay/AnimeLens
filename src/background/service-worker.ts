@@ -50,6 +50,7 @@ import {
   toStoredProfileSnapshot,
 } from '../profile/profile-delta';
 import { createProfileHistoryStore, PROFILE_HISTORY_KEY } from '../profile/profile-history-store';
+import { computeWeeklyRecap } from '../profile/weekly-recap';
 import { TOP_PICKS_RANKING_KEY, TOP_PICKS_SIGNATURE_KEY } from '../profile/top-picks-store';
 import type { StorageKey } from '../storage/storage-types';
 import { createTopPicksStore } from '../profile/top-picks-store';
@@ -956,6 +957,7 @@ async function handleProfileMessage(message: ProfileMessage): Promise<ProfileMes
         status: 'empty',
         summary: emptyProfileSummary(),
         delta: baselineProfileDelta(),
+        recap: null,
         errorMessage: null,
       },
     };
@@ -965,13 +967,15 @@ async function handleProfileMessage(message: ProfileMessage): Promise<ProfileMes
     current.providerId,
     new Date().toISOString(),
   );
-  const previous = historyCleared ? null : await profileHistoryStore.load(current.providerId);
+  const history = historyCleared ? [] : await profileHistoryStore.list(current.providerId);
+  const previous = history[0] ?? null;
   return {
     ok: true,
     snapshot: {
       status: current.summary.hasData ? 'ready' : 'empty',
       summary: current.summary,
       delta: diffProfileSnapshots(previous, snapshot),
+      recap: computeWeeklyRecap([snapshot, ...history]),
       errorMessage: null,
     },
   };

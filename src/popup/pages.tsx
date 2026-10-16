@@ -24,6 +24,7 @@ import { requestProfileSnapshot } from '../profile/profile-messages';
 import type { ProfileSnapshot, UserProfileSummary } from '../profile/profile-types';
 import { computeTasteLevel, type TasteLevel } from '../profile/taste-level';
 import { computeProfileStrength } from '../profile/profile-strength';
+import type { WeeklyRecap } from '../profile/weekly-recap';
 import {
   buildTasteCardModel,
   layoutAfterCardClose,
@@ -860,6 +861,7 @@ export function ProfilePage({
     status: 'loading',
     summary: null,
     delta: null,
+    recap: null,
     errorMessage: null,
   });
 
@@ -877,6 +879,7 @@ export function ProfilePage({
           status: 'error',
           summary: null,
           delta: null,
+          recap: null,
           errorMessage: error instanceof Error ? error.message : copy.recommendationsUnavailable,
         });
       });
@@ -923,6 +926,7 @@ export function ProfilePage({
   return (
     <ProfileSummary
       summary={snapshot.summary}
+      recap={snapshot.recap}
       profile={auth?.profile ?? null}
       providerName={activeProviderName ?? null}
       preferences={preferences ?? DEFAULT_USER_PREFERENCES}
@@ -936,6 +940,7 @@ export function ProfilePage({
 
 function ProfileSummary({
   summary,
+  recap,
   profile,
   providerName,
   preferences,
@@ -945,6 +950,7 @@ function ProfileSummary({
   copy,
 }: {
   readonly summary: UserProfileSummary;
+  readonly recap: WeeklyRecap | null;
   readonly profile: UserProfile | null;
   readonly providerName: string | null;
   readonly preferences: UserPreferences;
@@ -1113,6 +1119,7 @@ function ProfileSummary({
           {copy.tasteCardShare}
         </Button>
       </div>
+      <WeeklyRecapCard recap={recap} copy={copy} />
       <TasteLevelCard level={tasteLevel} copy={copy} />
       <div className="taste-stat-grid profile-stat-grid">
         <div>
@@ -1238,6 +1245,62 @@ function detectedDetail(
   key: string,
 ): string | null {
   return preferences.find((preference) => preference.key === key)?.detail ?? null;
+}
+
+function WeeklyRecapCard({
+  recap,
+  copy,
+}: {
+  readonly recap: WeeklyRecap | null;
+  readonly copy: AppCopy;
+}) {
+  if (recap === null) return null;
+  const hasActivity = recap.entriesAdded > 0 || recap.entriesRated > 0;
+
+  return (
+    <Card className="recap-card">
+      <div className="section-heading">
+        <div>
+          <p className="eyebrow">{copy.weeklyRecapEyebrow}</p>
+          <h2>{copy.weeklyRecapTitle}</h2>
+        </div>
+        <Badge tone="accent">{copy.weeklyRecapWeek(recap.weekNumber)}</Badge>
+      </div>
+      <p className="recap-window">{copy.weeklyRecapWindow(recap.windowDays)}</p>
+      {hasActivity ? (
+        <div className="recap-stats">
+          <div>
+            <strong>{recap.entriesAdded}</strong>
+            <span>{copy.weeklyRecapEntriesAdded}</span>
+          </div>
+          <div>
+            <strong>{recap.entriesRated}</strong>
+            <span>{copy.weeklyRecapEntriesRated}</span>
+          </div>
+          <div>
+            <strong>
+              {recap.averageDelta === null || recap.averageAfter === null
+                ? '—'
+                : recap.averageAfter.toFixed(1)}
+            </strong>
+            <span>{copy.averageScore}</span>
+          </div>
+        </div>
+      ) : (
+        <p className="profile-muted">{copy.weeklyRecapQuiet}</p>
+      )}
+      {recap.averageDelta !== null &&
+        recap.averageBefore !== null &&
+        recap.averageAfter !== null && (
+          <p className="recap-average">
+            {copy.weeklyRecapAverageMoved(
+              recap.averageBefore.toFixed(1),
+              recap.averageAfter.toFixed(1),
+            )}
+          </p>
+        )}
+    </Card>
+  );
 }
 
 function TasteLevelCard({ level, copy }: { readonly level: TasteLevel; readonly copy: AppCopy }) {

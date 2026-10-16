@@ -176,6 +176,14 @@ export interface AppCopy {
   readonly profileDeltaClear: string;
   readonly profileDeltaCleared: string;
   readonly profileDeltaUnavailable: string;
+  readonly weeklyRecapEyebrow: string;
+  readonly weeklyRecapTitle: string;
+  readonly weeklyRecapWeek: (week: number) => string;
+  readonly weeklyRecapWindow: (days: number) => string;
+  readonly weeklyRecapEntriesAdded: string;
+  readonly weeklyRecapEntriesRated: string;
+  readonly weeklyRecapAverageMoved: (from: string, to: string) => string;
+  readonly weeklyRecapQuiet: string;
   readonly profileCalculated: string;
   readonly refresh: string;
   readonly tasteCardShare: string;
@@ -503,6 +511,9 @@ const MESSAGE_PARAMS = {
   profileDeltaScoreDown: ['axis', 'name', 'points'],
   profileDeltaAverageUp: ['from', 'to'],
   profileDeltaAverageDown: ['from', 'to'],
+  weeklyRecapWeek: ['week'],
+  weeklyRecapWindow: ['days'],
+  weeklyRecapAverageMoved: ['from', 'to'],
   providerConnectedToast: ['name'],
   providerDisconnectedToast: ['name'],
   providerActiveToast: ['name'],

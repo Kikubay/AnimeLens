@@ -86,6 +86,42 @@ describe('profile history store', () => {
     await store.record('mal', summary({ analyzedAnimeCount: 100 }));
 
     expect(await store.load('anilist')).toBeNull();
+    expect(await store.list('anilist')).toEqual([]);
+  });
+
+  it('lists the whole history newest first for week-over-week reads', async () => {
+    const storage = memoryStorage();
+    const store = createProfileHistoryStore(storage);
+
+    await store.record('mal', summary({ analyzedAnimeCount: 100 }), '2026-01-01T00:00:00.000Z');
+    await store.record('mal', summary({ analyzedAnimeCount: 110 }), '2026-01-08T00:00:00.000Z');
+    await store.record('mal', summary({ analyzedAnimeCount: 120 }), '2026-01-15T00:00:00.000Z');
+
+    const listed = await store.list('mal');
+
+    expect(listed.map((entry) => entry.analyzedAnimeCount)).toEqual([120, 110, 100]);
+    expect((await store.load('mal'))?.analyzedAnimeCount).toBe(120);
+  });
+
+  it('keeps enough history for several weekly recaps', async () => {
+    const store = createProfileHistoryStore(memoryStorage());
+    const total = PROFILE_HISTORY_CAPACITY + 4;
+
+    for (let index = 0; index < total; index += 1) {
+      await store.record('mal', summary({ analyzedAnimeCount: 100 + index }));
+    }
+
+    expect(await store.list('mal')).toHaveLength(PROFILE_HISTORY_CAPACITY);
+    expect(PROFILE_HISTORY_CAPACITY).toBeGreaterThanOrEqual(8);
+  });
+
+  it('reports an empty list rather than throwing when the history is another shape', async () => {
+    const store = createProfileHistoryStore(
+      memoryStorage({ profileHistory: { mal: { snapshots: [{ nope: true }] } } }),
+    );
+
+    expect(await store.list('mal')).toEqual([]);
+    expect(await store.load('mal')).toBeNull();
   });
 
   it('keeps the two providers side by side', async () => {

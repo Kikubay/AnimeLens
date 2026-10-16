@@ -4,6 +4,7 @@ import { getCopy, type Language } from '../locales';
 import { evaluateProfileSignals, type ProfileSignalKey } from './profile-signals';
 import { emptyTopPickPlan, planTopPicks, type TopPickPlan } from './top-picks';
 import type { ProfileDelta } from './profile-delta';
+import type { WeeklyRecap } from './weekly-recap';
 
 export interface ProfilePreferenceItem {
   readonly name: string;
@@ -40,6 +41,8 @@ export interface ProfileSnapshot {
   readonly summary: UserProfileSummary | null;
   /** What moved since the baseline, or `null` if the profile was not measured. */
   readonly delta: ProfileDelta | null;
+  /** Last full week of activity, or `null` until the history spans one. */
+  readonly recap: WeeklyRecap | null;
   readonly errorMessage: string | null;
 }
 

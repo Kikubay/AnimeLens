@@ -45,4 +45,11 @@ export {
 export type { ProfileSignalInput, ProfileSignalKey, ProfileSignalState } from './profile-signals';
 export { computeProfileStrength } from './profile-strength';
 export type { ProfileStrength, ProfileStrengthSignal } from './profile-strength';
+export {
+  RECAP_MIN_WINDOW_DAYS,
+  RECAP_TARGET_WINDOW_DAYS,
+  computeWeeklyRecap,
+  hasEnoughHistoryForRecap,
+} from './weekly-recap';
+export type { WeeklyRecap, WeeklyRecapShift } from './weekly-recap';
 export type { ProfileMessage, ProfileMessageResponse } from './profile-messages';

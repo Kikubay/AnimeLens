@@ -17,6 +17,8 @@ export const PROFILE_HISTORY_KEY = 'profileHistory';
 export interface ProfileHistoryStore {
   /** `null` when there's no history for this provider, or it's another shape or provider. */
   load(providerId: string): Promise<StoredProfileSnapshot | null>;
+  /** Newest first, so week-over-week windows can be read as adjacent pairs. Empty when the stored history is another shape or provider. */
+  list(providerId: string): Promise<readonly StoredProfileSnapshot[]>;
   /** An unchanged summary is skipped, so a quiet sync can't push a real snapshot out. */
   record(providerId: string, summary: UserProfileSummary, capturedAt?: string): Promise<void>;
   clear(providerId?: string): Promise<void>;
@@ -28,12 +30,18 @@ export function createProfileHistoryStore(storage: StorageAdapter): ProfileHisto
 
   return {
     async load(providerId) {
+      const [newest] = await this.list(providerId);
+      return newest ?? null;
+    },
+
+    async list(providerId) {
       const history = readEntry(await readHistory(storage), providerId);
       const newest = history.snapshots[0];
-      if (newest === undefined) return null;
-      if (newest.version !== PROFILE_HISTORY_VERSION || newest.providerId !== providerId)
-        return null;
-      return newest;
+      if (newest === undefined) return [];
+      if (newest.version !== PROFILE_HISTORY_VERSION || newest.providerId !== providerId) {
+        return [];
+      }
+      return history.snapshots;
     },
 
     record(providerId, summary, capturedAt) {
