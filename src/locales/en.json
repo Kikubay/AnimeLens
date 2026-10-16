@@ -478,6 +478,14 @@
     "searchFormatOva": "OVAs",
     "searchFormatOna": "ONAs",
     "searchFormatSpecial": "Specials",
-    "searchFormatEmpty": "No results match this format. Try a broader format or clear the filters."
+    "searchFormatEmpty": "No results match this format. Try a broader format or clear the filters.",
+    "searchSortLabel": "Sort results by",
+    "searchSortRelevance": "Relevance",
+    "searchSortScore": "Compatibility score",
+    "searchSortPopularity": "Popularity",
+    "searchSortNewest": "Newest",
+    "searchSortTitle": "Title A-Z",
+    "searchSortAscending": "Sort ascending",
+    "searchSortDescending": "Sort descending"
   }
 }

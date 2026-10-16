@@ -467,6 +467,14 @@ export interface AppCopy {
   readonly searchFormatOna: string;
   readonly searchFormatSpecial: string;
   readonly searchFormatEmpty: string;
+  readonly searchSortLabel: string;
+  readonly searchSortRelevance: string;
+  readonly searchSortScore: string;
+  readonly searchSortPopularity: string;
+  readonly searchSortNewest: string;
+  readonly searchSortTitle: string;
+  readonly searchSortAscending: string;
+  readonly searchSortDescending: string;
   readonly authErrorMessage: (code: AuthErrorCode | null, fallback: string) => string;
 }
 

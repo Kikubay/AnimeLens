@@ -34,9 +34,10 @@ interface IconProps {
   readonly name: IconName;
   readonly size?: number;
   readonly strokeWidth?: number;
+  readonly className?: string;
 }
 
-export function Icon({ name, size = 18, strokeWidth = 1.8 }: IconProps) {
+export function Icon({ name, size = 18, strokeWidth = 1.8, className }: IconProps) {
   const common = {
     width: size,
     height: size,
@@ -177,7 +178,11 @@ export function Icon({ name, size = 18, strokeWidth = 1.8 }: IconProps) {
     ),
   };
 
-  return <svg {...common}>{paths[name]}</svg>;
+  return (
+    <svg {...common} className={className}>
+      {paths[name]}
+    </svg>
+  );
 }
 
 export type ButtonVariant = 'primary' | 'secondary' | 'ghost' | 'danger';

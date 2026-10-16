@@ -24,6 +24,12 @@ import {
   toggleSearchFormat,
 } from '../src/popup/search-state';
 import {
+  DEFAULT_SEARCH_SORT,
+  SEARCH_SORT_OPTIONS,
+  sortAnimeResults,
+  toggleSearchSort,
+} from '../src/popup/search-sort';
+import {
   TAG_SUGGESTION_LIMIT,
   activeTagFragment,
   applyTagSuggestion,
@@ -466,5 +472,128 @@ describe('search format filter', () => {
     for (const item of page.results) {
       expect(item.type).toBe('ova');
     }
+  });
+});
+
+describe('search result sorting', () => {
+  const anime = (
+    id: number,
+    overrides: Partial<Anime> & { readonly title: Anime['title'] },
+  ): Anime => ({ ...defaultMockAnime[0], id, ...overrides });
+
+  const titled = (defaultTitle: string, english: string | null = null): Anime['title'] => ({
+    default: defaultTitle,
+    english,
+    japanese: null,
+    synonyms: [],
+  });
+
+  const results: readonly Anime[] = [
+    anime(1, { title: titled('Berserk'), score: 9.1, popularity: 40, year: 1997 }),
+    anime(2, { title: titled('Cowboy Bebop'), score: 8.8, popularity: 3, year: 1998 }),
+    anime(3, {
+      title: titled('Bocchi the Rock', 'Bocchi the Rock!'),
+      score: 8.6,
+      popularity: 12,
+      year: 2022,
+    }),
+    anime(4, {
+      title: titled('Akira'),
+      score: null,
+      popularity: null,
+      memberCount: null,
+      year: null,
+    }),
+  ];
+
+  const ids = (sorted: readonly Anime[]): readonly number[] => sorted.map((item) => item.id);
+
+  it('leaves the provider order untouched while relevance is selected', () => {
+    expect(sortAnimeResults(results, DEFAULT_SEARCH_SORT)).toBe(results);
+  });
+
+  it('ranks by score, most rated first, with unrated titles last', () => {
+    expect(ids(sortAnimeResults(results, { key: 'score', direction: 'desc' }))).toEqual([
+      1, 2, 3, 4,
+    ]);
+    expect(ids(sortAnimeResults(results, { key: 'score', direction: 'asc' }))).toEqual([
+      3, 2, 1, 4,
+    ]);
+  });
+
+  it('treats a provider rank of 1 as the most popular title', () => {
+    expect(ids(sortAnimeResults(results, { key: 'popularity', direction: 'desc' }))).toEqual([
+      2, 3, 1, 4,
+    ]);
+  });
+
+  it('falls back to the member count for providers without a rank', () => {
+    const withoutRanks: readonly Anime[] = [
+      anime(10, {
+        title: titled('Unknown A'),
+        popularity: null,
+        memberCount: 10,
+      }),
+      anime(11, {
+        title: titled('Unknown B'),
+        popularity: null,
+        memberCount: 900,
+      }),
+    ];
+    expect(ids(sortAnimeResults(withoutRanks, { key: 'popularity', direction: 'desc' }))).toEqual([
+      11, 10,
+    ]);
+  });
+
+  it('orders newest first and reverses to oldest first', () => {
+    expect(ids(sortAnimeResults(results, { key: 'newest', direction: 'desc' }))).toEqual([
+      3, 2, 1, 4,
+    ]);
+    expect(ids(sortAnimeResults(results, { key: 'newest', direction: 'asc' }))).toEqual([
+      1, 2, 3, 4,
+    ]);
+  });
+
+  it('sorts titles alphabetically from the english title when there is one', () => {
+    expect(ids(sortAnimeResults(results, { key: 'title', direction: 'asc' }))).toEqual([
+      4, 1, 3, 2,
+    ]);
+    expect(ids(sortAnimeResults(results, { key: 'title', direction: 'desc' }))).toEqual([
+      2, 3, 1, 4,
+    ]);
+  });
+
+  it('starts a freshly chosen criterion on the direction that reads best', () => {
+    expect(toggleSearchSort(DEFAULT_SEARCH_SORT, 'newest')).toEqual({
+      key: 'newest',
+      direction: 'desc',
+    });
+    expect(toggleSearchSort(DEFAULT_SEARCH_SORT, 'title')).toEqual({
+      key: 'title',
+      direction: 'asc',
+    });
+  });
+
+  it('flips the direction when the active criterion is chosen again', () => {
+    const newest = toggleSearchSort(DEFAULT_SEARCH_SORT, 'newest');
+    const oldest = toggleSearchSort(newest, 'newest');
+    expect(oldest).toEqual({ key: 'newest', direction: 'asc' });
+    expect(toggleSearchSort(oldest, 'newest')).toEqual({ key: 'newest', direction: 'desc' });
+  });
+
+  it('resets to the criterion default when another criterion is chosen', () => {
+    const flipped = toggleSearchSort(toggleSearchSort(DEFAULT_SEARCH_SORT, 'score'), 'score');
+    expect(flipped).toEqual({ key: 'score', direction: 'asc' });
+    expect(toggleSearchSort(flipped, 'newest')).toEqual({ key: 'newest', direction: 'desc' });
+  });
+
+  it('offers the criteria in a fixed order for the dropdown', () => {
+    expect(SEARCH_SORT_OPTIONS.map((option) => option.key)).toEqual([
+      'relevance',
+      'score',
+      'popularity',
+      'newest',
+      'title',
+    ]);
   });
 });

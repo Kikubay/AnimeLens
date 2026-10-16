@@ -478,6 +478,14 @@
     "searchFormatOva": "OAV",
     "searchFormatOna": "ONA",
     "searchFormatSpecial": "Spécial",
-    "searchFormatEmpty": "Aucun résultat ne correspond à ce format. Essayez un format plus large ou effacez les filtres."
+    "searchFormatEmpty": "Aucun résultat ne correspond à ce format. Essayez un format plus large ou effacez les filtres.",
+    "searchSortLabel": "Trier les résultats par",
+    "searchSortRelevance": "Pertinence",
+    "searchSortScore": "Score de compatibilité",
+    "searchSortPopularity": "Popularité",
+    "searchSortNewest": "Plus récents",
+    "searchSortTitle": "Titre A-Z",
+    "searchSortAscending": "Trier par ordre croissant",
+    "searchSortDescending": "Trier par ordre décroissant"
   }
 }

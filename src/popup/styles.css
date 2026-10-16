@@ -602,6 +602,46 @@ button:focus-visible {
   color: var(--accent);
   background: var(--surface-raised);
 }
+.anime-search-sort {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.anime-search-sort-trigger {
+  font-size: 8px;
+}
+.anime-search-sort-direction {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  color: var(--muted);
+  background: var(--surface);
+  cursor: pointer;
+}
+.anime-search-sort-direction:hover:not(:disabled) {
+  color: var(--text);
+  border-color: #48464e;
+}
+.anime-search-sort-direction:disabled {
+  cursor: not-allowed;
+  opacity: 0.4;
+}
+.anime-search-sort-menu {
+  right: auto;
+  left: 0;
+  min-width: 148px;
+}
+.anime-search-sort-option-direction {
+  color: var(--dim);
+}
+.dropdown-option.is-selected .anime-search-sort-option-direction {
+  color: var(--accent);
+}
 
 .card {
   border: 1px solid var(--line);

@@ -13,6 +13,16 @@ import {
   searchFormatTypes,
   toggleSearchFormat,
 } from '../search-state';
+import {
+  DEFAULT_SEARCH_SORT,
+  SEARCH_SORT_OPTIONS,
+  flipSearchSortDirection,
+  searchSortLabel,
+  sortAnimeResults,
+  toggleSearchSort,
+  type SearchSort,
+  type SearchSortKey,
+} from '../search-sort';
 import { applyTagSuggestion, searchTagSuggestions } from '../tag-suggestions';
 import type { AnimeCardData } from './anime';
 import { Button, EmptyState, ErrorState, Icon, Skeleton } from './ui';
@@ -248,6 +258,92 @@ export function AnimeSearchFormatFilter({
   );
 }
 
+export function AnimeSearchSort({
+  sort,
+  onToggleKey,
+  onFlipDirection,
+  copy,
+}: {
+  readonly sort: SearchSort;
+  readonly onToggleKey: (key: SearchSortKey) => void;
+  readonly onFlipDirection: () => void;
+  readonly copy: AppCopy;
+}) {
+  const rootRef = useRef<HTMLDivElement>(null);
+  const [open, setOpen] = useState(false);
+  const isAscending = sort.direction === 'asc';
+  const directionLabel = isAscending ? copy.searchSortAscending : copy.searchSortDescending;
+
+  useEffect(() => {
+    if (!open) return;
+    const dismiss = (event: MouseEvent) => {
+      if (!rootRef.current?.contains(event.target as Node)) setOpen(false);
+    };
+    document.addEventListener('mousedown', dismiss);
+    return () => document.removeEventListener('mousedown', dismiss);
+  }, [open]);
+
+  return (
+    <div
+      className="dropdown anime-search-sort"
+      ref={rootRef}
+      onKeyDown={(event) => {
+        if (event.key === 'Escape') setOpen(false);
+      }}
+    >
+      <button
+        className="dropdown-trigger anime-search-sort-trigger"
+        type="button"
+        aria-haspopup="menu"
+        aria-expanded={open}
+        onClick={() => setOpen((current) => !current)}
+      >
+        <span className="sr-only">{copy.searchSortLabel}</span>
+        {searchSortLabel(sort.key, copy)}
+        <Icon name="chevron-down" size={14} />
+      </button>
+
+      <button
+        className="anime-search-sort-direction"
+        type="button"
+        aria-label={`${directionLabel}: ${searchSortLabel(sort.key, copy)}`}
+        title={directionLabel}
+        disabled={sort.key === 'relevance'}
+        onClick={onFlipDirection}
+      >
+        <Icon name={isAscending ? 'arrow-up' : 'arrow-down'} size={13} />
+      </button>
+
+      {open && (
+        <div className="dropdown-menu anime-search-sort-menu" role="menu">
+          {SEARCH_SORT_OPTIONS.map((option) => (
+            <button
+              className={`dropdown-option${option.key === sort.key ? ' is-selected' : ''}`}
+              key={option.key}
+              type="button"
+              role="menuitemradio"
+              aria-checked={option.key === sort.key}
+              onClick={() => {
+                onToggleKey(option.key);
+                setOpen(false);
+              }}
+            >
+              {option.label(copy)}
+              {option.key !== 'relevance' && (
+                <Icon
+                  name={option.defaultDirection === 'asc' ? 'arrow-up' : 'arrow-down'}
+                  size={13}
+                  className="anime-search-sort-option-direction"
+                />
+              )}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export function AnimeSearchPanel({
   query,
   isAuthenticated,
@@ -269,11 +365,20 @@ export function AnimeSearchPanel({
   const [attempt, setAttempt] = useState(0);
   const [loadingMore, setLoadingMore] = useState(false);
   const [formatKeys, setFormatKeys] = useState<readonly string[]>([]);
+  const [sort, setSort] = useState<SearchSort>(DEFAULT_SEARCH_SORT);
   const sequence = useRef(0);
   const autoFillRef = useRef(0);
 
   const toggleFormat = useCallback((key: string) => {
     setFormatKeys((current) => toggleSearchFormat(current, key));
+  }, []);
+
+  const selectSortKey = useCallback((key: SearchSortKey) => {
+    setSort((current) => toggleSearchSort(current, key));
+  }, []);
+
+  const flipSortDirection = useCallback(() => {
+    setSort((current) => flipSearchSortDirection(current));
   }, []);
 
   const formats = useMemo(() => searchFormatTypes(formatKeys), [formatKeys]);
@@ -367,6 +472,8 @@ export function AnimeSearchPanel({
 
   const isLoading = state.status === 'loading' || debouncedQuery !== normalized;
 
+  const sortedResults = useMemo(() => sortAnimeResults(state.results, sort), [state.results, sort]);
+
   const parsed = parseAnimeSearchQuery(state.query === '' ? normalized : state.query);
   const headingTitle =
     parsed?.kind === 'tag'
@@ -383,6 +490,13 @@ export function AnimeSearchPanel({
 
       {state.status === 'ready' && (
         <div className="anime-search-controls">
+          <AnimeSearchSort
+            sort={sort}
+            onToggleKey={selectSortKey}
+            onFlipDirection={flipSortDirection}
+            copy={copy}
+          />
+
           <AnimeSearchFormatFilter keys={formatKeys} onToggle={toggleFormat} copy={copy} />
 
           <span className="section-count">{copy.titles(state.results.length)}</span>
@@ -454,7 +568,7 @@ export function AnimeSearchPanel({
       ) : (
         <>
           <ul className="anime-search-results">
-            {state.results.map((anime) => (
+            {sortedResults.map((anime) => (
               <SearchResultRow
                 key={`${anime.provider ?? providerName}-${anime.id}`}
                 anime={anime}
