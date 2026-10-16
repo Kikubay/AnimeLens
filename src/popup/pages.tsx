@@ -1446,7 +1446,7 @@ export function SettingsPage({
     anilistRedirectUri: '',
   });
   const [confirmation, setConfirmation] = useState<DestructiveAction | null>(null);
-  const [pendingImport, setPendingImport] = useState<unknown>(null);
+  const [pendingImport, setPendingImport] = useState<{ readonly payload: unknown } | null>(null);
   const [isTransferring, setIsTransferring] = useState(false);
   const importFileRef = useRef<HTMLInputElement>(null);
   const [providers, setProviders] = useState<readonly ProviderStatusView[]>([]);
@@ -1734,7 +1734,7 @@ export function SettingsPage({
       .text()
       .then((text) => {
         if (disposed.current) return;
-        setPendingImport(JSON.parse(text) as unknown);
+        setPendingImport({ payload: JSON.parse(text) as unknown });
         setConfirmation('import');
       })
       .catch(() => {
@@ -1745,12 +1745,14 @@ export function SettingsPage({
   };
 
   const runImport = () => {
-    if (pendingImport === null) return;
+    const payload = pendingImport?.payload;
+    setConfirmation(null);
+    setPendingImport(null);
+    if (payload === undefined) return;
     setIsTransferring(true);
-    void importLocalData(pendingImport)
+    void importLocalData(payload)
       .then((response) => {
         if (disposed.current) return;
-        setPendingImport(null);
         preferencesRef.current = response.snapshot.preferences;
         setSnapshot({ status: 'ready', ...response.snapshot, errorMessage: null });
         onAuthSnapshot?.(response.snapshot.auth);
