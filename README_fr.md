@@ -34,7 +34,7 @@
 </p>
 
 <p align="center">
-  Langue: <a href="https://github.com/Kikubay/AnimeLens/blob/main/README.md">English</a> - <a href="https://github.com/Kikubay/AnimeLens/blob/main/README_fr.md">Français</a>
+  Langue : <a href="https://github.com/Kikubay/AnimeLens/blob/main/README.md">English</a> - <a href="https://github.com/Kikubay/AnimeLens/blob/main/README_fr.md">Français</a> - <a href="https://github.com/Kikubay/AnimeLens/blob/main/README_es.md">Español</a>
 </p>
 
 <br />
