@@ -3,7 +3,7 @@ import { ANIME_SEARCH_PAGE_SIZE, ANIME_TYPES } from '../api/anime-search-message
 import type { AnimeType } from '../domain/anime';
 import { normalizeUserPreferences } from '../settings/settings-types';
 import type { UserPreferences } from '../settings/settings-types';
-import { normalizeLanguage } from '../locales';
+import { normalizeLanguage, type Language } from '../locales';
 import { demoHost } from './host';
 import { DEMO_DISABLED_MESSAGE, DEMO_VERSION } from './messages';
 
@@ -124,6 +124,6 @@ export async function dispatchDemoMessage(message: unknown): Promise<unknown> {
   }
 }
 
-function currentLanguage(): 'en' | 'fr' {
+function currentLanguage(): Language {
   return normalizeLanguage(demoHost.state().preferences.language);
 }

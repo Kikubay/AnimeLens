@@ -10,6 +10,7 @@ import { createFeedback, type RecommendationFeedback } from '../domain/feedback'
 import { buildDashboardRecommendationSnapshot } from '../recommendations/recommendation-dashboard';
 import { buildUserPreferenceProfile } from '../recommendations/recommendation-engine';
 import { profileSummaryFromModel, type ProfileSnapshot } from '../profile/profile-types';
+import type { Language } from '../locales';
 import type { SyncMetadata } from '../domain/sync';
 import type { UserProfile } from '../domain/user-profile';
 import type { AnimeSearchPage } from '../api/anime-provider';
@@ -142,7 +143,7 @@ class DemoHost {
     return this.authSnapshot();
   }
 
-  profileSnapshot(language: 'en' | 'fr'): ProfileSnapshot {
+  profileSnapshot(language: Language): ProfileSnapshot {
     const model = buildUserPreferenceProfile(this.library.watched, this.feedback);
     return {
       status: 'ready',

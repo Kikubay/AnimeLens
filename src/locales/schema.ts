@@ -1,8 +1,8 @@
 import type { AuthErrorCode } from '../auth/auth-types';
 
-export type Language = 'fr' | 'en';
+export type Language = 'fr' | 'en' | 'es';
 
-export const LANGUAGES: readonly Language[] = ['fr', 'en'];
+export const LANGUAGES: readonly Language[] = ['fr', 'en', 'es'];
 
 export interface AppCopy {
   readonly languageName: string;
@@ -346,6 +346,7 @@ export interface AppCopy {
   readonly language: string;
   readonly french: string;
   readonly english: string;
+  readonly spanish: string;
   readonly languageDescription: string;
   readonly settingsUnavailable: string;
   readonly settingsLoadError: string;

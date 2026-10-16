@@ -358,6 +358,7 @@
     "language": "Langue",
     "french": "Français",
     "english": "English",
+    "spanish": "Español",
     "languageDescription": "Choisissez la langue de l’interface.",
     "settingsUnavailable": "Réglages indisponibles",
     "settingsLoadError": "Impossible de charger vos réglages.",

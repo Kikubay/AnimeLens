@@ -1,6 +1,7 @@
 import type { AuthErrorCode } from '../auth/auth-types';
 import { LANGUAGES, MESSAGE_PARAMS, placeholdersOf, type AppCopy, type Language } from './schema';
 import en from './en.json';
+import es from './es.json';
 import fr from './fr.json';
 
 export { LANGUAGES, MESSAGE_PARAMS, placeholdersOf };
@@ -15,7 +16,7 @@ interface LocaleFile {
   readonly messages: Readonly<Record<MessageKey, string>>;
 }
 
-const FILES: Readonly<Record<Language, LocaleFile>> = { en, fr };
+const FILES: Readonly<Record<Language, LocaleFile>> = { en, es, fr };
 
 const PLACEHOLDER = /\{([a-zA-Z][a-zA-Z0-9]*)\}/g;
 
@@ -23,11 +24,12 @@ export function placeholdersIn(template: string): readonly string[] {
   return [...template.matchAll(PLACEHOLDER)].map((match) => match[1]);
 }
 
-// French needs "1re", not "1." — feminine because every rank template goes on to say "position".
+// French needs "1re", not "1." — feminine because every rank template goes on to say "position". Spanish uses the abbreviated ordinal "n.º".
 function ordinal(language: Language, value: unknown): string {
   const rank = Number(value);
   if (!Number.isFinite(rank)) return String(value);
-  return language === 'fr' ? (rank === 1 ? '1re' : `${rank}e`) : `#${rank}`;
+  if (language === 'fr') return rank === 1 ? '1re' : `${rank}e`;
+  return language === 'es' ? `${rank}.º` : `#${rank}`;
 }
 
 const DELTA_TRANSFORMS = [
@@ -50,7 +52,7 @@ const ARGUMENT_TRANSFORMS: Readonly<
 > = {
   // 1.5 has to arrive as "150"; the template owns the space before %.
   tasteCardCoverSizeValue: ([scale]) => ({ percent: Math.round(Number(scale) * 100) }),
-  // French slots the theme mid-sentence, where a capital reads wrong.
+  // French and Spanish slot the theme mid-sentence, where a capital reads wrong.
   reasonTheme: ([name]) => ({ name: String(name).toLowerCase() }),
   // The genre is optional, so the sentence still has to read without it.
   detectedRichWorldsDetail: ([name], locale) => ({ name: name ?? locale.meta.richWorldsFallback }),
@@ -133,9 +135,10 @@ type CategoryMessageKey =
   | 'categoryContinueWatching';
 
 export function normalizeLanguage(value: unknown): Language {
-  return value === 'fr' || (typeof value === 'string' && value.toLocaleLowerCase().startsWith('fr'))
-    ? 'fr'
-    : 'en';
+  if (typeof value !== 'string') return 'en';
+  const tag = value.toLocaleLowerCase();
+  if (tag.startsWith('fr')) return 'fr';
+  return tag.startsWith('es') ? 'es' : 'en';
 }
 
 export function detectBrowserLanguage(): Language {

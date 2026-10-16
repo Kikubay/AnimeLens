@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import en from '../src/locales/en.json';
+import es from '../src/locales/es.json';
 import fr from '../src/locales/fr.json';
 import {
   LANGUAGES,
@@ -11,7 +12,7 @@ import {
   type MessageKey,
 } from '../src/locales';
 
-const FILES: Readonly<Record<Language, typeof en>> = { en, fr };
+const FILES: Readonly<Record<Language, typeof en>> = { en, es, fr };
 // `authErrorMessage` is absent on purpose: it's selected by error code and lives in each locale's `authErrors` map, checked by the auth-error test in i18n.test.ts.
 const KEYS = Object.keys(en.messages) as readonly MessageKey[];
 
@@ -56,9 +57,11 @@ describe('locale file parity', () => {
     }
   });
 
-  it('keeps the two languages structurally identical', () => {
-    expect(Object.keys(fr.messages)).toEqual(Object.keys(en.messages));
-    expect(Object.keys(fr.authErrors)).toEqual(Object.keys(en.authErrors));
+  it('keeps every language structurally identical', () => {
+    for (const language of LANGUAGES.filter((candidate) => candidate !== 'en')) {
+      expect(Object.keys(FILES[language].messages), language).toEqual(Object.keys(en.messages));
+      expect(Object.keys(FILES[language].authErrors), language).toEqual(Object.keys(en.authErrors));
+    }
   });
 
   it('fills every placeholder when a message is rendered', () => {

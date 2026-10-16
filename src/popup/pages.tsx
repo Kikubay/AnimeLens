@@ -2005,6 +2005,15 @@ export function SettingsPage({
             >
               {copy.english}
             </button>
+            <button
+              type="button"
+              role="radio"
+              aria-checked={preferences.language === 'es'}
+              className={preferences.language === 'es' ? 'is-selected' : ''}
+              onClick={() => save({ language: 'es' }, copy.savedPreference)}
+            >
+              {copy.spanish}
+            </button>
           </div>
         </div>
       </SettingsSection>
