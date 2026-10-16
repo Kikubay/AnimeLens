@@ -20,6 +20,7 @@ import type { UpdateSnapshot } from '../updates/update-checker';
 import { DetailPage, DashboardPage, LoadingPage, ProfilePage, SettingsPage } from './pages';
 import type { AnimeCardData } from './components/anime';
 import type { PageId } from './pages';
+import { PAGE_EXIT_MS, transitionDirection, type PageTransition } from './page-transition';
 
 interface NavItem {
   readonly id: PageId;
@@ -32,6 +33,8 @@ const NAV_ITEMS: readonly NavItem[] = [
   { id: 'profile', icon: 'user', label: (copy) => copy.profile },
   { id: 'settings', icon: 'settings', label: (copy) => copy.settings },
 ];
+
+const NAV_PAGE_ORDER: readonly PageId[] = NAV_ITEMS.map((item) => item.id);
 
 function DislikeReasonModal({
   anime,
@@ -117,6 +120,8 @@ function DislikeReasonModal({
 
 export function App() {
   const [page, setPage] = useState<PageId>('dashboard');
+  const [transition, setTransition] = useState<PageTransition | null>(null);
+  const exitTimer = useRef<number | null>(null);
   const [selectedAnime, setSelectedAnime] = useState<AnimeCardData | undefined>();
   const scrollPositions = useRef<Partial<Record<PageId, number>>>({
     dashboard: 0,
@@ -242,15 +247,35 @@ export function App() {
     }
   };
 
+  // The outgoing page stays mounted and in normal flow while it slides out, so the swap is
+  // invisible at the moment both pages are fully transparent and the document height can change.
+  const beginTransition = (nextPage: PageId) => {
+    if (exitTimer.current !== null) window.clearTimeout(exitTimer.current);
+    const direction = transitionDirection(page, nextPage, NAV_PAGE_ORDER);
+    setTransition({ direction, phase: 'exit', to: nextPage });
+    exitTimer.current = window.setTimeout(() => {
+      setPage(nextPage);
+      setTransition({ direction, phase: 'enter', to: nextPage });
+      exitTimer.current = null;
+    }, PAGE_EXIT_MS);
+  };
+
+  useEffect(
+    () => () => {
+      if (exitTimer.current !== null) window.clearTimeout(exitTimer.current);
+    },
+    [],
+  );
+
   const navigate = (nextPage: PageId) => {
     if (nextPage === page) return;
     rememberScrollPosition(page);
-    setPage(nextPage);
+    beginTransition(nextPage);
   };
   const selectAnime = (anime: AnimeCardData) => {
     rememberScrollPosition(page);
     setSelectedAnime(anime);
-    setPage('detail');
+    beginTransition('detail');
   };
   const showToast = (message: string) => setToast(message);
   const startUpdateDownload = () => {
@@ -394,66 +419,74 @@ export function App() {
       )}
       {loading ? (
         <LoadingPage />
-      ) : page === 'dashboard' ? (
-        <DashboardPage
-          onNavigate={navigate}
-          onSelectAnime={selectAnime}
-          onFeedback={showToast}
-          onRecommendationFeedback={handleRecommendationFeedback}
-          recommendationsRevision={recommendationsRevision}
-          isOnline={isOnline}
-          auth={auth}
-          onAuthAction={authAction}
-          sync={sync}
-          onSync={syncNow}
-          activeProviderName={activeProviderName}
-          copy={copy}
-        />
-      ) : page === 'profile' ? (
-        <ProfilePage
-          onNavigate={navigate}
-          onSelectAnime={selectAnime}
-          onFeedback={showToast}
-          auth={auth}
-          activeProviderName={activeProviderName}
-          preferences={preferences}
-          onPreferencesChange={setPreferences}
-          copy={copy}
-        />
-      ) : page === 'settings' ? (
-        <SettingsPage
-          onNavigate={navigate}
-          onSelectAnime={selectAnime}
-          onFeedback={showToast}
-          onProvidersChanged={refreshActiveProviderName}
-          onAuthSnapshot={setAuth}
-          onPreferencesChanged={(next) => {
-            if (next !== undefined) {
-              setLanguage(normalizeLanguage(next.language));
-              setPreferences(next);
-            }
-            setRecommendationsRevision((current) => current + 1);
-          }}
-          onSync={syncNow}
-          copy={copy}
-        />
       ) : (
-        <DetailPage
-          anime={selectedAnime ?? null}
-          onNavigate={navigate}
-          onSelectAnime={selectAnime}
-          onFeedback={showToast}
-          onRecommendationFeedback={handleRecommendationFeedback}
-          auth={auth}
-          onMalListChanged={() => setRecommendationsRevision((current) => current + 1)}
-          copy={copy}
-        />
+        <div
+          className="page-transition"
+          data-phase={transition?.phase}
+          data-direction={transition?.direction}
+        >
+          {page === 'dashboard' ? (
+            <DashboardPage
+              onNavigate={navigate}
+              onSelectAnime={selectAnime}
+              onFeedback={showToast}
+              onRecommendationFeedback={handleRecommendationFeedback}
+              recommendationsRevision={recommendationsRevision}
+              isOnline={isOnline}
+              auth={auth}
+              onAuthAction={authAction}
+              sync={sync}
+              onSync={syncNow}
+              activeProviderName={activeProviderName}
+              copy={copy}
+            />
+          ) : page === 'profile' ? (
+            <ProfilePage
+              onNavigate={navigate}
+              onSelectAnime={selectAnime}
+              onFeedback={showToast}
+              auth={auth}
+              activeProviderName={activeProviderName}
+              preferences={preferences}
+              onPreferencesChange={setPreferences}
+              copy={copy}
+            />
+          ) : page === 'settings' ? (
+            <SettingsPage
+              onNavigate={navigate}
+              onSelectAnime={selectAnime}
+              onFeedback={showToast}
+              onProvidersChanged={refreshActiveProviderName}
+              onAuthSnapshot={setAuth}
+              onPreferencesChanged={(next) => {
+                if (next !== undefined) {
+                  setLanguage(normalizeLanguage(next.language));
+                  setPreferences(next);
+                }
+                setRecommendationsRevision((current) => current + 1);
+              }}
+              onSync={syncNow}
+              copy={copy}
+            />
+          ) : (
+            <DetailPage
+              anime={selectedAnime ?? null}
+              onNavigate={navigate}
+              onSelectAnime={selectAnime}
+              onFeedback={showToast}
+              onRecommendationFeedback={handleRecommendationFeedback}
+              auth={auth}
+              onMalListChanged={() => setRecommendationsRevision((current) => current + 1)}
+              copy={copy}
+            />
+          )}
+        </div>
       )}
       {!loading && page !== 'detail' && (
         <nav className="bottom-nav" aria-label={copy.discover}>
           {NAV_ITEMS.map((item) => (
             <button
-              className={page === item.id ? 'is-active' : ''}
+              className={(transition?.to ?? page) === item.id ? 'is-active' : ''}
               key={item.id}
               type="button"
               onClick={() => navigate(item.id)}

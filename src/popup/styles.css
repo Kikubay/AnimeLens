@@ -19,6 +19,8 @@
   --success: #88c69e;
 
   --popup-content-width: 700px;
+  --page-exit-duration: 120ms;
+  --page-enter-duration: 200ms;
 }
 
 :root[data-theme='light'] {
@@ -2601,6 +2603,65 @@ button:focus-visible {
   to {
     opacity: 1;
   }
+}
+@keyframes page-out-forward {
+  from {
+    opacity: 1;
+    transform: translateX(0);
+  }
+
+  to {
+    opacity: 0;
+    transform: translateX(-5%);
+  }
+}
+@keyframes page-in-forward {
+  from {
+    opacity: 0;
+    transform: translateX(5%);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+@keyframes page-out-backward {
+  from {
+    opacity: 1;
+    transform: translateX(0);
+  }
+
+  to {
+    opacity: 0;
+    transform: translateX(5%);
+  }
+}
+@keyframes page-in-backward {
+  from {
+    opacity: 0;
+    transform: translateX(-5%);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+.page-transition[data-direction][data-phase] .page-content {
+  animation-timing-function: cubic-bezier(0.32, 0.72, 0, 1);
+}
+.page-transition[data-direction='forward'][data-phase='exit'] .page-content {
+  animation: page-out-forward var(--page-exit-duration) both;
+}
+.page-transition[data-direction='forward'][data-phase='enter'] .page-content {
+  animation: page-in-forward var(--page-enter-duration) both;
+}
+.page-transition[data-direction='backward'][data-phase='exit'] .page-content {
+  animation: page-out-backward var(--page-exit-duration) both;
+}
+.page-transition[data-direction='backward'][data-phase='enter'] .page-content {
+  animation: page-in-backward var(--page-enter-duration) both;
 }
 @keyframes toast-in {
   from {
