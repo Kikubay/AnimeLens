@@ -21,6 +21,7 @@ export interface DetectedPreference {
 export interface UserProfileSummary {
   readonly analyzedAnimeCount: number;
   readonly ratedAnimeCount: number;
+  readonly feedbackCount: number;
   readonly averageScore: number | null;
   readonly favoriteGenres: readonly ProfilePreferenceItem[];
   readonly favoriteThemes: readonly ProfilePreferenceItem[];
@@ -46,6 +47,7 @@ export function emptyProfileSummary(
   return {
     analyzedAnimeCount: 0,
     ratedAnimeCount: 0,
+    feedbackCount: 0,
     averageScore: null,
     favoriteGenres: [],
     favoriteThemes: [],
@@ -72,6 +74,7 @@ export function profileSummaryFromModel(
   return {
     analyzedAnimeCount: profile.sourceAnimeCount,
     ratedAnimeCount: profile.ratedAnimeCount,
+    feedbackCount: profile.feedbackCount,
     averageScore: profile.averageScore,
     favoriteGenres,
     favoriteThemes,

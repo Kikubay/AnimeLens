@@ -28,4 +28,11 @@ export type {
   ProfileSnapshot,
   UserProfileSummary,
 } from './profile-types';
+export {
+  MAX_TASTE_LEVEL,
+  computeTasteLevel,
+  tasteLevelFromXp,
+  xpRequiredForLevel,
+} from './taste-level';
+export type { TasteLevel, TasteSource, TasteSourceKey } from './taste-level';
 export type { ProfileMessage, ProfileMessageResponse } from './profile-messages';

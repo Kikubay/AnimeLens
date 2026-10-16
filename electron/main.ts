@@ -20,8 +20,8 @@ const CONTENT_SECURITY_POLICY = [
   // Avatar and cover art come from provider CDNs; the taste card reads data URLs back.
   "img-src 'self' data: blob: https:",
   "font-src 'self' data:",
-  // MyAnimeList, AniList and the GitHub release feed.
-  'connect-src https:',
+  // MyAnimeList, AniList and the GitHub release feed. `'self'` is what lets the taste card fetch its own brand icon; without it the fetch is blocked and the card silently falls back to its monogram.
+  "connect-src 'self' https:",
   "object-src 'none'",
   "base-uri 'none'",
   "form-action 'none'",

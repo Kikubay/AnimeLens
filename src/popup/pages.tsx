@@ -22,6 +22,7 @@ import type { FeedbackValue } from '../domain/feedback';
 import type { DislikeReason } from '../domain/feedback';
 import { requestProfileSnapshot } from '../profile/profile-messages';
 import type { ProfileSnapshot, UserProfileSummary } from '../profile/profile-types';
+import { computeTasteLevel, type TasteLevel } from '../profile/taste-level';
 import {
   buildTasteCardModel,
   layoutAfterCardClose,
@@ -985,6 +986,10 @@ function ProfileSummary({
     () => buildTasteCardModel(summary, profile, providerName, resolvedPicks),
     [summary, profile, providerName, resolvedPicks],
   );
+  const tasteLevel = useMemo(
+    () => computeTasteLevel(summary, preferences.language),
+    [summary, preferences.language],
+  );
 
   const shouldPromptForPicks =
     !isGridLayout && plan.needsChoice && shouldRenderTopPicks(tasteCardModel, cardOptions);
@@ -1103,10 +1108,7 @@ function ProfileSummary({
           {copy.tasteCardShare}
         </Button>
       </div>
-      <div className="profile-stat-hero">
-        <strong>{summary.analyzedAnimeCount}</strong>
-        <span>{copy.analyzedAnime}</span>
-      </div>
+      <TasteLevelCard level={tasteLevel} copy={copy} />
       <div className="taste-stat-grid profile-stat-grid">
         <div>
           <strong>{summary.averageScore === null ? '—' : summary.averageScore.toFixed(1)}</strong>
@@ -1206,6 +1208,46 @@ function ProfileSummary({
         }
       />
     </div>
+  );
+}
+
+function TasteLevelCard({ level, copy }: { readonly level: TasteLevel; readonly copy: AppCopy }) {
+  return (
+    <Card className="taste-level-card">
+      <div className="section-heading">
+        <div>
+          <p className="eyebrow">{copy.tasteLevelEyebrow}</p>
+          <h2>{copy.tasteLevelTitle}</h2>
+        </div>
+        <Badge tone="accent">{copy.tasteLevelBadge(level.level)}</Badge>
+      </div>
+      <div className="taste-level-hero">
+        <strong>{level.title}</strong>
+        <span>
+          {level.isMaxLevel
+            ? copy.tasteLevelMaxLevel
+            : copy.tasteLevelProgress(level.xpIntoLevel, level.xpForNextLevel)}
+        </span>
+      </div>
+      <Progress value={level.progress} />
+      {level.nextTitle !== null && level.nextTitleLevel !== null && (
+        <p className="taste-level-next">
+          {copy.tasteLevelNextTitle(level.nextTitle)}
+          <span>{copy.tasteLevelBadge(level.nextTitleLevel)}</span>
+        </p>
+      )}
+      {level.sources.length > 0 && (
+        <div className="taste-level-sources">
+          <p className="profile-muted">{copy.tasteLevelSources}</p>
+          {level.sources.map((source) => (
+            <div className="taste-level-source" key={source.key}>
+              <span>{source.label}</span>
+              <strong>+{source.xp}</strong>
+            </div>
+          ))}
+        </div>
+      )}
+    </Card>
   );
 }
 

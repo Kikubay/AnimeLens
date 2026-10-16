@@ -109,6 +109,30 @@ export interface AppCopy {
   readonly animeProfile: string;
   readonly profileIntro: string;
   readonly analyzedAnime: string;
+  readonly tasteLevelEyebrow: string;
+  readonly tasteLevelTitle: string;
+  readonly tasteLevelBadge: (level: number) => string;
+  readonly tasteLevelProgress: (xp: number, target: number) => string;
+  readonly tasteLevelNextTitle: (title: string) => string;
+  readonly tasteLevelMaxLevel: string;
+  readonly tasteLevelSources: string;
+  readonly tasteLevelSourceAnalyzed: string;
+  readonly tasteLevelSourceRated: string;
+  readonly tasteLevelSourceFeedback: string;
+  readonly tasteLevelSourcePreferences: string;
+  readonly tasteLevelSourceDimensions: string;
+  readonly tasteLevelTitleCuriousNewcomer: string;
+  readonly tasteLevelTitleGenreScout: string;
+  readonly tasteLevelTitleListKeeper: string;
+  readonly tasteLevelTitleTasteAnalyst: string;
+  readonly tasteLevelTitleDeepDiver: string;
+  readonly tasteLevelTitleMarathonWatcher: string;
+  readonly tasteLevelTitleSeasonedFan: string;
+  readonly tasteLevelTitleConnoisseur: string;
+  readonly tasteLevelTitleCurator: string;
+  readonly tasteLevelTitleAesthete: string;
+  readonly tasteLevelTitleTasteAuthority: string;
+  readonly tasteLevelTitleLegend: string;
   readonly averageScore: string;
   readonly ratedAnime: string;
   readonly favoriteGenres: string;
@@ -430,6 +454,9 @@ const MESSAGE_PARAMS = {
   topPicksIntroTie: ['count', 'score'],
   topPicksIntroManual: ['count', 'score'],
   topPicksSelectSlot: ['position'],
+  tasteLevelBadge: ['level'],
+  tasteLevelProgress: ['xp', 'target'],
+  tasteLevelNextTitle: ['title'],
 
   tasteCardGridIntro: ['filled', 'total'],
   tasteCardGridSlot: ['position'],

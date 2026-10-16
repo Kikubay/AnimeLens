@@ -215,6 +215,7 @@ describe('profileSummaryFromModel', () => {
     expect(summary).toEqual({
       analyzedAnimeCount: 0,
       ratedAnimeCount: 0,
+      feedbackCount: 0,
       averageScore: null,
       favoriteGenres: [],
       favoriteThemes: [],
