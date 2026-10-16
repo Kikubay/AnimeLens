@@ -55,11 +55,6 @@ export type DataExportSummary = {
   readonly hasPreferences: boolean;
 };
 
-export interface DataImportResult {
-  readonly ok: boolean;
-  readonly summary: DataExportSummary;
-}
-
 export function buildDataExport(stored: DataExportSource, exportedAt: string): DataExport {
   return {
     app: DATA_EXPORT_APP,

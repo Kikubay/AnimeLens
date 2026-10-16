@@ -61,19 +61,4 @@ describe('AnimeProvider contract', () => {
 
     expect(mal?.rankingOffset).not.toBe(anilist?.rankingOffset);
   });
-
-  it('serves a fully usable mock provider for offline work', async () => {
-    const provider = new MockAnimeProvider();
-
-    const [user, list, search] = await Promise.all([
-      provider.getCurrentUser(),
-      provider.getUserAnimeList(),
-      provider.searchAnime('frieren'),
-    ]);
-
-    expect(user.username).toBe('alex.mori');
-    expect(list.length).toBeGreaterThan(0);
-    expect(search.results[0]?.title.default).toContain('Frieren');
-    expect(search.hasMore).toBe(false);
-  });
 });

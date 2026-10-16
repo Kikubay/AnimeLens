@@ -1,9 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import {
-  RECAP_MIN_WINDOW_DAYS,
-  computeWeeklyRecap,
-  hasEnoughHistoryForRecap,
-} from '../src/profile/weekly-recap';
+import { RECAP_MIN_WINDOW_DAYS, computeWeeklyRecap } from '../src/profile/weekly-recap';
 import type { StoredPreferenceItem, StoredProfileSnapshot } from '../src/storage/storage-types';
 import { PROFILE_HISTORY_VERSION } from '../src/profile/profile-delta';
 
@@ -36,14 +32,11 @@ describe('computeWeeklyRecap', () => {
   it('returns null without a second snapshot to compare against', () => {
     expect(computeWeeklyRecap([])).toBeNull();
     expect(computeWeeklyRecap([snapshot(0)])).toBeNull();
-    expect(hasEnoughHistoryForRecap([snapshot(0)])).toBe(false);
   });
 
   it('returns null when the newest pair is too close together to be a week', () => {
-    const recent = computeWeeklyRecap([snapshot(0), snapshot(RECAP_MIN_WINDOW_DAYS - 2)]);
-
-    expect(recent).toBeNull();
-    expect(hasEnoughHistoryForRecap([snapshot(0), snapshot(1)])).toBe(false);
+    expect(computeWeeklyRecap([snapshot(0), snapshot(RECAP_MIN_WINDOW_DAYS - 2)])).toBeNull();
+    expect(computeWeeklyRecap([snapshot(0), snapshot(1)])).toBeNull();
   });
 
   it('reports the window length and the activity inside it', () => {

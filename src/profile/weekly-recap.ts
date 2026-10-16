@@ -52,10 +52,6 @@ export function computeWeeklyRecap(
   };
 }
 
-export function hasEnoughHistoryForRecap(snapshots: readonly StoredProfileSnapshot[]): boolean {
-  return findWindow(snapshots) !== null;
-}
-
 function findWindow(snapshots: readonly StoredProfileSnapshot[]): {
   readonly previous: StoredProfileSnapshot;
   readonly current: StoredProfileSnapshot;

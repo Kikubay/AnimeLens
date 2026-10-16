@@ -37,7 +37,6 @@ export {
 export type { TasteLevel, TasteSource, TasteSourceKey } from './taste-level';
 export {
   DISCERNING_TASTE_MIN_AVERAGE,
-  PROFILE_SIGNAL_KEYS,
   REFINED_PROFILE_MIN_FEEDBACK,
   RICH_WORLDS_MIN_GENRES,
   evaluateProfileSignals,
@@ -49,7 +48,6 @@ export {
   RECAP_MIN_WINDOW_DAYS,
   RECAP_TARGET_WINDOW_DAYS,
   computeWeeklyRecap,
-  hasEnoughHistoryForRecap,
 } from './weekly-recap';
 export type { WeeklyRecap, WeeklyRecapShift } from './weekly-recap';
 export type { ProfileMessage, ProfileMessageResponse } from './profile-messages';

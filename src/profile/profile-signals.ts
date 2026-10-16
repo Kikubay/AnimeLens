@@ -1,13 +1,6 @@
 export type ProfileSignalKey =
   'richWorlds' | 'complexCharacters' | 'discerningTaste' | 'refinedProfile';
 
-export const PROFILE_SIGNAL_KEYS: readonly ProfileSignalKey[] = [
-  'richWorlds',
-  'complexCharacters',
-  'discerningTaste',
-  'refinedProfile',
-];
-
 export const RICH_WORLDS_MIN_GENRES = 2;
 export const DISCERNING_TASTE_MIN_AVERAGE = 8;
 export const REFINED_PROFILE_MIN_FEEDBACK = 2;
@@ -43,10 +36,6 @@ export function evaluateProfileSignals(input: ProfileSignalInput): readonly Prof
     },
     ratioState('refinedProfile', input.feedbackCount, REFINED_PROFILE_MIN_FEEDBACK),
   ];
-}
-
-export function isSignalUnlocked(key: ProfileSignalKey, input: ProfileSignalInput): boolean {
-  return evaluateProfileSignals(input).find((signal) => signal.key === key)?.unlocked ?? false;
 }
 
 function isDiscerningTaste(input: ProfileSignalInput): boolean {
