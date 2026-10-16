@@ -84,7 +84,8 @@ button:focus-visible {
   max-width: var(--popup-content-width);
   min-height: 600px;
   margin: 0 auto;
-  overflow: hidden;
+  /* Clips the page transition slides without becoming a scroll container: `overflow: hidden` would swallow the viewport scroll and leave `position: sticky` descendants stuck to this box instead of the screen. */
+  overflow: clip;
   background: var(--bg);
 }
 .update-banner {
@@ -558,9 +559,25 @@ button:focus-visible {
   border-radius: 10px;
 }
 .anime-search-more {
+  position: sticky;
+  /* Clears the fixed bottom nav so loading another page never requires scrolling. */
+  bottom: 40px;
+  z-index: 5;
   display: flex;
   justify-content: center;
   margin-top: 10px;
+  padding: 10px 0 2px;
+  background: linear-gradient(to bottom, transparent, var(--bg) 45%);
+}
+/* The bar is pinned above the nav, so it carries its backdrop down to the nav edge; without this the gap shows rows scrolling through. */
+.anime-search-more::after {
+  position: absolute;
+  top: 100%;
+  right: 0;
+  left: 0;
+  height: 40px;
+  background: var(--bg);
+  content: '';
 }
 .anime-search-more-block {
   display: grid;
