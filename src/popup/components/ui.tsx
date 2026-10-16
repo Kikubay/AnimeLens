@@ -27,7 +27,8 @@ export type IconName =
   | 'star'
   | 'thumbs-down'
   | 'thumbs-up'
-  | 'user';
+  | 'user'
+  | 'upload';
 
 interface IconProps {
   readonly name: IconName;
@@ -165,6 +166,13 @@ export function Icon({ name, size = 18, strokeWidth = 1.8 }: IconProps) {
       <>
         <circle cx="12" cy="8" r="3" />
         <path d="M5 20a7 7 0 0 1 14 0" />
+      </>
+    ),
+    upload: (
+      <>
+        <path d="M12 19V5" />
+        <path d="m6 11 6-6 6 6" />
+        <path d="M5 21h14" />
       </>
     ),
   };

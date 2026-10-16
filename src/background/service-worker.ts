@@ -57,9 +57,22 @@ import { createTopPicksStore } from '../profile/top-picks-store';
 import { emptyTopPickPlan, planTopPicks, type TopPickPlan } from '../profile/top-picks';
 import type { TopPicksMessage, TopPicksMessageResponse } from '../profile/top-picks-messages';
 import { isTopPicksMessage } from '../profile/top-picks-messages';
-import type { SettingsMessage, SettingsResponse } from '../settings/settings-messages';
+import type {
+  SettingsMessage,
+  SettingsResponse,
+  SettingsSnapshotSuccess,
+} from '../settings/settings-messages';
 import { isSettingsMessage } from '../settings/settings-messages';
 import { normalizeUserPreferences } from '../settings/settings-types';
+import {
+  EXPORTED_STORAGE_KEYS,
+  buildDataExport,
+  parseDataExport,
+  serializeDataExport,
+  storedValuesFromExport,
+  summarizeDataExport,
+  type DataExportSource,
+} from '../settings/data-transfer';
 import type {
   RecommendationMessage,
   RecommendationMessageResponse,
@@ -637,6 +650,50 @@ async function handleSettingsMessage(message: SettingsMessage): Promise<Settings
     return settingsSnapshot();
   }
 
+  if (message.type === 'settings.export_data') {
+    const stored = await readExportedStorage();
+    const exported = buildDataExport(stored, new Date().toISOString());
+    const summary = summarizeDataExport(exported.data);
+    return {
+      ...(await settingsSnapshot()),
+      data: {
+        kind: 'export',
+        json: serializeDataExport(exported),
+        feedback: summary.feedback,
+        profileSnapshots: summary.profileSnapshots,
+      },
+    };
+  }
+  if (message.type === 'settings.import_data') {
+    const parsed = parseDataExport(message.payload);
+    if (parsed === null) {
+      return { ok: false, message: getCopy(await currentLanguage()).dataImportInvalid };
+    }
+    const values = storedValuesFromExport(parsed);
+    await Promise.all([
+      storage.set('feedback', values.feedback),
+      storage.set('preferences', values.preferences),
+      storage.set(PROFILE_HISTORY_KEY, values.profileHistory),
+    ]);
+    if (values.activeProvider !== null) await storage.set('activeProvider', values.activeProvider);
+    if (values.manualTop3Ranking !== null) {
+      await storage.set(TOP_PICKS_RANKING_KEY, values.manualTop3Ranking);
+      await storage.set(TOP_PICKS_SIGNATURE_KEY, values.manualTop3PoolSignature ?? '');
+    }
+    await invalidateCandidatePool();
+    await configureScheduledTasks();
+    const summary = summarizeDataExport(parsed.data);
+    return {
+      ...(await settingsSnapshot()),
+      data: {
+        kind: 'import',
+        json: serializeDataExport(parsed),
+        feedback: summary.feedback,
+        profileSnapshots: summary.profileSnapshots,
+      },
+    };
+  }
+
   if (message.type === 'settings.disconnect_mal') {
     await providerRegistry.getAuthService('mal').disconnect();
     await Promise.all([storage.remove('animeData'), storage.remove('animeData:mal')]);
@@ -658,7 +715,7 @@ async function handleSettingsMessage(message: SettingsMessage): Promise<Settings
   return { ok: false, message: (await currentCopy()).unknownSettingsAction };
 }
 
-async function settingsSnapshot(): Promise<SettingsResponse> {
+async function settingsSnapshot(): Promise<SettingsSnapshotSuccess> {
   const preferences = normalizeUserPreferences(await storage.get('preferences'));
   const auth = await (await activeAuthService()).getSnapshot();
   const malClientId = await getProviderClientId('mal', import.meta.env.VITE_MAL_CLIENT_ID ?? '');
@@ -979,6 +1036,11 @@ async function handleProfileMessage(message: ProfileMessage): Promise<ProfileMes
       errorMessage: null,
     },
   };
+}
+
+async function readExportedStorage(): Promise<DataExportSource> {
+  const values = await chrome.storage.local.get(EXPORTED_STORAGE_KEYS);
+  return values as DataExportSource;
 }
 
 async function currentTopPickPlan(): Promise<TopPickPlan> {

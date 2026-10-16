@@ -306,6 +306,14 @@ export interface AppCopy {
   readonly dailyRecommendationDescription: string;
   readonly data: string;
   readonly localStorage: string;
+  readonly dataExport: string;
+  readonly dataExportDescription: string;
+  readonly dataImport: string;
+  readonly dataImportDescription: string;
+  readonly dataExportDone: (feedback: number, snapshots: number) => string;
+  readonly dataImportDone: (feedback: number, snapshots: number) => string;
+  readonly dataImportInvalid: string;
+  readonly dataImportChooseFile: string;
   readonly clearCache: string;
   readonly clearCacheDescription: string;
   readonly deleteLocalData: string;
@@ -487,6 +495,8 @@ const MESSAGE_PARAMS = {
   tasteCardCoverSizeValue: ['scale'],
   connectedAs: ['username'],
   searchExcluded: ['kind'],
+  dataExportDone: ['feedback', 'snapshots'],
+  dataImportDone: ['feedback', 'snapshots'],
   excludedList: ['kind'],
   excluded: ['kind', 'value'],
   restored: ['kind', 'value'],

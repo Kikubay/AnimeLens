@@ -42,6 +42,8 @@ import {
 import {
   clearLocalCache,
   deleteLocalData,
+  exportLocalData,
+  importLocalData,
   requestSettingsSnapshot,
   updateAnilistClientId,
   updateMalClientId,
@@ -81,6 +83,7 @@ import {
   EmptyState,
   ErrorState,
   Icon,
+  type IconName,
   IconButton,
   Modal,
   Progress,
@@ -1240,6 +1243,27 @@ function ProfileSummary({
   );
 }
 
+function exportFileName(): string {
+  const now = new Date();
+  const stamp = now.toISOString().slice(0, 10);
+  return `animelens-export-${stamp}.json`;
+}
+
+function downloadJsonFile(json: string, filename: string): void {
+  const url = URL.createObjectURL(new Blob([json], { type: 'application/json' }));
+  const anchor = document.createElement('a');
+  anchor.href = url;
+  anchor.download = filename;
+  anchor.rel = 'noopener';
+  document.body.append(anchor);
+  try {
+    anchor.click();
+  } finally {
+    anchor.remove();
+    window.setTimeout(() => URL.revokeObjectURL(url), 4000);
+  }
+}
+
 function detectedDetail(
   preferences: readonly { readonly key: string; readonly detail: string }[],
   key: string,
@@ -1422,6 +1446,9 @@ export function SettingsPage({
     anilistRedirectUri: '',
   });
   const [confirmation, setConfirmation] = useState<DestructiveAction | null>(null);
+  const [pendingImport, setPendingImport] = useState<unknown>(null);
+  const [isTransferring, setIsTransferring] = useState(false);
+  const importFileRef = useRef<HTMLInputElement>(null);
   const [providers, setProviders] = useState<readonly ProviderStatusView[]>([]);
   const [anilistClientIdDraft, setAnilistClientIdDraft] = useState('');
   const [anilistClientId, setAnilistClientId] = useState('');
@@ -1682,6 +1709,65 @@ export function SettingsPage({
         }));
       }
     });
+  };
+
+  const runExport = () => {
+    setIsTransferring(true);
+    void exportLocalData()
+      .then((response) => {
+        downloadJsonFile(response.data.json, exportFileName());
+        onFeedback(copy.dataExportDone(response.data.feedback, response.data.profileSnapshots));
+      })
+      .catch((error: unknown) =>
+        setSnapshot((current) => ({
+          ...current,
+          errorMessage: error instanceof Error ? error.message : copy.actionImpossible,
+        })),
+      )
+      .finally(() => {
+        if (!disposed.current) setIsTransferring(false);
+      });
+  };
+
+  const readImportFile = (file: File) => {
+    void file
+      .text()
+      .then((text) => {
+        if (disposed.current) return;
+        setPendingImport(JSON.parse(text) as unknown);
+        setConfirmation('import');
+      })
+      .catch(() => {
+        if (!disposed.current) {
+          setSnapshot((current) => ({ ...current, errorMessage: copy.dataImportInvalid }));
+        }
+      });
+  };
+
+  const runImport = () => {
+    if (pendingImport === null) return;
+    setIsTransferring(true);
+    void importLocalData(pendingImport)
+      .then((response) => {
+        if (disposed.current) return;
+        setPendingImport(null);
+        preferencesRef.current = response.snapshot.preferences;
+        setSnapshot({ status: 'ready', ...response.snapshot, errorMessage: null });
+        onAuthSnapshot?.(response.snapshot.auth);
+        onPreferencesChanged?.(response.snapshot.preferences);
+        onFeedback(copy.dataImportDone(response.data.feedback, response.data.profileSnapshots));
+      })
+      .catch((error: unknown) => {
+        if (!disposed.current) {
+          setSnapshot((current) => ({
+            ...current,
+            errorMessage: error instanceof Error ? error.message : copy.dataImportInvalid,
+          }));
+        }
+      })
+      .finally(() => {
+        if (!disposed.current) setIsTransferring(false);
+      });
   };
 
   const runDestructiveAction = () => {
@@ -2033,6 +2119,45 @@ export function SettingsPage({
           }
         />
         <SettingActionRow
+          icon="download"
+          title={copy.dataExport}
+          description={copy.dataExportDescription}
+          action={
+            <Button size="sm" variant="secondary" disabled={isTransferring} onClick={runExport}>
+              {copy.dataExport}
+            </Button>
+          }
+        />
+        <SettingActionRow
+          icon="upload"
+          title={copy.dataImport}
+          description={copy.dataImportDescription}
+          action={
+            <>
+              <input
+                ref={importFileRef}
+                type="file"
+                accept="application/json,.json"
+                className="visually-hidden"
+                aria-label={copy.dataImportChooseFile}
+                onChange={(event) => {
+                  const file = event.target.files?.[0];
+                  if (file !== undefined) readImportFile(file);
+                  event.target.value = '';
+                }}
+              />
+              <Button
+                size="sm"
+                variant="secondary"
+                disabled={isTransferring}
+                onClick={() => importFileRef.current?.click()}
+              >
+                {copy.dataImport}
+              </Button>
+            </>
+          }
+        />
+        <SettingActionRow
           icon="refresh"
           title={copy.clearCache}
           description={copy.clearCacheDescription}
@@ -2060,8 +2185,14 @@ export function SettingsPage({
       )}
       <ConfirmationModal
         action={confirmation}
-        onCancel={() => setConfirmation(null)}
-        onConfirm={runDestructiveAction}
+        onCancel={() => {
+          setConfirmation(null);
+          setPendingImport(null);
+        }}
+        onConfirm={() => {
+          if (confirmation === 'import') runImport();
+          else runDestructiveAction();
+        }}
         copy={copy}
       />
     </div>
@@ -2078,7 +2209,7 @@ type SettingsSnapshotState = {
   readonly anilistRedirectUri: string;
 };
 
-type DestructiveAction = 'cache' | 'data';
+type DestructiveAction = 'cache' | 'data' | 'import';
 
 function SettingsSection({
   title,
@@ -2106,7 +2237,7 @@ function SettingActionRow({
   description,
   action,
 }: {
-  readonly icon: 'user' | 'refresh' | 'close' | 'moon' | 'download';
+  readonly icon: IconName;
   readonly title: string;
   readonly description: string;
   readonly action: React.ReactNode;
@@ -2328,6 +2459,11 @@ function ConfirmationModal({
       title: copy.deleteDataConfirmationTitle,
       message: copy.deleteDataConfirmationMessage,
       confirm: copy.deleteDataConfirmationAction,
+    },
+    import: {
+      title: copy.dataImport,
+      message: copy.dataImportDescription,
+      confirm: copy.dataImport,
     },
   }[action];
   return (

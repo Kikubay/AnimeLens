@@ -66,19 +66,6 @@ export interface SettingsSnapshot {
   readonly anilistRedirectUri: string;
 }
 
-export type SettingsMessageAction =
-  | { readonly type: 'settings.get_snapshot' }
-  | { readonly type: 'settings.update_preferences'; readonly preferences: UserPreferences }
-  | { readonly type: 'settings.update_mal_client_id'; readonly clientId: string }
-  | { readonly type: 'settings.update_anilist_client_id'; readonly clientId: string }
-  | { readonly type: 'settings.clear_cache' }
-  | { readonly type: 'settings.delete_local_data' }
-  | { readonly type: 'settings.disconnect_mal' };
-
-export type SettingsResponse =
-  | { readonly ok: true; readonly snapshot: SettingsSnapshot }
-  | { readonly ok: false; readonly message: string };
-
 // The max is an absolute ceiling (three 5x covers alone are taller than the card); how much of it is reachable depends on what else is shown, so the effective limit comes from `maxFittingCoverScale`.
 export const TASTE_CARD_COVER_SCALE_RANGE: { readonly min: number; readonly max: number } = {
   min: 1,
