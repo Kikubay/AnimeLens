@@ -9,8 +9,10 @@ import type { SyncSnapshot } from '../sync/sync-messages';
 import { Icon, Modal, Button, Toast } from './components/ui';
 import { applyThemePreference } from '../settings/theme';
 import { DEFAULT_USER_PREFERENCES, type UserPreferences } from '../settings/settings-types';
+import { isUsagePending, type UsageEvent } from '../profile/usage-streak';
+import { useUsageSession } from './usage-session';
 import { getCopy, normalizeLanguage, type AppCopy, type Language } from '../locales';
-import { requestSettingsSnapshot } from '../settings/settings-messages';
+import { requestSettingsSnapshot, updateSettings } from '../settings/settings-messages';
 import {
   requestUpdateCheck,
   requestUpdateDownload,
@@ -143,6 +145,8 @@ export function App() {
   const [downloadingUpdate, setDownloadingUpdate] = useState(false);
   const [language, setLanguage] = useState<Language>('en');
   const [preferences, setPreferences] = useState<UserPreferences>(DEFAULT_USER_PREFERENCES);
+  // The usage streak is written back, so it must not start until the stored streak has been read.
+  const [preferencesLoaded, setPreferencesLoaded] = useState(false);
   const [activeProviderName, setActiveProviderName] = useState('MyAnimeList');
   const copy = getCopy(language);
   const copyRef = useRef(copy);
@@ -187,6 +191,7 @@ export function App() {
         cleanupTheme = applyThemePreference(snapshot.preferences.theme);
         setLanguage(normalizeLanguage(snapshot.preferences.language));
         setPreferences(snapshot.preferences);
+        setPreferencesLoaded(true);
       })
       .catch(() => undefined);
 
@@ -278,6 +283,23 @@ export function App() {
     beginTransition('detail');
   };
   const showToast = (message: string) => setToast(message);
+
+  // Only the day boundary and the warm-up towards it need a write, so an ordinary session is silent.
+  const recordUsageEvent = (event: UsageEvent) => {
+    const now = Date.now();
+    if (!event.countedDay && !isUsagePending(event.streak, now)) return;
+    setPreferences((current) => {
+      const preferences = { ...current, usageStreak: event.streak };
+      void updateSettings(preferences).catch(() => undefined);
+      return preferences;
+    });
+    if (event.xpAwarded > 0) showToast(copy.streakXpAwarded(event.xpAwarded));
+  };
+  useUsageSession({
+    streak: preferences.usageStreak,
+    enabled: preferencesLoaded,
+    onEvent: recordUsageEvent,
+  });
   const startUpdateDownload = () => {
     if (downloadingUpdate) return;
     setDownloadingUpdate(true);

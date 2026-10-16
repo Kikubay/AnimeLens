@@ -37,7 +37,8 @@ const TITLE_TIERS: readonly TasteTitleTier[] = [
   { level: MAX_TASTE_LEVEL, key: 'tasteLevelTitleLegend' },
 ];
 
-export type TasteSourceKey = 'analyzed' | 'rated' | 'feedback' | 'preferences' | 'dimensions';
+export type TasteSourceKey =
+  'analyzed' | 'rated' | 'feedback' | 'preferences' | 'dimensions' | 'streak';
 
 export interface TasteSource {
   readonly key: TasteSourceKey;
@@ -73,6 +74,7 @@ export function tasteLevelFromXp(xp: number): number {
 export function computeTasteLevel(
   summary: UserProfileSummary,
   language: Language = 'en',
+  streakXp: number = 0,
 ): TasteLevel {
   const copy = getCopy(language);
   const dimensions =
@@ -100,6 +102,8 @@ export function computeTasteLevel(
       label: copy.tasteLevelSourceDimensions,
       xp: dimensions * XP_PER_FAVORITE_DIMENSION,
     },
+    // The only source the user cannot reproduce by re-syncing a list, so it is passed in accumulated rather than derived.
+    { key: 'streak', label: copy.tasteLevelSourceStreak, xp: Math.max(0, streakXp) },
   ];
 
   const xp = sources.reduce((total, source) => total + source.xp, 0);

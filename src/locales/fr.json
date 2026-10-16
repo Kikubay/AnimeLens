@@ -136,6 +136,8 @@
     "tasteLevelSourceFeedback": "Retours sur les recommandations",
     "tasteLevelSourcePreferences": "Goûts détectés",
     "tasteLevelSourceDimensions": "Genres, thèmes et studios",
+    "tasteLevelSourceStreak": "Série quotidienne",
+    "streakXpAwarded": "Série quotidienne : +{xp} XP",
     "tasteLevelTitleCuriousNewcomer": "Nouveau Curieux",
     "tasteLevelTitleGenreScout": "Éclaireur de Genres",
     "tasteLevelTitleListKeeper": "Gardien de Liste",

@@ -136,6 +136,8 @@
     "tasteLevelSourceFeedback": "Recommendation feedback",
     "tasteLevelSourcePreferences": "Tastes detected",
     "tasteLevelSourceDimensions": "Genres, themes and studios",
+    "tasteLevelSourceStreak": "Daily streak",
+    "streakXpAwarded": "Daily streak: +{xp} XP",
     "tasteLevelTitleCuriousNewcomer": "Curious Newcomer",
     "tasteLevelTitleGenreScout": "Genre Scout",
     "tasteLevelTitleListKeeper": "List Keeper",

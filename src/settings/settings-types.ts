@@ -6,6 +6,11 @@ import {
   normalizeCosmetics,
   type TasteCardCosmetics,
 } from '../profile/cosmetics';
+import {
+  EMPTY_USAGE_STREAK,
+  normalizeUsageStreak,
+  type UsageStreak,
+} from '../profile/usage-streak';
 import { normalizeLanguage, type Language } from '../locales';
 
 export type RecommendationMode = 'personalized' | 'exploratory';
@@ -57,6 +62,8 @@ export interface UserPreferences {
   readonly minimumCompatibilityScore: number;
   readonly showCompletedAnime: boolean;
   readonly tasteCard: TasteCardPreferences;
+  /** Accumulated, never derived: the taste level is recomputed on every read. */
+  readonly usageStreak: UsageStreak;
 }
 
 export type ThemePreference = 'dark' | 'light' | 'system';
@@ -137,6 +144,7 @@ export const DEFAULT_USER_PREFERENCES: UserPreferences = {
   minimumCompatibilityScore: 0,
   showCompletedAnime: true,
   tasteCard: DEFAULT_TASTE_CARD_PREFERENCES,
+  usageStreak: EMPTY_USAGE_STREAK,
 };
 
 export function toRecommendationDiscoveryPreferences(
@@ -213,6 +221,7 @@ export function normalizeUserPreferences(value: unknown): UserPreferences {
         ? value.showCompletedAnime
         : DEFAULT_USER_PREFERENCES.showCompletedAnime,
     tasteCard: normalizeTasteCardPreferences(value.tasteCard),
+    usageStreak: normalizeUsageStreak(value.usageStreak),
   };
 }
 

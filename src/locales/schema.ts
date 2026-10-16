@@ -121,6 +121,8 @@ export interface AppCopy {
   readonly tasteLevelSourceFeedback: string;
   readonly tasteLevelSourcePreferences: string;
   readonly tasteLevelSourceDimensions: string;
+  readonly tasteLevelSourceStreak: string;
+  readonly streakXpAwarded: (xp: number) => string;
   readonly tasteLevelTitleCuriousNewcomer: string;
   readonly tasteLevelTitleGenreScout: string;
   readonly tasteLevelTitleListKeeper: string;
@@ -519,6 +521,7 @@ const MESSAGE_PARAMS = {
   tasteLevelBadge: ['level'],
   tasteLevelProgress: ['xp', 'target'],
   tasteLevelNextTitle: ['title'],
+  streakXpAwarded: ['xp'],
 
   tasteCardGridIntro: ['filled', 'total'],
   tasteCardGridSlot: ['position'],

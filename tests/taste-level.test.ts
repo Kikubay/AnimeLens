@@ -97,6 +97,19 @@ describe('computeTasteLevel', () => {
     expect(level.sources.map((source) => source.key)).toEqual(['analyzed']);
   });
 
+  it('counts the accumulated streak xp as a source of its own', () => {
+    const profile = summary({ analyzedAnimeCount: 10 });
+    const level = computeTasteLevel(profile, 'en', 150);
+
+    expect(level.sources.find((source) => source.key === 'streak')?.xp).toBe(150);
+    expect(level.xp).toBe(20 + 150);
+    // A corrupt counter can never subtract from the level.
+    expect(computeTasteLevel(profile, 'en', -500).xp).toBe(20);
+    expect(computeTasteLevel(profile, 'en').sources.map((source) => source.key)).not.toContain(
+      'streak',
+    );
+  });
+
   it('never lets one source out-earn the first level on its own', () => {
     const widestDimensions = computeTasteLevel(
       summary({

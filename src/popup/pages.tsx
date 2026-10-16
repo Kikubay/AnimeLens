@@ -995,8 +995,8 @@ function ProfileSummary({
     preferences.tasteCard.picksLayout,
   );
   const tasteLevel = useMemo(
-    () => computeTasteLevel(summary, preferences.language),
-    [summary, preferences.language],
+    () => computeTasteLevel(summary, preferences.language, preferences.usageStreak.xp),
+    [summary, preferences.language, preferences.usageStreak.xp],
   );
   const strength = useMemo(
     () => computeProfileStrength(summary, preferences.language),
