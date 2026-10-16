@@ -24,6 +24,18 @@ import { requestProfileSnapshot } from '../profile/profile-messages';
 import type { ProfileSnapshot, UserProfileSummary } from '../profile/profile-types';
 import { computeTasteLevel, type TasteLevel } from '../profile/taste-level';
 import { computeProfileStrength } from '../profile/profile-strength';
+import {
+  COSMETIC_CATALOG,
+  cosmeticRequirementLabel,
+  cosmeticRequirementProgress,
+  cosmeticsForSlot,
+  cosmeticUnlockContextFrom,
+  unlockedCosmetics,
+  type CosmeticId,
+  type CosmeticSlot,
+  type CosmeticUnlockContext,
+  type TasteCardCosmetics,
+} from '../profile/cosmetics';
 import type { WeeklyRecap } from '../profile/weekly-recap';
 import {
   buildTasteCardModel,
@@ -982,9 +994,25 @@ function ProfileSummary({
   const [sessionLayout, setSessionLayout] = useState<TasteCardPicksLayout>(
     preferences.tasteCard.picksLayout,
   );
+  const tasteLevel = useMemo(
+    () => computeTasteLevel(summary, preferences.language),
+    [summary, preferences.language],
+  );
+  const strength = useMemo(
+    () => computeProfileStrength(summary, preferences.language),
+    [summary, preferences.language],
+  );
+  const unlockContext = useMemo(
+    () => cosmeticUnlockContextFrom(summary, tasteLevel),
+    [summary, tasteLevel],
+  );
+  const unlocked = useMemo(() => unlockedCosmetics(unlockContext), [unlockContext]);
   const cardOptions = useMemo(
-    () => ({ ...tasteCardRenderOptions(preferences.tasteCard), picksLayout: sessionLayout }),
-    [preferences, sessionLayout],
+    () => ({
+      ...tasteCardRenderOptions(preferences.tasteCard, unlocked),
+      picksLayout: sessionLayout,
+    }),
+    [preferences.tasteCard, unlocked, sessionLayout],
   );
   const isGridLayout = cardOptions.picksLayout === 'grid';
   const [gridPicks, setGridPicks] = useState<readonly TopPickCandidate[]>([]);
@@ -996,14 +1024,6 @@ function ProfileSummary({
     () => buildTasteCardModel(summary, profile, providerName, resolvedPicks),
     [summary, profile, providerName, resolvedPicks],
   );
-  const tasteLevel = useMemo(
-    () => computeTasteLevel(summary, preferences.language),
-    [summary, preferences.language],
-  );
-  const strength = useMemo(
-    () => computeProfileStrength(summary, preferences.language),
-    [summary, preferences.language],
-  );
 
   const shouldPromptForPicks =
     !isGridLayout && plan.needsChoice && shouldRenderTopPicks(tasteCardModel, cardOptions);
@@ -1013,7 +1033,22 @@ function ProfileSummary({
       if (onPreferencesChange === undefined) return;
       setSessionLayout(next.picksLayout);
 
-      const tasteCard = { ...next, picksLayout: persistableTasteCardPicksLayout(next.picksLayout) };
+      // The stored cosmetics are left as chosen; anything no longer unlocked is dropped when the card renders.
+      const tasteCard = {
+        ...next,
+        picksLayout: persistableTasteCardPicksLayout(next.picksLayout),
+        cosmetics: preferences.tasteCard.cosmetics,
+      };
+      onPreferencesChange({ ...preferences, tasteCard });
+      void updateSettings({ ...preferences, tasteCard }).catch(() => undefined);
+    },
+    [onPreferencesChange, preferences],
+  );
+
+  const saveCosmetics = useCallback(
+    (next: TasteCardCosmetics) => {
+      if (onPreferencesChange === undefined) return;
+      const tasteCard = { ...preferences.tasteCard, cosmetics: next };
       onPreferencesChange({ ...preferences, tasteCard });
       void updateSettings({ ...preferences, tasteCard }).catch(() => undefined);
     },
@@ -1124,6 +1159,14 @@ function ProfileSummary({
       </div>
       <WeeklyRecapCard recap={recap} copy={copy} />
       <TasteLevelCard level={tasteLevel} copy={copy} />
+      <CollectionCard
+        equipped={cardOptions.cosmetics}
+        context={unlockContext}
+        unlocked={unlocked}
+        canEquip={onPreferencesChange !== undefined}
+        onEquip={saveCosmetics}
+        copy={copy}
+      />
       <div className="taste-stat-grid profile-stat-grid">
         <div>
           <strong>{summary.averageScore === null ? '—' : summary.averageScore.toFixed(1)}</strong>
@@ -1228,6 +1271,9 @@ function ProfileSummary({
         copy={copy}
         options={cardOptions}
         onOptionsChange={saveCardOptions}
+        unlockContext={unlockContext}
+        unlocked={unlocked}
+        onCosmeticsChange={saveCosmetics}
         onClose={handleCardClose}
         onFeedback={onFeedback}
         onRequestGridPicker={openGridPicker}
@@ -1363,6 +1409,91 @@ function TasteLevelCard({ level, copy }: { readonly level: TasteLevel; readonly 
           ))}
         </div>
       )}
+    </Card>
+  );
+}
+
+const COSMETIC_SLOTS: readonly CosmeticSlot[] = ['frame', 'palette'];
+
+function CollectionCard({
+  equipped,
+  context,
+  unlocked,
+  canEquip,
+  onEquip,
+  copy,
+}: {
+  readonly equipped: TasteCardCosmetics;
+  readonly context: CosmeticUnlockContext;
+  readonly unlocked: ReadonlySet<CosmeticId>;
+  readonly canEquip: boolean;
+  readonly onEquip: (cosmetics: TasteCardCosmetics) => void;
+  readonly copy: AppCopy;
+}) {
+  const unlockedCount = COSMETIC_CATALOG.filter((cosmetic) => unlocked.has(cosmetic.id)).length;
+
+  return (
+    <Card className="collection-card">
+      <div className="section-heading">
+        <div>
+          <p className="eyebrow">{copy.collectionEyebrow}</p>
+          <h2>{copy.collectionTitle}</h2>
+        </div>
+        <Badge tone={unlockedCount === COSMETIC_CATALOG.length ? 'success' : 'accent'}>
+          {copy.collectionCount(unlockedCount, COSMETIC_CATALOG.length)}
+        </Badge>
+      </div>
+      <p className="profile-muted">{copy.collectionHint}</p>
+      {COSMETIC_SLOTS.map((slot) => (
+        <div className="collection-slot" key={slot}>
+          <p className="collection-slot-label">
+            {slot === 'frame' ? copy.cosmeticSlotFrame : copy.cosmeticSlotPalette}
+          </p>
+          <div className="collection-items">
+            {cosmeticsForSlot(slot).map((cosmetic) => {
+              const isUnlocked = unlocked.has(cosmetic.id);
+              const isEquipped = equipped[slot] === cosmetic.id;
+              const progress = cosmeticRequirementProgress(cosmetic, context);
+              return (
+                <button
+                  className={`collection-item${isEquipped ? ' is-equipped' : ''}${
+                    isUnlocked ? '' : ' is-locked'
+                  }`}
+                  key={cosmetic.id}
+                  type="button"
+                  disabled={!isUnlocked || !canEquip || isEquipped}
+                  aria-pressed={isEquipped}
+                  title={
+                    isUnlocked
+                      ? cosmetic.label(copy)
+                      : `${cosmeticRequirementLabel(cosmetic, copy)}${
+                          progress === null
+                            ? ''
+                            : ` · ${copy.cosmeticProgress(progress.current, progress.target)}`
+                        }`
+                  }
+                  onClick={() => onEquip({ ...equipped, [slot]: cosmetic.id })}
+                >
+                  <span className="collection-item-name">{cosmetic.label(copy)}</span>
+                  <span className="collection-item-state">
+                    <Icon
+                      name={isUnlocked ? (isEquipped ? 'check' : 'sparkles') : 'lock'}
+                      size={12}
+                    />
+                    {isEquipped
+                      ? copy.collectionEquipped
+                      : isUnlocked
+                        ? null
+                        : progress === null
+                          ? copy.collectionLocked
+                          : copy.cosmeticProgress(progress.current, progress.target)}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      ))}
     </Card>
   );
 }

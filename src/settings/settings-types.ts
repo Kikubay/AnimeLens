@@ -1,6 +1,11 @@
 import type { AnimeFormat, AnimeSeason } from '../domain/anime';
 import type { AuthSnapshot, ProviderId } from '../auth/auth-types';
 import type { RecommendationDiscoveryPreferences } from '../recommendations/recommendation-types';
+import {
+  DEFAULT_COSMETICS,
+  normalizeCosmetics,
+  type TasteCardCosmetics,
+} from '../profile/cosmetics';
 import { normalizeLanguage, type Language } from '../locales';
 
 export type RecommendationMode = 'personalized' | 'exploratory';
@@ -29,6 +34,8 @@ export interface TasteCardPreferences {
   /** Bounded by TASTE_CARD_COVER_SCALE_RANGE, whose max a layout test proves still fits every format. */
   readonly coverScale: number;
   readonly picksLayout: PersistedTasteCardPicksLayout;
+  /** Stored as chosen; an item the user no longer qualifies for is dropped when the card is rendered. */
+  readonly cosmetics: TasteCardCosmetics;
 }
 
 export interface UserPreferences {
@@ -78,6 +85,7 @@ export const DEFAULT_TASTE_CARD_PREFERENCES: TasteCardPreferences = {
   showPicks: true,
   coverScale: DEFAULT_TASTE_CARD_COVER_SCALE,
   picksLayout: 'list',
+  cosmetics: DEFAULT_COSMETICS,
 };
 
 export function clampTasteCardCoverScale(value: unknown): number {
@@ -102,6 +110,7 @@ export function normalizeTasteCardPreferences(value: unknown): TasteCardPreferen
     picksLayout: isPersistedTasteCardPicksLayout(value.picksLayout)
       ? value.picksLayout
       : DEFAULT_TASTE_CARD_PREFERENCES.picksLayout,
+    cosmetics: normalizeCosmetics(value.cosmetics),
   };
 }
 

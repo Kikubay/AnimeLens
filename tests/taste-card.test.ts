@@ -8,20 +8,24 @@ import {
   TASTE_CARD_FORMATS,
   TASTE_CARD_GENRE_LIMIT,
   type TasteCardFormat,
+  type TasteCardRenderOptions,
   DEFAULT_TASTE_CARD_RENDER_OPTIONS,
   layoutAfterCardClose,
 } from '../src/profile/taste-card-types';
+import { COSMETIC_CATALOG, DEFAULT_COSMETICS } from '../src/profile/cosmetics';
 import { TASTE_CARD_COVER_SCALE_RANGE as COVER_SCALE_RANGE } from '../src/settings/settings-types';
 import {
   maxFittingCoverScale,
   measureTasteCardLayout,
   MIN_COMFORTABLE_GAP,
+  AVATAR_FRAME_LIMIT,
   paintTasteCard,
 } from '../src/popup/taste-card-painter';
 import type { TasteCardImages } from '../src/popup/taste-card-painter';
 import { TASTE_CARD_EXPORT_SCALE } from '../src/popup/taste-card-image';
 import { getCopy } from '../src/locales';
 import type { TasteCardModel } from '../src/profile/taste-card-types';
+import type { FrameId, PaletteId } from '../src/profile/cosmetics';
 
 function summary(overrides: Partial<UserProfileSummary> = {}): UserProfileSummary {
   return { ...emptyProfileSummary(), ...overrides };
@@ -186,7 +190,13 @@ describe('taste card painter', () => {
     const fills: { shadowBlur: number; shadowColor: string }[] = [];
     const strokes: string[] = [];
     const scales: { x: number; y: number }[] = [];
-    const gradient = { addColorStop: () => undefined };
+    const arcs: { x: number; y: number; radius: number }[] = [];
+    const baseStops: string[] = [];
+    const gradient = {
+      addColorStop: (_offset: number, color: string) => {
+        baseStops.push(color);
+      },
+    };
     const context = {
       canvas: { width: 0, height: 0 },
       font: '',
@@ -211,7 +221,9 @@ describe('taste card painter', () => {
       closePath: () => undefined,
       moveTo: () => undefined,
       lineTo: () => undefined,
-      arc: () => undefined,
+      arc: (x: number, y: number, radius: number) => {
+        arcs.push({ x, y, radius });
+      },
       arcTo: () => undefined,
       roundRect: (x: number, y: number, width: number, height: number) => {
         rects.push({ x, y, width, height });
@@ -231,12 +243,13 @@ describe('taste card painter', () => {
       },
       createLinearGradient: () => gradient,
       createRadialGradient: () => gradient,
+      createConicGradient: () => gradient,
       measureText: (text: string) => ({ width: text.length * 20 }),
       fillText: (text: string, x: number, y: number) => {
         texts.push({ text, x, y });
       },
     };
-    return { context, texts, rects, drawn, fills, strokes, scales };
+    return { context, texts, rects, drawn, fills, strokes, scales, arcs, baseStops };
   }
 
   const model: TasteCardModel = {
@@ -275,12 +288,21 @@ describe('taste card painter', () => {
     overrides: Partial<TasteCardModel> = {},
     format: TasteCardFormat = 'portrait',
     images: Partial<TasteCardImages> = {},
+    cosmetics?: Partial<TasteCardRenderOptions['cosmetics']>,
   ): void {
     paintTasteCard(recorded.context as unknown as CanvasRenderingContext2D, {
       model: { ...model, ...overrides },
       format,
       copy: getCopy('en'),
       images: { avatar: null, brand: null, picks: [], ...images },
+      ...(cosmetics === undefined
+        ? {}
+        : {
+            options: {
+              ...DEFAULT_TASTE_CARD_RENDER_OPTIONS,
+              cosmetics: { ...DEFAULT_COSMETICS, ...cosmetics },
+            },
+          }),
     });
   }
 
@@ -1052,5 +1074,74 @@ describe('taste card painter', () => {
     for (const bar of genreBars(recorded)) {
       expect(bar.width).toBeLessThanOrEqual(trackWidth);
     }
+  });
+
+  it('paints every catalog item in every format without touching the layout', () => {
+    const baseline = new Map<TasteCardFormat, ReturnType<typeof measureTasteCardLayout>>();
+    for (const format of TASTE_CARD_FORMAT_ORDER) {
+      baseline.set(format, measureTasteCardLayout({ ...model }, format));
+    }
+
+    for (const cosmetic of COSMETIC_CATALOG) {
+      for (const format of TASTE_CARD_FORMAT_ORDER) {
+        const slot = cosmetic.slot;
+        const recorded = recordingContext();
+        expect(() => paint(recorded, {}, format, {}, { [slot]: cosmetic.id })).not.toThrow();
+        // A frame or a palette must never cost a label or push the footer.
+        expect(measureTasteCardLayout({ ...model }, format)).toEqual(baseline.get(format));
+        expect(recorded.texts.map((entry) => entry.text)).toContain('Sakamoto');
+      }
+    }
+  });
+
+  it('keeps every avatar frame clear of the eyebrow below it', () => {
+    // Square has the tightest identity gap, so it is the format that would clip first.
+    const format: TasteCardFormat = 'square';
+    const centerX = TASTE_CARD_FORMATS[format].width / 2;
+    const eyebrow = 'ANIME TASTE PROFILE';
+
+    for (const cosmetic of COSMETIC_CATALOG.filter((item) => item.slot === 'frame')) {
+      const recorded = recordingContext();
+      paint(recorded, {}, format, {}, { frame: cosmetic.id as FrameId });
+      const identity = recorded.arcs.filter(
+        (arc) => Math.abs(arc.x - centerX) < 1 && arc.radius < TASTE_CARD_FORMATS[format].width / 4,
+      );
+      expect(identity.length).toBeGreaterThan(0);
+
+      const eyebrowY = recorded.texts.find((entry) => entry.text === eyebrow)?.y ?? -1;
+      expect(eyebrowY).toBeGreaterThan(0);
+      for (const arc of identity) {
+        expect(arc.y + arc.radius).toBeLessThanOrEqual(eyebrowY);
+      }
+
+      // The painter's own cap, so a future frame cannot quietly widen the ring.
+      const rings = identity.filter((arc) => arc.radius >= 20).map((arc) => arc.radius);
+      expect(Math.max(...rings) - Math.min(...rings)).toBeLessThanOrEqual(AVATAR_FRAME_LIMIT);
+    }
+  });
+
+  it('paints each palette as a distinct surface', () => {
+    const surfaces = COSMETIC_CATALOG.filter((cosmetic) => cosmetic.slot === 'palette').map(
+      (cosmetic) => {
+        const recorded = recordingContext();
+        paint(recorded, {}, 'portrait', {}, { palette: cosmetic.id as PaletteId });
+        return recorded.baseStops.join('|');
+      },
+    );
+    expect(new Set(surfaces).size).toBe(surfaces.length);
+  });
+
+  it('falls back to the default card when no cosmetics were resolved', () => {
+    const recorded = recordingContext();
+    paintTasteCard(recorded.context as unknown as CanvasRenderingContext2D, {
+      model,
+      format: 'portrait',
+      copy: getCopy('en'),
+      images: { avatar: null, brand: null, picks: [] },
+      options: { ...DEFAULT_TASTE_CARD_RENDER_OPTIONS, cosmetics: undefined as never },
+    });
+    const fallback = recordingContext();
+    paint(fallback, {}, 'portrait', {}, DEFAULT_COSMETICS);
+    expect(recorded.baseStops).toEqual(fallback.baseStops);
   });
 });

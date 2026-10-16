@@ -6,6 +6,7 @@ import {
 } from '../settings/settings-types';
 
 export type { TasteCardPicksLayout };
+import { DEFAULT_COSMETICS, resolveCosmetics, type TasteCardCosmetics } from './cosmetics';
 import type { UserProfileSummary } from './profile-types';
 import type { TopPickCandidate } from './top-picks';
 
@@ -67,6 +68,8 @@ export interface TasteCardRenderOptions {
   /** Multiplier on the anime cover thumbnails. */
   readonly coverScale: number;
   readonly picksLayout: TasteCardPicksLayout;
+  /** Already filtered down to what the user has unlocked. */
+  readonly cosmetics: TasteCardCosmetics;
 }
 
 export const DEFAULT_TASTE_CARD_RENDER_OPTIONS: TasteCardRenderOptions = {
@@ -74,15 +77,20 @@ export const DEFAULT_TASTE_CARD_RENDER_OPTIONS: TasteCardRenderOptions = {
   showPicks: true,
   coverScale: 1,
   picksLayout: 'list',
+  cosmetics: DEFAULT_COSMETICS,
 };
 
-/** Derives the card's options from the stored preferences. */
-export function tasteCardRenderOptions(preferences: TasteCardPreferences): TasteCardRenderOptions {
+/** Derives the card's options from the stored preferences, dropping any cosmetic that is no longer earned. */
+export function tasteCardRenderOptions(
+  preferences: TasteCardPreferences,
+  unlocked: ReadonlySet<TasteCardCosmetics['frame'] | TasteCardCosmetics['palette']>,
+): TasteCardRenderOptions {
   return {
     showGenres: preferences.showGenres,
     showPicks: preferences.showPicks,
     coverScale: clampTasteCardCoverScale(preferences.coverScale),
     picksLayout: preferences.picksLayout,
+    cosmetics: resolveCosmetics(preferences.cosmetics, unlocked),
   };
 }
 

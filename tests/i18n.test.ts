@@ -19,6 +19,10 @@ const INTENTIONALLY_SAME_KEYS = new Set([
   'dailyNotificationTitle',
   'oauthEyebrow',
   'searchFormatTv',
+  'tasteCardStyleTitle',
+  'collectionEyebrow',
+  'cosmeticPaletteMono',
+  'cosmeticSlotPalette',
 ]);
 
 const FUNCTION_ARGS: Record<string, readonly unknown[]> = {

@@ -52,6 +52,7 @@ describe('settings preferences', () => {
       showPicks: true,
       coverScale: 1,
       picksLayout: 'list',
+      cosmetics: { frame: 'frame-classic', palette: 'palette-aurora' },
     });
   });
 
@@ -89,6 +90,7 @@ describe('settings preferences', () => {
       showPicks: true,
       coverScale: max,
       picksLayout: 'list',
+      cosmetics: { frame: 'frame-classic', palette: 'palette-aurora' },
     });
     expect(normalizeUserPreferences({ tasteCard: { coverScale: -5 } }).tasteCard.coverScale).toBe(
       min,
@@ -105,6 +107,7 @@ describe('settings preferences', () => {
         showPicks: true,
         coverScale: 1,
         picksLayout: 'list',
+        cosmetics: { frame: 'frame-classic', palette: 'palette-aurora' },
       });
     }
   });
@@ -123,6 +126,7 @@ describe('settings preferences', () => {
       showPicks: false,
       coverScale: 1.1,
       picksLayout: 'list',
+      cosmetics: { frame: 'frame-classic', palette: 'palette-aurora' },
     });
   });
 });

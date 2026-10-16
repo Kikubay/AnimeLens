@@ -255,6 +255,29 @@ export interface AppCopy {
   readonly tasteCardCoverSizeCapped: string;
   readonly tasteCardOptionsSaved: string;
   readonly tasteCardAssetFailed: string;
+  readonly tasteCardStyleTitle: string;
+  readonly collectionEyebrow: string;
+  readonly collectionTitle: string;
+  readonly collectionCount: (unlocked: number, total: number) => string;
+  readonly collectionHint: string;
+  readonly collectionEquipped: string;
+  readonly collectionLocked: string;
+  readonly cosmeticSlotFrame: string;
+  readonly cosmeticSlotPalette: string;
+  readonly cosmeticFrameClassic: string;
+  readonly cosmeticFrameHairline: string;
+  readonly cosmeticFrameDouble: string;
+  readonly cosmeticFrameOrbit: string;
+  readonly cosmeticFramePrism: string;
+  readonly cosmeticPaletteAurora: string;
+  readonly cosmeticPaletteTide: string;
+  readonly cosmeticPaletteEmber: string;
+  readonly cosmeticPaletteMono: string;
+  readonly cosmeticUnlockedFromStart: string;
+  readonly cosmeticNeedLevel: (level: number) => string;
+  readonly cosmeticNeedRated: (count: number) => string;
+  readonly cosmeticNeedFeedback: (count: number) => string;
+  readonly cosmeticProgress: (current: number, target: number) => string;
   readonly settingsEyebrow: string;
   readonly settingsTitle: string;
   readonly settingsIntro: string;
@@ -501,6 +524,11 @@ const MESSAGE_PARAMS = {
   tasteCardGridSlot: ['position'],
   tasteCardGridActive: ['slot'],
   tasteCardCoverSizeValue: ['scale'],
+  collectionCount: ['unlocked', 'total'],
+  cosmeticNeedLevel: ['level'],
+  cosmeticNeedRated: ['count'],
+  cosmeticNeedFeedback: ['count'],
+  cosmeticProgress: ['current', 'target'],
   connectedAs: ['username'],
   searchExcluded: ['kind'],
   dataExportDone: ['feedback', 'snapshots'],

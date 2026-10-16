@@ -1,4 +1,5 @@
 import type { AppCopy } from '../locales';
+import type { FrameId, PaletteId } from '../profile/cosmetics';
 import {
   DEFAULT_TASTE_CARD_RENDER_OPTIONS,
   TASTE_CARD_FORMATS,
@@ -161,6 +162,75 @@ export const MIN_COMFORTABLE_GAP = 6;
 const COVER_ROW_PADDING = 10;
 // Visible on a shared image, still far below the content.
 const GRID_COLOR = 'rgba(255, 255, 255, 0.055)';
+
+// A palette only recolours the card's surface and its accent; the text and track colours are shared so no unlock can cost the card legibility.
+interface CardPalette {
+  readonly base: readonly [string, string, string];
+  readonly glowPrimary: string;
+  readonly glowSecondary: string;
+  readonly glowFloor: string;
+  readonly grid: string;
+  readonly arcPrimary: string;
+  readonly arcSecondary: string;
+  readonly centerLift: readonly [string, string];
+  readonly accent: string;
+  readonly accentSoft: string;
+}
+
+const PALETTES: Readonly<Record<PaletteId, CardPalette>> = {
+  'palette-aurora': {
+    base: ['#17141f', '#0c0c10', '#08080a'],
+    glowPrimary: 'rgba(152, 124, 244, 0.42)',
+    glowSecondary: 'rgba(134, 200, 197, 0.26)',
+    glowFloor: 'rgba(152, 124, 244, 0.22)',
+    grid: GRID_COLOR,
+    arcPrimary: 'rgba(184, 165, 255, 0.18)',
+    arcSecondary: 'rgba(134, 200, 197, 0.14)',
+    centerLift: ['rgba(184, 165, 255, 0.20)', 'rgba(152, 124, 244, 0.07)'],
+    accent: '#b8a5ff',
+    accentSoft: 'rgba(152, 124, 244, 0.55)',
+  },
+  'palette-tide': {
+    base: ['#0f1c22', '#08111a', '#05090f'],
+    glowPrimary: 'rgba(134, 200, 197, 0.40)',
+    glowSecondary: 'rgba(112, 168, 224, 0.26)',
+    glowFloor: 'rgba(86, 200, 197, 0.20)',
+    grid: 'rgba(134, 200, 197, 0.06)',
+    arcPrimary: 'rgba(134, 200, 197, 0.20)',
+    arcSecondary: 'rgba(112, 168, 224, 0.16)',
+    centerLift: ['rgba(134, 200, 197, 0.20)', 'rgba(86, 170, 200, 0.08)'],
+    accent: '#86c8c5',
+    accentSoft: 'rgba(86, 170, 200, 0.55)',
+  },
+  'palette-ember': {
+    base: ['#201419', '#11090c', '#0a0608'],
+    glowPrimary: 'rgba(214, 124, 92, 0.40)',
+    glowSecondary: 'rgba(226, 160, 110, 0.24)',
+    glowFloor: 'rgba(184, 84, 110, 0.20)',
+    grid: 'rgba(255, 214, 180, 0.05)',
+    arcPrimary: 'rgba(226, 160, 110, 0.20)',
+    arcSecondary: 'rgba(214, 124, 92, 0.16)',
+    centerLift: ['rgba(226, 160, 110, 0.20)', 'rgba(184, 110, 84, 0.08)'],
+    accent: '#e2a06e',
+    accentSoft: 'rgba(214, 124, 92, 0.55)',
+  },
+  'palette-mono': {
+    base: ['#1b1b1f', '#0e0e11', '#080809'],
+    glowPrimary: 'rgba(184, 184, 196, 0.24)',
+    glowSecondary: 'rgba(150, 150, 162, 0.16)',
+    glowFloor: 'rgba(196, 196, 208, 0.12)',
+    grid: 'rgba(255, 255, 255, 0.07)',
+    arcPrimary: 'rgba(226, 226, 236, 0.16)',
+    arcSecondary: 'rgba(184, 184, 196, 0.14)',
+    centerLift: ['rgba(220, 220, 232, 0.14)', 'rgba(180, 180, 192, 0.06)'],
+    accent: '#d8d8e0',
+    accentSoft: 'rgba(196, 196, 208, 0.55)',
+  },
+};
+
+function paletteFor(palette: PaletteId | undefined): CardPalette {
+  return PALETTES[palette ?? 'palette-aurora'] ?? PALETTES['palette-aurora'];
+}
 
 export interface TasteCardImages {
   /** `null` renders the user's monogram. */
@@ -393,11 +463,9 @@ export function paintTasteCard(
   input: PaintTasteCardInput,
 ): void {
   const { model, format, images, copy, scale = 1 } = input;
-  const { metrics, picks, genres, picksGeometry } = resolveLayout(
-    model,
-    format,
-    input.options ?? DEFAULT_TASTE_CARD_RENDER_OPTIONS,
-  );
+  const options = input.options ?? DEFAULT_TASTE_CARD_RENDER_OPTIONS;
+  const palette = paletteFor(options.cosmetics?.palette);
+  const { metrics, picks, genres, picksGeometry } = resolveLayout(model, format, options);
   const { width, height } = TASTE_CARD_FORMATS[format];
 
   context.save();
@@ -416,7 +484,7 @@ export function paintTasteCard(
     },
     {
       height: identityHeight(metrics),
-      paint: (top) => paintIdentity(context, model, metrics, images, width, top, copy),
+      paint: (top) => paintIdentity(context, model, metrics, images, width, top, copy, options),
     },
     {
       height: statsHeight(metrics),
@@ -449,7 +517,7 @@ export function paintTasteCard(
 
   // Tracks the avatar so the card's brightest point sits behind it.
   const avatarCenterY = metrics.padTop + blocks[0].height + gap + metrics.avatar / 2;
-  paintBackground(context, width, height, avatarCenterY);
+  paintBackground(context, width, height, avatarCenterY, palette);
 
   if (picksGeometry.layout === 'grid') {
     // A wall of covers with only the brand mark: the artwork is the whole card.
@@ -473,29 +541,30 @@ function paintBackground(
   width: number,
   height: number,
   avatarCenterY: number,
+  palette: CardPalette,
 ): void {
   const base = context.createLinearGradient(0, 0, width, height);
-  base.addColorStop(0, '#17141f');
-  base.addColorStop(0.52, '#0c0c10');
-  base.addColorStop(1, '#08080a');
+  base.addColorStop(0, palette.base[0]);
+  base.addColorStop(0.52, palette.base[1]);
+  base.addColorStop(1, palette.base[2]);
   context.fillStyle = base;
   context.fillRect(0, 0, width, height);
 
   paintGlow(context, width * 0.12, height * -0.08, 900, 620, [
-    [0, 'rgba(152, 124, 244, 0.42)'],
+    [0, palette.glowPrimary],
     [0.62, 'rgba(0, 0, 0, 0)'],
   ]);
   paintGlow(context, width * 1.04, height * 0.06, 760, 560, [
-    [0, 'rgba(134, 200, 197, 0.26)'],
+    [0, palette.glowSecondary],
     [0.6, 'rgba(0, 0, 0, 0)'],
   ]);
   paintGlow(context, width * 0.5, height * 1.18, 1100, 900, [
-    [0, 'rgba(152, 124, 244, 0.22)'],
+    [0, palette.glowFloor],
     [0.66, 'rgba(0, 0, 0, 0)'],
   ]);
 
   context.save();
-  context.strokeStyle = GRID_COLOR;
+  context.strokeStyle = palette.grid;
   context.lineWidth = 1;
   context.beginPath();
   for (let x = 0; x <= width; x += GRID_CELL) {
@@ -511,11 +580,11 @@ function paintBackground(
 
   context.save();
   context.lineWidth = 2;
-  context.strokeStyle = 'rgba(184, 165, 255, 0.18)';
+  context.strokeStyle = palette.arcPrimary;
   context.beginPath();
   context.arc(width - 130, -180, 380, 0, Math.PI * 2);
   context.stroke();
-  context.strokeStyle = 'rgba(134, 200, 197, 0.14)';
+  context.strokeStyle = palette.arcSecondary;
   context.beginPath();
   context.arc(width - 130, -180, 284, 0, Math.PI * 2);
   context.stroke();
@@ -523,8 +592,8 @@ function paintBackground(
 
   // Centre lift follows the avatar so the brightest point sits behind it.
   paintGlow(context, width * 0.5, avatarCenterY, width * 0.66, height * 0.34, [
-    [0, 'rgba(184, 165, 255, 0.20)'],
-    [0.55, 'rgba(152, 124, 244, 0.07)'],
+    [0, palette.centerLift[0]],
+    [0.55, palette.centerLift[1]],
     [1, 'rgba(0, 0, 0, 0)'],
   ]);
   paintGlow(context, width * 0.5, height * 0.5, width * 0.78, height * 0.72, [
@@ -624,17 +693,19 @@ function paintIdentity(
   width: number,
   top: number,
   copy: AppCopy,
+  options: TasteCardRenderOptions,
 ): void {
   const centerX = width / 2;
   const size = metrics.avatar;
   const centerY = top + size / 2;
   const radius = size / 2;
+  const palette = paletteFor(options.cosmetics?.palette);
 
   // Bloom goes down first so it sits behind the portrait.
   context.save();
   context.shadowColor = 'rgba(152, 124, 244, 0.55)';
   context.shadowBlur = metrics.avatar * 0.28;
-  context.fillStyle = 'rgba(184, 165, 255, 0.30)';
+  context.fillStyle = palette.centerLift[0];
   context.beginPath();
   context.arc(centerX, centerY, radius, 0, Math.PI * 2);
   context.fill();
@@ -671,25 +742,14 @@ function paintIdentity(
     context.fillStyle = fill;
     context.fill();
     setFont(context, 700, metrics.monogram);
-    context.fillStyle = COLORS.accent;
+    context.fillStyle = palette.accent;
     context.textAlign = 'center';
     context.fillText(model.monogram, centerX, centerY);
     context.textAlign = 'left';
   }
 
   // Stroked over the portrait edge, not under it.
-  context.save();
-  context.lineWidth = 8;
-  context.strokeStyle = 'rgba(184, 165, 255, 0.55)';
-  context.beginPath();
-  context.arc(centerX, centerY, radius + 4, 0, Math.PI * 2);
-  context.stroke();
-  context.lineWidth = 8;
-  context.strokeStyle = 'rgba(11, 11, 14, 0.9)';
-  context.beginPath();
-  context.arc(centerX, centerY, radius, 0, Math.PI * 2);
-  context.stroke();
-  context.restore();
+  paintAvatarFrame(context, centerX, centerY, radius, options.cosmetics?.frame, palette);
 
   let y = top + size + metrics.gapIdentity;
   const eyebrowHeight = lineHeight(metrics.eyebrow, 1.35);
@@ -710,6 +770,100 @@ function paintIdentity(
   context.fillStyle = COLORS.text;
   context.fillText(name, centerX, y + nameHeight / 2);
   context.textAlign = 'left';
+}
+
+// The tightest identity gap is the square format's, so a frame may never reach past it and touch the eyebrow. Exported so a test can assert every frame respects it.
+export const AVATAR_FRAME_LIMIT = 16;
+
+function paintAvatarFrame(
+  context: CanvasRenderingContext2D,
+  centerX: number,
+  centerY: number,
+  radius: number,
+  frame: FrameId | undefined,
+  palette: CardPalette,
+): void {
+  const accent = palette.accent;
+  context.save();
+  // Separates the portrait from the bloom in every variant.
+  strokeRing(context, centerX, centerY, radius, 0, 4, 'rgba(11, 11, 14, 0.9)');
+
+  switch (frame ?? 'frame-classic') {
+    case 'frame-classic':
+      strokeRing(context, centerX, centerY, radius, 4, 8, 'rgba(184, 165, 255, 0.55)');
+      break;
+    case 'frame-hairline':
+      strokeRing(context, centerX, centerY, radius, 7, 2, accent);
+      break;
+    case 'frame-double':
+      strokeRing(context, centerX, centerY, radius, 6, 3, accent);
+      strokeRing(context, centerX, centerY, radius, 14, 2, palette.accentSoft);
+      break;
+    case 'frame-orbit':
+      strokeRing(context, centerX, centerY, radius, 5, 3, accent);
+      for (const degrees of [-90, 30, 150]) {
+        const angle = (degrees * Math.PI) / 180;
+        fillDot(
+          context,
+          centerX + Math.cos(angle) * (radius + 12),
+          centerY + Math.sin(angle) * (radius + 12),
+          12,
+          4,
+          accent,
+        );
+      }
+      break;
+    case 'frame-prism':
+      if (typeof context.createConicGradient === 'function') {
+        const sweep = context.createConicGradient(-Math.PI / 2, centerX, centerY);
+        sweep.addColorStop(0, accent);
+        sweep.addColorStop(0.25, palette.accentSoft);
+        sweep.addColorStop(0.5, accent);
+        sweep.addColorStop(0.75, palette.accentSoft);
+        sweep.addColorStop(1, accent);
+        context.strokeStyle = sweep;
+        context.lineWidth = 5;
+        context.beginPath();
+        context.arc(centerX, centerY, radius + 9, 0, Math.PI * 2);
+        context.stroke();
+      } else {
+        strokeRing(context, centerX, centerY, radius, 7, 2, accent);
+      }
+      break;
+  }
+  context.restore();
+}
+
+function strokeRing(
+  context: CanvasRenderingContext2D,
+  centerX: number,
+  centerY: number,
+  avatarRadius: number,
+  offset: number,
+  width: number,
+  style: string,
+): void {
+  if (offset + width / 2 > AVATAR_FRAME_LIMIT) return;
+  context.lineWidth = width;
+  context.strokeStyle = style;
+  context.beginPath();
+  context.arc(centerX, centerY, avatarRadius + offset, 0, Math.PI * 2);
+  context.stroke();
+}
+
+function fillDot(
+  context: CanvasRenderingContext2D,
+  dotX: number,
+  dotY: number,
+  offset: number,
+  radius: number,
+  style: string,
+): void {
+  if (offset + radius > AVATAR_FRAME_LIMIT) return;
+  context.fillStyle = style;
+  context.beginPath();
+  context.arc(dotX, dotY, radius, 0, Math.PI * 2);
+  context.fill();
 }
 
 function paintTopPicks(

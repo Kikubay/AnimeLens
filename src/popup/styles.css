@@ -1856,6 +1856,77 @@ button:focus-visible {
 .detected-card .progress-wrap {
   margin-bottom: 14px;
 }
+.collection-card {
+  display: grid;
+  gap: 12px;
+  margin-top: 10px;
+  padding: 13px;
+}
+.collection-card .section-heading {
+  margin: 0;
+}
+.collection-slot {
+  display: grid;
+  gap: 6px;
+}
+.collection-slot-label {
+  margin: 0;
+  color: var(--muted);
+  font-size: 8px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+.collection-items {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 6px;
+}
+.collection-item {
+  display: grid;
+  gap: 3px;
+  padding: 7px 8px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  color: var(--muted);
+  background: var(--surface-raised);
+  cursor: pointer;
+  font-family: inherit;
+  font-size: 9px;
+  text-align: left;
+  transition:
+    border-color 160ms ease,
+    color 160ms ease;
+}
+.collection-item:hover:not(:disabled) {
+  color: var(--text);
+  border-color: var(--muted);
+}
+.collection-item-name {
+  overflow: hidden;
+  color: var(--text);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.collection-item-state {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--dim);
+  font-size: 8px;
+}
+.collection-item.is-equipped {
+  border-color: var(--accent);
+}
+.collection-item.is-equipped .collection-item-state {
+  color: var(--accent);
+}
+.collection-item.is-locked {
+  cursor: not-allowed;
+  background: transparent;
+}
+.collection-item.is-locked .collection-item-name {
+  color: var(--dim);
+}
 .strength-next {
   margin-top: 12px;
 }
@@ -3163,6 +3234,81 @@ button:focus-visible {
 .taste-card-layouts .segmented-control button:disabled {
   cursor: not-allowed;
   opacity: 0.45;
+}
+.taste-card-styles {
+  display: grid;
+  gap: 6px;
+}
+.taste-card-style-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+}
+.taste-card-style {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 7px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  color: var(--muted);
+  background: transparent;
+  cursor: pointer;
+  font-family: inherit;
+  font-size: 8px;
+}
+.taste-card-style:hover:not(:disabled) {
+  color: var(--text);
+  border-color: var(--muted);
+}
+.taste-card-style.is-selected {
+  border-color: var(--accent);
+  color: var(--accent);
+  background: var(--surface-raised);
+}
+.taste-card-style.is-locked {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+.taste-card-style-swatch {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 11px;
+  height: 11px;
+  flex: 0 0 auto;
+  border-radius: 50%;
+  background: #b8a5ff;
+}
+.taste-card-style-swatch.is-frame-classic {
+  background: #b8a5ff;
+}
+.taste-card-style-swatch.is-frame-hairline {
+  border: 1px solid #b8a5ff;
+  background: transparent;
+}
+.taste-card-style-swatch.is-frame-double {
+  border: 1px solid #86c8c5;
+  background: transparent;
+}
+.taste-card-style-swatch.is-frame-orbit {
+  border: 1px dashed #e2a06e;
+  background: transparent;
+}
+.taste-card-style-swatch.is-frame-prism {
+  background: linear-gradient(135deg, #b8a5ff, #86c8c5, #e2a06e);
+}
+.taste-card-style-swatch.is-palette-aurora {
+  background: linear-gradient(135deg, #17141f, #987cf4 55%, #86c8c5);
+}
+.taste-card-style-swatch.is-palette-tide {
+  background: linear-gradient(135deg, #0f1c22, #86c8c5 55%, #70a8e0);
+}
+.taste-card-style-swatch.is-palette-ember {
+  background: linear-gradient(135deg, #201419, #e2a06e 55%, #d67c5c);
+}
+.taste-card-style-swatch.is-palette-mono {
+  background: linear-gradient(135deg, #1b1b1f, #b8b8c4 55%, #8a8a96);
 }
 .taste-card-slider > span {
   display: flex;

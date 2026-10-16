@@ -10,11 +10,20 @@ import {
 } from '../../profile/taste-card-types';
 import { GRID_SLOT_COUNT } from '../../profile/top-picks';
 import {
+  cosmeticsForSlot,
+  cosmeticRequirementLabel,
+  cosmeticRequirementProgress,
+  type CosmeticId,
+  type CosmeticSlot,
+  type CosmeticUnlockContext,
+  type TasteCardCosmetics,
+} from '../../profile/cosmetics';
+import {
   clampTasteCardCoverScale,
   TASTE_CARD_COVER_SCALE_RANGE as COVER_SCALE_RANGE,
   type TasteCardPicksLayout,
 } from '../../settings/settings-types';
-import { Button, Modal, Skeleton } from './ui';
+import { Button, Icon, Modal, Skeleton } from './ui';
 import { maxFittingCoverScale } from '../taste-card-painter';
 import {
   copyPngBlobToClipboard,
@@ -40,6 +49,9 @@ interface TasteCardModalProps {
   readonly onChangePicks?: () => void;
   readonly options: TasteCardRenderOptions;
   readonly onOptionsChange: (options: TasteCardRenderOptions) => void;
+  readonly unlockContext: CosmeticUnlockContext;
+  readonly unlocked: ReadonlySet<CosmeticId>;
+  readonly onCosmeticsChange: (cosmetics: TasteCardCosmetics) => void;
   /** Hands straight over to the picker rather than showing an empty collage. */
   readonly onRequestGridPicker?: () => void;
 }
@@ -68,6 +80,12 @@ const PICK_LAYOUT_LABELS: Readonly<Record<TasteCardPicksLayout, (copy: AppCopy) 
   grid: (copy) => copy.tasteCardLayoutGrid,
 };
 
+const COSMETIC_SLOTS: readonly CosmeticSlot[] = ['frame', 'palette'];
+const SLOT_LABELS: Readonly<Record<CosmeticSlot, (copy: AppCopy) => string>> = {
+  frame: (copy) => copy.cosmeticSlotFrame,
+  palette: (copy) => copy.cosmeticSlotPalette,
+};
+
 // The preview *is* the exported PNG, so there's no second DOM card to keep in sync and Download/Copy are instant once it exists.
 export function TasteCardModal({
   open,
@@ -79,6 +97,9 @@ export function TasteCardModal({
   onChangePicks,
   options,
   onOptionsChange,
+  unlockContext,
+  unlocked,
+  onCosmeticsChange,
   onRequestGridPicker,
 }: TasteCardModalProps) {
   const mountedRef = useRef(true);
@@ -335,6 +356,55 @@ export function TasteCardModal({
               <small className="taste-card-slider-note">{copy.tasteCardCoverSizeCapped}</small>
             )}
           </label>
+          {COSMETIC_SLOTS.map((slot) => (
+            <div
+              className="taste-card-styles"
+              role="radiogroup"
+              aria-label={SLOT_LABELS[slot](copy)}
+              key={slot}
+            >
+              <span className="taste-card-layouts-label">{SLOT_LABELS[slot](copy)}</span>
+              <div className="taste-card-style-row">
+                {cosmeticsForSlot(slot).map((cosmetic) => {
+                  const isUnlocked = unlocked.has(cosmetic.id);
+                  const isEquipped = options.cosmetics[slot] === cosmetic.id;
+                  const progress = cosmeticRequirementProgress(cosmetic, unlockContext);
+                  return (
+                    <button
+                      type="button"
+                      role="radio"
+                      aria-checked={isEquipped}
+                      className={`taste-card-style${isEquipped ? ' is-selected' : ''}${
+                        isUnlocked ? '' : ' is-locked'
+                      }`}
+                      key={cosmetic.id}
+                      disabled={!isUnlocked || isEquipped}
+                      title={
+                        isUnlocked
+                          ? cosmetic.label(copy)
+                          : `${cosmetic.label(copy)} · ${cosmeticRequirementLabel(cosmetic, copy)}${
+                              progress === null
+                                ? ''
+                                : ` · ${copy.cosmeticProgress(progress.current, progress.target)}`
+                            }`
+                      }
+                      onClick={() =>
+                        onCosmeticsChange({ ...options.cosmetics, [slot]: cosmetic.id })
+                      }
+                    >
+                      <span
+                        className={`taste-card-style-swatch is-${cosmetic.id}`}
+                        aria-hidden="true"
+                      >
+                        {!isUnlocked && <Icon name="lock" size={11} />}
+                      </span>
+                      {cosmetic.label(copy)}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          ))}
         </fieldset>
         <div className="taste-card-actions">
           <Button
