@@ -31,7 +31,9 @@
     "lint": "eslint .",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "bump": "npm version patch --no-git-tag-version && node scripts/bump-manifest.mjs",
+    "bump": "node scripts/bump.mjs",
+    "check:version": "node scripts/bump.mjs --check",
+    "fix:version": "node scripts/bump.mjs --fix",
     "build:demo": "vite build --config vite.demo.config.ts --mode production",
     "preview:demo": "vite preview --config vite.demo.config.ts",
     "demo:data": "node scripts/fetch-demo-data.mjs",
@@ -54,7 +56,7 @@
     "@vitejs/plugin-react": "^4.3.4",
     "archiver": "^8.0.0",
     "electron": "^44.5.1",
-    "electron-builder": "^26.15.3",
+    "electron-builder": "^26.5.0",
     "eslint": "^9.17.0",
     "eslint-plugin-react-hooks": "^5.1.0",
     "eslint-plugin-react-refresh": "^0.4.16",
@@ -64,5 +66,8 @@
     "typescript-eslint": "^8.18.0",
     "vite": "^6.0.5",
     "vitest": "^4.1.11"
+  },
+  "overrides": {
+    "global-agent": "^4.1.3"
   }
 }
