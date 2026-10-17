@@ -1596,7 +1596,7 @@ export function SettingsPage({
   const anilistProvider = providers.find((provider) => provider.id === 'anilist');
   const anilistSignedIn = anilistProvider?.signedIn ?? false;
 
-  const loadSettings = () => {
+  const loadSettings = useCallback(() => {
     const sequence = requestSequence.current + 1;
     requestSequence.current = sequence;
     setSnapshot((current) => ({ ...current, status: 'loading', errorMessage: null }));
@@ -1634,7 +1634,7 @@ export function SettingsPage({
           anilistRedirectUri: '',
         });
       });
-  };
+  }, [copy.settingsUnavailable, onAuthSnapshot]);
 
   useEffect(() => {
     disposed.current = false;
@@ -1643,7 +1643,7 @@ export function SettingsPage({
       disposed.current = true;
       requestSequence.current += 1;
     };
-  }, []);
+  }, [loadSettings]);
 
   useEffect(() => applyThemePreference(snapshot.preferences.theme), [snapshot.preferences.theme]);
 
