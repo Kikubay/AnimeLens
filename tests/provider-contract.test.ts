@@ -61,4 +61,14 @@ describe('AnimeProvider contract', () => {
 
     expect(mal?.rankingOffset).not.toBe(anilist?.rankingOffset);
   });
+
+  it('only declares a taste-derived slice where the catalogue can filter it server-side', () => {
+    for (const { name, provider } of providers) {
+      const filtersNatively = provider.getAnimeByTags !== undefined;
+      expect(
+        (provider.candidatePoolConfig?.tasteLimit ?? 0) > 0,
+        `${name} declares tasteLimit without getAnimeByTags`,
+      ).toBe(filtersNatively);
+    }
+  });
 });

@@ -272,6 +272,34 @@ describe('AniListProvider', () => {
     });
   });
 
+  it('filters the candidate pool server-side by the taste cluster, with no client-side tag check', async () => {
+    const http = new RecordingHttpClient((query) =>
+      isSearchQuery(query)
+        ? { data: { Page: { media: [MEDIA], pageInfo: { hasNextPage: false, currentPage: 1 } } } }
+        : VIEWER_PAYLOAD,
+    );
+    const provider = new AniListProvider(http, 'token');
+
+    const anime = await provider.getAnimeByTags(['Sci-Fi', 'Isekai'], 30);
+
+    expect(anime.map((item) => item.id)).toEqual([MEDIA.id]);
+    expect(http.requests[0]?.variables).toEqual({
+      genreIn: ['Sci-Fi'],
+      tagIn: ['Isekai'],
+      formatIn: null,
+      page: 1,
+      perPage: 30,
+    });
+  });
+
+  it('never spends a request on an empty taste cluster', async () => {
+    const http = new RecordingHttpClient(() => VIEWER_PAYLOAD);
+    const provider = new AniListProvider(http, 'token');
+
+    expect(await provider.getAnimeByTags(['  '], 30)).toEqual([]);
+    expect(http.requests).toHaveLength(0);
+  });
+
   it('drops a multi-tag result that carries only some of the tags', async () => {
     const partial = { ...MEDIA, id: 200286, tags: [{ id: 2, name: 'School', rank: 85 }] };
     const isekaiTagged = {

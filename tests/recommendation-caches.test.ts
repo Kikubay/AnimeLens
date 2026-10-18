@@ -99,6 +99,16 @@ describe('candidate pool store', () => {
     expect(await store.load('mal', 1_100)).toHaveLength(1);
   });
 
+  it('never serves a pool built from a different taste profile', async () => {
+    const area = new MemorySessionArea();
+    const store = createCandidatePoolStore(area);
+    await store.save('mal:action,sci-fi', [anime(1)], 1_000);
+
+    expect(await store.load('mal', 1_100)).toBeNull();
+    expect(await store.load('mal:sci-fi,action', 1_100)).toBeNull();
+    expect(await store.load('mal:action,sci-fi', 1_100)).toHaveLength(1);
+  });
+
   it('treats a rejected blob as a miss instead of throwing', async () => {
     const area = new MemorySessionArea();
     const store = createCandidatePoolStore(area);
@@ -106,8 +116,9 @@ describe('candidate pool store', () => {
       null,
       'pool',
       42,
-      { providerId: 'mal' },
-      { providerId: 'mal', fetchedAt: 'now', pool: [] },
+      { poolKey: 'mal' },
+      { poolKey: 'mal', fetchedAt: 'now', pool: [] },
+      { fetchedAt: 1, pool: [] },
     ]) {
       area.values.set('candidatePool', junk);
       expect(await store.load('mal', 1_000)).toBeNull();

@@ -115,6 +115,7 @@ export class AniListProvider implements AnimeProvider {
     suggestionLimit: 50,
     rankingLimit: 100,
     rankingOffset: 250,
+    tasteLimit: 50,
   };
 
   constructor(
@@ -181,6 +182,28 @@ export class AniListProvider implements AnimeProvider {
       this.accessToken,
     );
     if (!isAniListPageResponse(data)) throw invalidResponse('anime ranking');
+    return data.Page.media.filter(isAniListMedia).map(normalizeAnime);
+  }
+
+  async getAnimeByTags(tags: readonly string[], limit: number = 50): Promise<readonly Anime[]> {
+    const cleaned = tags.map((tag) => tag.trim()).filter((tag) => tag.length > 0);
+    if (cleaned.length === 0) return [];
+    const safeLimit = Math.max(1, Math.min(Math.floor(limit), ANILIST_PAGE_SIZE));
+    const genres = cleaned.map((tag) => findAniListGenre(tag));
+    const genreIn = genres.filter((genre): genre is string => genre !== null);
+    const tagIn = cleaned.filter((_tag, index) => genres[index] === null);
+    const data = await this.graphql.request<unknown>(
+      SEARCH_ANIME_BY_TAG_QUERY,
+      {
+        genreIn: genreIn.length > 0 ? genreIn : null,
+        tagIn: tagIn.length > 0 ? tagIn : null,
+        formatIn: null,
+        page: 1,
+        perPage: safeLimit,
+      },
+      this.accessToken,
+    );
+    if (!isAniListPageResponse(data)) throw invalidResponse('anime tags');
     return data.Page.media.filter(isAniListMedia).map(normalizeAnime);
   }
 

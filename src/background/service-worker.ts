@@ -34,25 +34,6 @@ import {
   withCurrentSync,
 } from '../recommendations/recommendation-dashboard';
 import { createCandidatePoolStore } from '../recommendations/candidate-pool-store';
-import { createDailyDropStore, DAILY_DROP_KEY } from '../recommendations/daily-drop-store';
-import {
-  buildDailyDropView,
-  createStoredDailyDrop,
-  dailyDropTaste,
-  dayKeyOf,
-  dropCandidateRank,
-  filterDailyDropCandidates,
-  selectDailyDropAnimeIds,
-  seenDropIds,
-  type DailyDropSnapshot,
-} from '../recommendations/daily-drop';
-import type {
-  DailyDropMessage,
-  DailyDropMessageResponse,
-} from '../recommendations/daily-drop-messages';
-import { isDailyDropMessage } from '../recommendations/daily-drop-messages';
-import type { Recommendation } from '../domain/recommendation';
-import type { StoredDailyDrop } from '../storage/storage-types';
 import {
   createDashboardSnapshotStore,
   dashboardSignature,
@@ -93,13 +74,13 @@ import {
   type DataExportSource,
 } from '../settings/data-transfer';
 import type {
-  DashboardRecommendationSnapshot,
   RecommendationMessage,
   RecommendationMessageResponse,
 } from '../recommendations/recommendation-messages';
 import { isRecommendationMessage } from '../recommendations/recommendation-messages';
 import type { MalListMessage, MalListMessageResponse } from '../api/mal-list-messages';
-import type { CandidatePoolConfig } from '../api/anime-provider';
+import type { AnimeProvider, CandidatePoolConfig } from '../api/anime-provider';
+import { buildTasteClusters, type TasteClusters } from '../recommendations/taste-clusters';
 import type { ProviderStatus } from '../providers/provider-registry';
 import { isMalListMessage } from '../api/mal-list-messages';
 import {
@@ -149,6 +130,7 @@ const DEFAULT_CANDIDATE_POOL_CONFIG: CandidatePoolConfig = {
   rankingLimit: 100,
   rankingOffset: 2000,
 };
+const DEFAULT_TASTE_POOL_LIMIT = 50;
 const DAILY_RECOMMENDATION_ALARM = 'animelens-daily-recommendation';
 const SYNC_ALARM = 'animelens-sync';
 let updateCheckInFlight: Promise<UpdateSnapshot> | null = null;
@@ -156,7 +138,7 @@ let updateCheckInFlight: Promise<UpdateSnapshot> | null = null;
 const candidatePoolStore = createCandidatePoolStore(createSessionStorageArea());
 const dashboardSnapshotStore = createDashboardSnapshotStore(createSessionStorageArea());
 let candidatePoolInFlight: {
-  readonly providerId: ProviderId;
+  readonly poolKey: string;
   readonly request: Promise<readonly Anime[]>;
 } | null = null;
 
@@ -173,7 +155,6 @@ const storage: Storage = new ChromeStorageAdapter();
 const feedbackService = new RecommendationFeedbackService(new ChromeFeedbackStore(storage));
 const topPicksStore = createTopPicksStore(storage);
 const profileHistoryStore = createProfileHistoryStore(storage);
-const dailyDropStore = createDailyDropStore(storage);
 let syncSnapshot: SyncSnapshot = {
   metadata: createIdleMetadata(),
   progress: null,
@@ -274,7 +255,6 @@ type WorkerResponse =
   | ProfileMessageResponse
   | SettingsResponse
   | RecommendationMessageResponse
-  | DailyDropMessageResponse
   | MalListMessageResponse
   | AnimeSearchResponse
   | UpdateResponse;
@@ -335,14 +315,6 @@ chrome.runtime.onMessage.addListener(
     }
     if (isRecommendationMessage(message)) {
       void handleRecommendationMessage(message)
-        .then(sendResponse)
-        .catch(async (error: unknown) =>
-          sendResponse({ ok: false, message: await toMessage(error) }),
-        );
-      return true;
-    }
-    if (isDailyDropMessage(message)) {
-      void handleDailyDropMessage(message)
         .then(sendResponse)
         .catch(async (error: unknown) =>
           sendResponse({ ok: false, message: await toMessage(error) }),
@@ -665,7 +637,6 @@ async function handleSettingsMessage(message: SettingsMessage): Promise<Settings
       'profile',
       'preferences',
       PROFILE_HISTORY_KEY,
-      DAILY_DROP_KEY,
       TOP_PICKS_RANKING_KEY,
       TOP_PICKS_SIGNATURE_KEY,
       'updateCheck',
@@ -895,7 +866,7 @@ async function handleAnimeSearchMessage(message: AnimeSearchMessage): Promise<An
   }
 }
 
-async function fetchCandidatePool(): Promise<readonly Anime[]> {
+async function fetchCandidatePool(clusters: TasteClusters): Promise<readonly Anime[]> {
   const pool = await (
     await activeAuthService()
   ).withAccessToken(async (accessToken) => {
@@ -913,7 +884,8 @@ async function fetchCandidatePool(): Promise<readonly Anime[]> {
     };
 
     const config = provider.candidatePoolConfig ?? DEFAULT_CANDIDATE_POOL_CONFIG;
-    const [suggested, ranked, deepRanked] = await Promise.all([
+    const tasteLimit = config.tasteLimit ?? DEFAULT_TASTE_POOL_LIMIT;
+    const [suggested, ranked, deepRanked, tasteDerived] = await Promise.all([
       degrade<Anime>(() => provider.getAnimeSuggestions?.(config.suggestionLimit)),
       degrade<Anime>(() => provider.getAnimeRanking?.(config.rankingLimit, config.rankingOffset)),
       degrade<Anime>(() =>
@@ -922,41 +894,64 @@ async function fetchCandidatePool(): Promise<readonly Anime[]> {
           config.rankingOffset + config.rankingLimit * 4,
         ),
       ),
+      degrade<Anime>(() => fetchTasteDerived(provider, clusters, tasteLimit)),
     ]);
-    const seen = new Set([...suggested, ...ranked].map((anime) => anime.id));
-    return [
-      ...suggested,
-      ...ranked.filter((anime) => !seen.has(anime.id)),
-      ...deepRanked.filter((anime) => !seen.has(anime.id)),
-    ];
+
+    const merged: Anime[] = [];
+    const seen = new Set<number>();
+    for (const batch of [suggested, ranked, deepRanked, tasteDerived]) {
+      for (const anime of batch) {
+        if (seen.has(anime.id)) continue;
+        seen.add(anime.id);
+        merged.push(anime);
+      }
+    }
+    return merged;
   });
   return pool;
 }
 
-async function loadCandidatePool(): Promise<readonly Anime[]> {
-  const providerId = await providerRegistry.registry.getActiveProvider();
-  const cached = await candidatePoolStore.load(providerId, Date.now());
+async function fetchTasteDerived(
+  provider: AnimeProvider,
+  clusters: TasteClusters,
+  limit: number,
+): Promise<readonly Anime[]> {
+  if (provider.getAnimeByTags === undefined || clusters.clusters.length === 0) return [];
+  const batches = await Promise.all(
+    clusters.clusters.map(
+      async (cluster) => (await provider.getAnimeByTags?.(cluster, limit)) ?? [],
+    ),
+  );
+  return batches.flat();
+}
+
+async function loadCandidatePool(
+  providerId: ProviderId,
+  clusters: TasteClusters,
+): Promise<readonly Anime[]> {
+  const poolKey = clusters.seed.length === 0 ? providerId : `${providerId}:${clusters.seed}`;
+  const cached = await candidatePoolStore.load(poolKey, Date.now());
   if (cached !== null) return cached;
 
-  if (candidatePoolInFlight !== null && candidatePoolInFlight.providerId === providerId) {
+  if (candidatePoolInFlight !== null && candidatePoolInFlight.poolKey === poolKey) {
     return candidatePoolInFlight.request;
   }
 
   const request = (async () => {
     try {
-      return await fetchCandidatePool();
+      return await fetchCandidatePool(clusters);
     } catch (error) {
       reportBackgroundFailure(error);
       return [] as readonly Anime[];
     }
   })();
-  candidatePoolInFlight = { providerId, request };
+  candidatePoolInFlight = { poolKey, request };
 
   try {
     const pool = await request;
 
     if (pool.length > 0) {
-      await candidatePoolStore.save(providerId, pool, Date.now());
+      await candidatePoolStore.save(poolKey, pool, Date.now());
     }
     return pool;
   } finally {
@@ -967,19 +962,20 @@ async function loadCandidatePool(): Promise<readonly Anime[]> {
 async function handleRecommendationMessage(
   _message: RecommendationMessage,
 ): Promise<RecommendationMessageResponse> {
-  return { ok: true, snapshot: await currentDashboardSnapshot() };
-}
-
-async function currentDashboardSnapshot(): Promise<DashboardRecommendationSnapshot> {
   const stored = await readActiveProviderCache();
   const preferences = normalizeUserPreferences(await storage.get('preferences'));
   const feedback = await feedbackService.list();
   if (stored === undefined) {
-    return createEmptyDashboardRecommendationSnapshot();
+    return {
+      ok: true,
+      snapshot: createEmptyDashboardRecommendationSnapshot(),
+    };
   }
 
   const providerId = await providerRegistry.registry.getActiveProvider();
-  const pool = await loadCandidatePool();
+  const watched = stored.entries.filter((entry) => entry.status !== 'plan_to_watch');
+  const clusters = buildTasteClusters(buildUserPreferenceProfile(watched, feedback));
+  const pool = await loadCandidatePool(providerId, clusters);
   const signature = dashboardSignature({
     providerId,
     cacheVersion: stored.version,
@@ -991,7 +987,7 @@ async function currentDashboardSnapshot(): Promise<DashboardRecommendationSnapsh
 
   const cached = await dashboardSnapshotStore.load(signature, Date.now());
   if (cached !== null) {
-    return withCurrentSync(cached, stored.sync);
+    return { ok: true, snapshot: withCurrentSync(cached, stored.sync) };
   }
 
   const snapshot = await buildDashboardRecommendationSnapshot(
@@ -1003,70 +999,7 @@ async function currentDashboardSnapshot(): Promise<DashboardRecommendationSnapsh
     async () => pool,
   );
   await dashboardSnapshotStore.save(signature, snapshot, Date.now());
-  return snapshot;
-}
-
-async function handleDailyDropMessage(
-  message: DailyDropMessage,
-): Promise<DailyDropMessageResponse> {
-  const stored = await readActiveProviderCache();
-  if (stored === undefined) return { ok: true, snapshot: emptyDailyDropSnapshot() };
-
-  const providerId = await providerRegistry.registry.getActiveProvider();
-  const today = dayKeyOf(Date.now());
-  const snapshot = await currentDashboardSnapshot();
-  const taste = dailyDropTaste(
-    buildUserPreferenceProfile(stored.entries, await feedbackService.list()),
-  );
-  const rank = filterDailyDropCandidates(
-    dropCandidateRank(snapshot.daily, snapshot.sections),
-    taste,
-  );
-
-  if (message.type === 'daily_drop.claim') {
-    await dailyDropStore.claim(providerId, message.animeId);
-  }
-
-  const history = await dailyDropStore.list(providerId);
-  const current = await reconcileDailyDrop(providerId, today, rank, history);
-  const view = buildDailyDropView(
-    current,
-    history.filter((drop) => drop !== current),
-    rank,
-    today,
-  );
-  return {
-    ok: true,
-    snapshot: view.items.length === 0 ? emptyDailyDropSnapshot() : { status: 'ready', view },
-  };
-}
-
-async function reconcileDailyDrop(
-  providerId: string,
-  today: string,
-  rank: readonly Recommendation[],
-  history: readonly StoredDailyDrop[],
-): Promise<StoredDailyDrop | null> {
-  const existing = history.find((drop) => drop.day === today) ?? null;
-  if (
-    existing !== null &&
-    existing.animeIds.some((id) => rank.some((item) => item.anime.id === id))
-  ) {
-    return existing;
-  }
-  const ids = selectDailyDropAnimeIds(rank, today, seenDropIds(history));
-  if (ids.length === 0) return null;
-  const claimed = existing?.claimedIds.filter((id) => ids.includes(id)) ?? [];
-  const drop = createStoredDailyDrop(providerId, today, ids, claimed);
-  await dailyDropStore.record(drop);
-  return drop;
-}
-
-function emptyDailyDropSnapshot(): DailyDropSnapshot {
-  return {
-    status: 'empty',
-    view: { day: '', items: [], missed: [], unclaimedCount: 0 },
-  };
+  return { ok: true, snapshot };
 }
 
 async function buildCurrentProfileSummary(): Promise<{

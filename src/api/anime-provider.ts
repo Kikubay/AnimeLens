@@ -16,6 +16,8 @@ export interface CandidatePoolConfig {
   readonly suggestionLimit: number;
   readonly rankingLimit: number;
   readonly rankingOffset: number;
+  /** Titles requested per taste cluster; omit to skip the taste-derived slice entirely. */
+  readonly tasteLimit?: number;
 }
 
 export interface AnimeSearchRequest {
@@ -40,6 +42,14 @@ export interface AnimeProvider {
   getAnimeSuggestions?(limit?: number): Promise<Anime[]>;
 
   getAnimeRanking?(limit?: number, offset?: number): Promise<Anime[]>;
+
+  /**
+   * Catalogue-native filter over tags or genres, used to pull candidates the global ranking slice can never reach.
+   * A provider without a server-side filter must omit this rather than emulate it, since emulating means paging the
+   * same global list the pool is trying to escape.
+   */
+  getAnimeByTags?(tags: readonly string[], limit?: number): Promise<readonly Anime[]>;
+
   readonly candidatePoolConfig?: CandidatePoolConfig;
   searchAnime(query: string, request?: AnimeSearchRequest): Promise<AnimeSearchPage>;
   addToList(id: number, status?: AnimeStatus): Promise<void>;

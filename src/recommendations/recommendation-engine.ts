@@ -637,7 +637,7 @@ function scoreNamedFeatures(values: readonly string[], preferences: FeaturePrefe
   if (preferences.size === 0) return 0.5;
   if (values.length === 0) return 0;
   const total = values.reduce(
-    (sum, value) => sum + preferenceToScore(preferences.get(normalizeName(value))),
+    (sum, value) => sum + featurePreferenceScore(preferences.get(normalizeName(value))),
     0,
   );
   return clamp(total / values.length, 0, 1);
@@ -645,7 +645,7 @@ function scoreNamedFeatures(values: readonly string[], preferences: FeaturePrefe
 
 function scorePreference<T>(value: T, preferences: ReadonlyMap<T, FeaturePreference>): number {
   if (preferences.size === 0) return 0.5;
-  return preferenceToScore(preferences.get(value));
+  return featurePreferenceScore(preferences.get(value));
 }
 
 function scoreNullablePreference<T>(
@@ -664,7 +664,7 @@ function scoreYear(
   for (const [preferredYear, preference] of preferences) {
     const distance = Math.abs(year - preferredYear);
     const proximity = Math.max(0, 1 - distance / 10);
-    best = Math.max(best, proximity * preferenceToScore(preference));
+    best = Math.max(best, proximity * featurePreferenceScore(preference));
   }
   return best;
 }
@@ -681,11 +681,21 @@ function scorePopularity(popularityRank: number | null, memberCount: number | nu
   return 0.5;
 }
 
-function preferenceToScore(preference: FeaturePreference | undefined): number {
+/**
+ * Collapses accumulated positive/negative evidence for one feature into 0..1, where 0.5 is "no evidence either way".
+ */
+export function featurePreferenceScore(preference: FeaturePreference | undefined): number {
   if (preference === undefined || preference.count === 0) return 0;
-  const signed =
-    (preference.positive - preference.negative) / Math.max(1, Math.sqrt(preference.count));
-  return clamp(0.5 + signed / 2, 0, 1);
+  return clamp(0.5 + featurePreferenceStrength(preference) / 2, 0, 1);
+}
+
+/**
+ * Unbounded counterpart of {@link featurePreferenceScore}. Scoring saturates at 1 for any clearly positive feature,
+ * so ranking a profile by score alone would only alphabetise it.
+ */
+export function featurePreferenceStrength(preference: FeaturePreference | undefined): number {
+  if (preference === undefined || preference.count === 0) return 0;
+  return (preference.positive - preference.negative) / Math.max(1, Math.sqrt(preference.count));
 }
 
 function calculateConfidence(profile: RecommendationProfile, features: FeatureVector): number {
@@ -724,14 +734,14 @@ function createReasons(
   }
 
   for (const genre of features.genres) {
-    const score = preferenceToScore(profile.genres.get(normalizeName(genre)));
+    const score = featurePreferenceScore(profile.genres.get(normalizeName(genre)));
     if (score > 0.65) {
       add(reason('genre', copy.reasonGenre(genre), score));
       break;
     }
   }
   for (const theme of features.themes) {
-    const score = preferenceToScore(profile.themes.get(normalizeName(theme)));
+    const score = featurePreferenceScore(profile.themes.get(normalizeName(theme)));
     if (score > 0.65) {
       add(reason('theme', copy.reasonTheme(theme), score));
       break;
