@@ -5,28 +5,21 @@ import type {
   RecommendationProfile,
 } from './recommendation-types';
 
-/**
- * A provider tag filter is an OR over the tags it is given, so a cluster is a set of sibling tastes to widen a query with,
- * never a set of tags that must all match.
- */
+/** A provider tag filter ORs whatever it is given, so a cluster widens a query rather than narrowing it. */
 export const TASTE_CLUSTER_SIZE = 3;
 export const TASTE_CLUSTER_LIMIT = 3;
-/** Below this a feature is treated as neutral, and spending a request on it would only dilute the pool. */
+/** Below this the evidence is neutral, so querying it would only dilute the pool. */
 export const TASTE_MIN_FEATURE_SCORE = 0.62;
 const TASTE_MIN_FEATURE_STRENGTH = (TASTE_MIN_FEATURE_SCORE - 0.5) * 2;
 
 export interface TasteClusters {
   readonly clusters: readonly (readonly string[])[];
-  /** Empty when the profile has no taste strong enough to query, which makes the pool fall back to the global slice. */
+  /** Empty when nothing is worth querying for, which leaves the pool on the global popularity slice. */
   readonly seed: string;
 }
 
-/**
- * Turns a taste profile into the tag groups used to widen the candidate pool beyond the global popularity chart.
- */
 export function buildTasteClusters(profile: RecommendationProfile): TasteClusters {
-  // AniList splits genres from free-form tags, but a MAL theme and an AniList tag are the same kind of label, so one
-  // name must not consume two of the limited clusters.
+  // A MAL theme and an AniList tag are the same label, so one name must not claim two of the limited clusters.
   const claimed = new Set<string>();
   const take = (preferences: FeaturePreferenceMap): readonly string[] =>
     rankByStrength(preferences)

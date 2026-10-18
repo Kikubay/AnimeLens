@@ -24,7 +24,6 @@ interface AnimeCardProps {
     value: FeedbackValue,
     reasons?: readonly DislikeReason[],
   ) => void;
-  readonly footer?: React.ReactNode;
   readonly copy: AppCopy;
 }
 
@@ -94,7 +93,6 @@ export function AnimeCard({
   featured = false,
   onSelect,
   onRecommendationFeedback,
-  footer,
   copy,
 }: AnimeCardProps) {
   return (
@@ -158,7 +156,6 @@ export function AnimeCard({
           onFeedback={onRecommendationFeedback}
         />
       </div>
-      {footer !== undefined && <div className="anime-card-footer">{footer}</div>}
     </Card>
   );
 }
@@ -192,7 +189,6 @@ export function AnimeGrid({
   anime,
   onSelect,
   onRecommendationFeedback,
-  renderFooter,
   copy,
 }: {
   readonly anime: readonly AnimeCardData[];
@@ -202,7 +198,6 @@ export function AnimeGrid({
     value: FeedbackValue,
     reasons?: readonly DislikeReason[],
   ) => void;
-  readonly renderFooter?: (anime: AnimeCardData) => React.ReactNode;
   readonly copy: AppCopy;
 }) {
   return (
@@ -213,7 +208,6 @@ export function AnimeGrid({
           key={item.id}
           onSelect={onSelect}
           onRecommendationFeedback={onRecommendationFeedback}
-          footer={renderFooter?.(item)}
           copy={copy}
         />
       ))}

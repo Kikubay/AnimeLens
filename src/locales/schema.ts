@@ -62,16 +62,6 @@ export interface AppCopy {
   readonly offlineRecommendations: string;
   readonly todayPick: string;
   readonly recommendationOfTheDay: string;
-  readonly dailyDropEyebrow: string;
-  readonly dailyDropTitle: string;
-  readonly dailyDropRemaining: (count: number) => string;
-  readonly dailyDropComplete: string;
-  readonly dailyDropClaim: string;
-  readonly dailyDropClaimed: string;
-  readonly dailyDropClaiming: string;
-  readonly dailyDropClaimFailed: string;
-  readonly dailyDropMissedTitle: string;
-  readonly dailyDropMissed: (count: number) => string;
   readonly analyzed: (count: number) => string;
   readonly curatedSignal: string;
   readonly titles: (count: number) => string;
@@ -572,8 +562,6 @@ const MESSAGE_PARAMS = {
   profileDeltaAverageUp: ['from', 'to'],
   profileDeltaAverageDown: ['from', 'to'],
   weeklyRecapWeek: ['week'],
-  dailyDropRemaining: ['count'],
-  dailyDropMissed: ['count'],
   weeklyRecapWindow: ['days'],
   weeklyRecapAverageMoved: ['from', 'to'],
   providerConnectedToast: ['name'],

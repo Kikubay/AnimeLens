@@ -1055,32 +1055,6 @@ button:focus-visible {
 .recommendation-section {
   margin-top: 8px;
 }
-.daily-drop {
-  padding: 14px;
-  border: 1px solid rgb(138 126 207 / 22%);
-  border-radius: 14px;
-  background: linear-gradient(180deg, rgb(138 126 207 / 9%), transparent 70%);
-}
-.daily-drop-missed {
-  opacity: 0.72;
-}
-.daily-drop-complete {
-  margin: -6px 0 12px;
-  color: var(--dim);
-  font-size: 9px;
-  line-height: 1.5;
-}
-.anime-card-footer {
-  display: flex;
-  justify-content: center;
-  padding: 0 8px 10px;
-}
-.anime-card-footer .daily-drop-state {
-  font-size: 8px;
-}
-.anime-card-footer .daily-drop-claim {
-  width: 100%;
-}
 .section-empty-state {
   padding: 16px 12px;
   border: 1px dashed var(--line);

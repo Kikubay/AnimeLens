@@ -3,7 +3,7 @@ import type { SessionStorageArea } from '../storage/session-area';
 
 // Session storage rather than a module variable, so an MV3 worker that was evicted between two popup opens doesn't pay the two provider calls again.
 export const CANDIDATE_POOL_STORAGE_KEY = 'candidatePool';
-// The pool depends only on the account and the taste clusters it was built from, so a short TTL kills the amplification without making recommendations feel stale.
+// The pool depends only on the account and its taste clusters, so a short TTL amortises the calls without serving stale picks.
 export const CANDIDATE_POOL_TTL_MS = 10 * 60 * 1000;
 
 interface StoredCandidatePool {
