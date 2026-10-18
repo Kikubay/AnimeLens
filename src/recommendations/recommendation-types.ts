@@ -2,6 +2,7 @@ import type { Anime, AnimeListEntry, AnimeSeason, AnimeType } from '../domain/an
 import type { RecommendationFeedback } from '../domain/feedback';
 import type { RecommendationCategory, RecommendationReason } from '../domain/recommendation';
 import type { Language } from '../locales';
+import type { RatingModel } from './rating-model';
 
 export interface FeatureVector {
   readonly genres: readonly string[];
@@ -32,6 +33,8 @@ export interface RecommendationProfile {
   readonly seasons: ReadonlyMap<AnimeSeason, FeaturePreference>;
   readonly years: ReadonlyMap<number, FeaturePreference>;
   readonly averageScore: number | null;
+  /** How this user rescales community scores; `null` when the library is too small to fit one. */
+  readonly ratingModel: RatingModel | null;
   readonly ratedAnimeCount: number;
   readonly sourceAnimeCount: number;
   readonly feedbackCount: number;

@@ -106,9 +106,10 @@ describe('feedback-aware recommendations', () => {
     const threeDislikes = [1, 2, 3].map((id) =>
       createFeedback(`r-${id}`, anime(id, 'Fantasy'), 'dislike', '2026-09-09T00:00:00.000Z'),
     );
-    const oneProfile = buildUserPreferenceProfile([], [oneDislike]);
-    const threeProfile = buildUserPreferenceProfile([], threeDislikes);
-    const neutralScore = scoreRecommendation(candidate, buildUserPreferenceProfile([]));
+    const now = '2026-09-09T00:00:00.000Z';
+    const oneProfile = buildUserPreferenceProfile([], [oneDislike], now);
+    const threeProfile = buildUserPreferenceProfile([], threeDislikes, now);
+    const neutralScore = scoreRecommendation(candidate, buildUserPreferenceProfile([], [], now));
     const oneScore = scoreRecommendation(candidate, oneProfile);
     const threeScore = scoreRecommendation(candidate, threeProfile);
 
@@ -116,11 +117,10 @@ describe('feedback-aware recommendations', () => {
     expect(oneScore.normalized).toBeGreaterThan(0);
     expect(threeScore.normalized).toBeLessThan(oneScore.normalized);
 
-    const recommendations = generateRecommendations({
-      watched: [],
-      candidates: [candidate],
-      feedback: [oneDislike],
-    });
+    const recommendations = generateRecommendations(
+      { watched: [], candidates: [candidate], feedback: [oneDislike] },
+      { now },
+    );
     expect(recommendations).toHaveLength(1);
     expect(recommendations[0]?.compatibilityScore).toBe(oneScore.normalized);
   });
@@ -133,22 +133,26 @@ describe('feedback-aware recommendations', () => {
       '2026-09-09T00:00:00.000Z',
       { reasons: [{ kind: 'genre', name: 'Romance' }] },
     );
-    const profile = buildUserPreferenceProfile([], [reasonedDislike]);
+    const now = '2026-09-09T00:00:00.000Z';
+    const profile = buildUserPreferenceProfile([], [reasonedDislike], now);
     const romance = scoreRecommendation(anime(2, 'Romance'), profile);
     const fantasy = scoreRecommendation(anime(3, 'Fantasy'), profile);
 
-    expect(profile.genres.get('romance')?.negative).toBeCloseTo(0.25);
+    expect(profile.genres.get('romance')?.negative).toBeCloseTo(0.5);
     expect(profile.themes.get('adventure')).toBeUndefined();
     // Whole-title ranking isn't comparable here: an unseen feature scores 0 rather than a neutral 0.5,
     // so the Fantasy title falls below Romance on every dimension the dislike did not touch.
     expect(romance.featureScores.genres).toBeLessThan(0.5);
     expect(romance.featureScores.themes).toBe(fantasy.featureScores.themes);
 
-    const result = generateRecommendations({
-      watched: [],
-      candidates: [anime(1, 'Romance'), anime(4, 'Fantasy')],
-      feedback: [reasonedDislike],
-    });
+    const result = generateRecommendations(
+      {
+        watched: [],
+        candidates: [anime(1, 'Romance'), anime(4, 'Fantasy')],
+        feedback: [reasonedDislike],
+      },
+      { now },
+    );
     expect(result.map((item) => item.anime.id)).toEqual([4]);
   });
 

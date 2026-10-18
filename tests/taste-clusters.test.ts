@@ -26,6 +26,7 @@ function profile(
     seasons: new Map(),
     years: new Map(),
     averageScore: null,
+    ratingModel: null,
     ratedAnimeCount: 0,
     sourceAnimeCount: 0,
     feedbackCount: 0,

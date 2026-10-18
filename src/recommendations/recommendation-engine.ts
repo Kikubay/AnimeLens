@@ -27,6 +27,13 @@ import {
   type RecommendationWeights,
   type ScoredCandidate,
 } from './recommendation-types';
+import {
+  fitRatingModel,
+  predictUserRating,
+  type RatingModel,
+  type RatingSample,
+} from './rating-model';
+import { tasteRecencyWeight } from './taste-decay';
 
 const MAX_SCORE = 100;
 const DEFAULT_GENERATED_AT = '1970-01-01T00:00:00.000Z';
@@ -85,24 +92,29 @@ export function buildUserPreferenceProfile(
   let ratedAnimeCount = 0;
   let sourceAnimeCount = 0;
   let feedbackCount = 0;
+  const ratingSamples: RatingSample[] = [];
 
   for (const entry of entries) {
     if (!isValidAnime(entry.anime)) continue;
     sourceAnimeCount += 1;
     const signal = scoreSignal(entry.userScore ?? entry.anime.userScore, entry.status);
     if (signal === null) continue;
-    if (entry.userScore !== null || entry.anime.userScore !== null) {
-      scoreTotal += entry.userScore ?? entry.anime.userScore ?? 0;
+    const entryScore = entry.userScore ?? entry.anime.userScore;
+    if (entryScore !== null) {
+      scoreTotal += entryScore;
       ratedAnimeCount += 1;
+      const communityScore = validScore(entry.anime.score);
+      if (communityScore !== null) ratingSamples.push({ communityScore, userScore: entryScore });
     }
     const features = extractFeatures(entry.anime);
-    addSignals(genres, features.genres, signal);
-    addSignals(themes, features.themes, signal);
-    addSignals(studios, features.studios, signal);
-    addSignals(staff, features.staff, signal);
-    addSignal(types, features.type, signal);
-    if (features.season !== null) addSignal(seasons, features.season, signal);
-    if (features.year !== null) addSignal(years, features.year, signal);
+    const weight = tasteRecencyWeight(entry.updatedAt, now);
+    addSignals(genres, features.genres, signal, weight);
+    addSignals(themes, features.themes, signal, weight);
+    addSignals(studios, features.studios, signal, weight);
+    addSignals(staff, features.staff, signal, weight);
+    addSignal(types, features.type, signal, weight);
+    if (features.season !== null) addSignal(seasons, features.season, signal, weight);
+    if (features.year !== null) addSignal(years, features.year, signal, weight);
   }
 
   for (const item of feedback) {
@@ -110,25 +122,32 @@ export function buildUserPreferenceProfile(
     const signal = feedbackSignal(item.value);
     if (signal === null) continue;
     feedbackCount += 1;
+    const weight = tasteRecencyWeight(item.createdAt, now);
     if (item.value === 'dislike' && item.reasons !== undefined && item.reasons.length > 0) {
-      addReasonedFeedbackSignals(item.features, item.reasons, signal, {
-        genres,
-        themes,
-        studios,
-        staff,
-        types,
-        seasons,
-        years,
-      });
+      addReasonedFeedbackSignals(
+        item.features,
+        item.reasons,
+        signal,
+        {
+          genres,
+          themes,
+          studios,
+          staff,
+          types,
+          seasons,
+          years,
+        },
+        weight,
+      );
       continue;
     }
-    addFeedbackSignals(genres, item.features, signal, (features) => features.genres);
-    addFeedbackSignals(themes, item.features, signal, (features) => features.themes);
-    addFeedbackSignals(studios, item.features, signal, (features) => features.studios);
-    addFeedbackSignals(staff, item.features, signal, (features) => features.staff);
-    addSignal(types, item.features.type, signal);
-    if (item.features.season !== null) addSignal(seasons, item.features.season, signal);
-    if (item.features.year !== null) addSignal(years, item.features.year, signal);
+    addFeedbackSignals(genres, item.features, signal, (features) => features.genres, weight);
+    addFeedbackSignals(themes, item.features, signal, (features) => features.themes, weight);
+    addFeedbackSignals(studios, item.features, signal, (features) => features.studios, weight);
+    addFeedbackSignals(staff, item.features, signal, (features) => features.staff, weight);
+    addSignal(types, item.features.type, signal, weight);
+    if (item.features.season !== null) addSignal(seasons, item.features.season, signal, weight);
+    if (item.features.year !== null) addSignal(years, item.features.year, signal, weight);
   }
 
   return {
@@ -140,6 +159,7 @@ export function buildUserPreferenceProfile(
     seasons: freezeMap(seasons),
     years: freezeMap(years),
     averageScore: ratedAnimeCount === 0 ? null : scoreTotal / ratedAnimeCount,
+    ratingModel: fitRatingModel(ratingSamples),
     ratedAnimeCount,
     sourceAnimeCount,
     feedbackCount,
@@ -165,7 +185,7 @@ export function scoreRecommendation(
     type: scorePreference(features.type, normalizedProfile.types),
     season: scoreNullablePreference(features.season, normalizedProfile.seasons),
     year: scoreYear(features.year, normalizedProfile.years),
-    quality: scoreQuality(features.score),
+    quality: scoreQuality(features.score, normalizedProfile.ratingModel),
     popularity: scorePopularity(features.popularity, anime.memberCount),
   };
 
@@ -464,9 +484,10 @@ function diversify(
 
 type MutablePreference = { positive: number; negative: number; count: number };
 
+/** A swipe is a deliberate call-out while most cards look likeable, so dislike outweighs like; both stay below a rating. */
 function feedbackSignal(value: FeedbackValue): number | null {
   if (value === 'like') return 0.3;
-  if (value === 'dislike') return -0.25;
+  if (value === 'dislike') return -0.5;
   return null;
 }
 
@@ -491,12 +512,13 @@ function addReasonedFeedbackSignals(
     readonly seasons: Map<AnimeSeason, MutablePreference>;
     readonly years: Map<number, MutablePreference>;
   },
+  weight: number,
 ): void {
   for (const reason of reasons) {
     if (reason.kind === 'genre' && reason.name !== undefined) {
-      addSignal(maps.genres, reason.name, signal);
+      addSignal(maps.genres, reason.name, signal, weight);
     } else if (reason.kind === 'theme' && reason.name !== undefined) {
-      addSignal(maps.themes, reason.name, signal);
+      addSignal(maps.themes, reason.name, signal, weight);
     }
   }
 }
@@ -506,8 +528,9 @@ function addFeedbackSignals(
   features: FeedbackFeatureSnapshot,
   signal: number,
   select: (features: FeedbackFeatureSnapshot) => readonly string[],
+  weight: number,
 ): void {
-  for (const value of select(features)) addSignal(map, value, signal);
+  for (const value of select(features)) addSignal(map, value, signal, weight);
 }
 
 function scoreSignal(value: number | null, status: AnimeListEntry['status']): number | null {
@@ -530,16 +553,23 @@ function addSignals(
   map: Map<string, MutablePreference>,
   values: readonly string[],
   signal: number,
+  weight: number,
 ): void {
-  for (const value of values) addSignal(map, value, signal);
+  for (const value of values) addSignal(map, value, signal, weight);
 }
 
-function addSignal<T>(map: Map<T, MutablePreference>, key: T, signal: number): void {
+/** Scaling count alongside the evidence keeps `positive / count` stable, which the profile UI renders as percentages. */
+function addSignal<T>(
+  map: Map<T, MutablePreference>,
+  key: T,
+  signal: number,
+  weight: number,
+): void {
   const normalizedKey = typeof key === 'string' ? (normalizeName(key) as T) : key;
   const current = map.get(normalizedKey) ?? { positive: 0, negative: 0, count: 0 };
-  if (signal > 0) current.positive += signal;
-  if (signal < 0) current.negative += Math.abs(signal);
-  current.count += 1;
+  if (signal > 0) current.positive += signal * weight;
+  if (signal < 0) current.negative += Math.abs(signal) * weight;
+  current.count += weight;
   map.set(normalizedKey, current);
 }
 
@@ -569,6 +599,7 @@ function fromLegacyProfile(profile: UserTasteProfile): RecommendationProfile {
     seasons: profile.preferredSeasons ?? new Map(),
     years: new Map(),
     averageScore: Number.isFinite(profile.averageScore) ? profile.averageScore : null,
+    ratingModel: null,
     ratedAnimeCount: profile.ratedAnimeCount,
     sourceAnimeCount: profile.sourceAnimeCount ?? profile.ratedAnimeCount,
     feedbackCount: 0,
@@ -669,8 +700,9 @@ function scoreYear(
   return best;
 }
 
-function scoreQuality(score: number | null): number {
-  return score === null ? 0.5 : clamp(score / 10, 0, 1);
+function scoreQuality(score: number | null, model: RatingModel | null): number {
+  if (score === null) return 0.5;
+  return clamp(predictUserRating(model, score) / 10, 0, 1);
 }
 
 function scorePopularity(popularityRank: number | null, memberCount: number | null): number {
@@ -681,18 +713,13 @@ function scorePopularity(popularityRank: number | null, memberCount: number | nu
   return 0.5;
 }
 
-/**
- * Collapses accumulated positive/negative evidence for one feature into 0..1, where 0.5 is "no evidence either way".
- */
+/** Returns 0..1 for one feature, where 0.5 means the evidence so far points neither way. */
 export function featurePreferenceScore(preference: FeaturePreference | undefined): number {
   if (preference === undefined || preference.count === 0) return 0;
   return clamp(0.5 + featurePreferenceStrength(preference) / 2, 0, 1);
 }
 
-/**
- * Unbounded counterpart of {@link featurePreferenceScore}. Scoring saturates at 1 for any clearly positive feature,
- * so ranking a profile by score alone would only alphabetise it.
- */
+/** Unbounded, because the score saturates at 1 for anything liked and ranking by it would only alphabetise a profile. */
 export function featurePreferenceStrength(preference: FeaturePreference | undefined): number {
   if (preference === undefined || preference.count === 0) return 0;
   return (preference.positive - preference.negative) / Math.max(1, Math.sqrt(preference.count));
@@ -753,10 +780,11 @@ function createReasons(
   if (scores.staff > 0.65 && features.staff[0] !== undefined) {
     add(reason('similarity', copy.reasonStaff, scores.staff));
   }
+  // A community score and a mean user rating are different scales, so the model has to bridge them before comparing.
   if (
     profile.averageScore !== null &&
     anime.score !== null &&
-    anime.score >= profile.averageScore
+    predictUserRating(profile.ratingModel, anime.score) >= profile.averageScore
   ) {
     add(reason('rating', copy.reasonRating, scores.quality));
   }
