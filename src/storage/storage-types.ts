@@ -1,5 +1,17 @@
 import type { RecommendationFeedback } from '../domain/feedback';
 import type { UserProfile } from '../domain/user-profile';
+
+/**
+ * Ids only: the anime behind them is re-resolved from the current recommendations on every read, so
+ * a drop never carries a second copy of the list payload and a sync cannot leave it dangling.
+ */
+export interface StoredDailyDrop {
+  readonly version: number;
+  readonly day: string;
+  readonly providerId: string;
+  readonly animeIds: readonly number[];
+  readonly claimedIds: readonly number[];
+}
 import type { UserPreferences } from '../domain/preferences';
 import type { AnimeCache } from '../domain/sync';
 
@@ -53,6 +65,8 @@ export interface AnimeLensStorage {
   manual_top_3_pool_signature?: string;
   /** Keyed by provider so switching MAL <-> AniList can't diff two different lists. */
   profileHistory?: Readonly<Record<string, StoredProfileHistory>>;
+  /** Keyed by provider, newest drop first. */
+  dailyDrops?: Readonly<Record<string, readonly StoredDailyDrop[]>>;
   updateCheck?: unknown;
 }
 

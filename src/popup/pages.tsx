@@ -17,6 +17,8 @@ import {
   type DashboardRecommendationSnapshot,
 } from '../recommendations/recommendation-messages';
 import type { RecommendationSectionId } from '../recommendations/recommendation-messages';
+import { claimDailyDrop, requestDailyDrop } from '../recommendations/daily-drop-messages';
+import type { DailyDropSnapshot } from '../recommendations/daily-drop';
 import type { Recommendation, RecommendationReason } from '../domain/recommendation';
 import type { FeedbackValue } from '../domain/feedback';
 import type { DislikeReason } from '../domain/feedback';
@@ -83,6 +85,7 @@ import { MAL_GENRE_NAMES, MAL_THEME_NAMES } from '../api/mal-taxonomy';
 import type { AnimeCardData } from './components/anime';
 import { AnimeGrid, FeaturedAnime } from './components/anime';
 import { AnimeSearchField, AnimeSearchPanel } from './components/anime-search';
+import { DailyDropSection } from './components/daily-drop';
 import { isSearchActive } from './search-state';
 import { TasteCardModal } from './components/taste-card-modal';
 import { TopPicksModal } from './components/top-picks-modal';
@@ -162,6 +165,8 @@ export function DashboardPage({
   sync,
   onSync,
   onRecommendationFeedback,
+  onFeedback,
+  onMalListChanged,
   recommendationsRevision = 0,
   copy,
   isOnline,
@@ -170,6 +175,8 @@ export function DashboardPage({
   const requestSequence = useRef(0);
   const disposed = useRef(false);
   const [query, setQuery] = useState('');
+  const [drop, setDrop] = useState<DailyDropSnapshot | null>(null);
+  const [claimingId, setClaimingId] = useState<number | null>(null);
   const [snapshot, setSnapshot] = useState<DashboardRecommendationSnapshot>({
     status: 'loading',
     daily: null,
@@ -179,6 +186,16 @@ export function DashboardPage({
     sync: null,
     errorMessage: null,
   });
+
+  const loadDailyDrop = useCallback(() => {
+    return requestDailyDrop()
+      .then((next) => {
+        if (!disposed.current) setDrop(next);
+      })
+      .catch(() => {
+        if (!disposed.current) setDrop(null);
+      });
+  }, []);
 
   const loadRecommendations = useCallback(() => {
     const sequence = requestSequence.current + 1;
@@ -201,17 +218,40 @@ export function DashboardPage({
   useEffect(() => {
     disposed.current = false;
     loadRecommendations();
+    void loadDailyDrop();
     return () => {
       disposed.current = true;
       requestSequence.current += 1;
     };
-  }, [recommendationsRevision, loadRecommendations]);
+  }, [recommendationsRevision, loadRecommendations, loadDailyDrop]);
 
   useEffect(() => {
     if (sync.metadata.status === 'success' || sync.metadata.status === 'offline') {
       loadRecommendations();
+      void loadDailyDrop();
     }
-  }, [sync.metadata.status, sync.metadata.lastSyncedAt, loadRecommendations]);
+  }, [sync.metadata.status, sync.metadata.lastSyncedAt, loadRecommendations, loadDailyDrop]);
+
+  const claimDropItem = useCallback(
+    (anime: AnimeCardData) => {
+      if (claimingId !== null) return;
+      setClaimingId(anime.id);
+      void addAnimeToMalList(anime.id)
+        .then(() => claimDailyDrop(anime.id))
+        .then((next) => {
+          if (disposed.current) return;
+          setDrop(next);
+          onMalListChanged?.();
+        })
+        .catch(() => {
+          if (!disposed.current) onFeedback(copy.dailyDropClaimFailed);
+        })
+        .finally(() => {
+          if (!disposed.current) setClaimingId(null);
+        });
+    },
+    [claimingId, copy.dailyDropClaimFailed, onFeedback, onMalListChanged],
+  );
 
   const toCardData = (recommendation: Recommendation): AnimeCardData => ({
     ...recommendation.anime,
@@ -338,6 +378,15 @@ export function DashboardPage({
               <span className="status-dot is-offline" aria-hidden="true" />
               {copy.offlineRecommendations}
             </div>
+          )}
+          {drop?.status === 'ready' && (
+            <DailyDropSection
+              view={drop.view}
+              onSelect={onSelectAnime}
+              onClaim={claimDropItem}
+              claimingId={claimingId}
+              copy={copy}
+            />
           )}
           <section className="dashboard-daily" aria-labelledby="daily-title">
             <div className="section-heading">

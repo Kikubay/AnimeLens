@@ -34,6 +34,23 @@ import {
   withCurrentSync,
 } from '../recommendations/recommendation-dashboard';
 import { createCandidatePoolStore } from '../recommendations/candidate-pool-store';
+import { createDailyDropStore, DAILY_DROP_KEY } from '../recommendations/daily-drop-store';
+import {
+  buildDailyDropView,
+  createStoredDailyDrop,
+  dayKeyOf,
+  dropCandidateRank,
+  selectDailyDropAnimeIds,
+  seenDropIds,
+  type DailyDropSnapshot,
+} from '../recommendations/daily-drop';
+import type {
+  DailyDropMessage,
+  DailyDropMessageResponse,
+} from '../recommendations/daily-drop-messages';
+import { isDailyDropMessage } from '../recommendations/daily-drop-messages';
+import type { Recommendation } from '../domain/recommendation';
+import type { StoredDailyDrop } from '../storage/storage-types';
 import {
   createDashboardSnapshotStore,
   dashboardSignature,
@@ -74,6 +91,7 @@ import {
   type DataExportSource,
 } from '../settings/data-transfer';
 import type {
+  DashboardRecommendationSnapshot,
   RecommendationMessage,
   RecommendationMessageResponse,
 } from '../recommendations/recommendation-messages';
@@ -153,6 +171,7 @@ const storage: Storage = new ChromeStorageAdapter();
 const feedbackService = new RecommendationFeedbackService(new ChromeFeedbackStore(storage));
 const topPicksStore = createTopPicksStore(storage);
 const profileHistoryStore = createProfileHistoryStore(storage);
+const dailyDropStore = createDailyDropStore(storage);
 let syncSnapshot: SyncSnapshot = {
   metadata: createIdleMetadata(),
   progress: null,
@@ -253,6 +272,7 @@ type WorkerResponse =
   | ProfileMessageResponse
   | SettingsResponse
   | RecommendationMessageResponse
+  | DailyDropMessageResponse
   | MalListMessageResponse
   | AnimeSearchResponse
   | UpdateResponse;
@@ -313,6 +333,14 @@ chrome.runtime.onMessage.addListener(
     }
     if (isRecommendationMessage(message)) {
       void handleRecommendationMessage(message)
+        .then(sendResponse)
+        .catch(async (error: unknown) =>
+          sendResponse({ ok: false, message: await toMessage(error) }),
+        );
+      return true;
+    }
+    if (isDailyDropMessage(message)) {
+      void handleDailyDropMessage(message)
         .then(sendResponse)
         .catch(async (error: unknown) =>
           sendResponse({ ok: false, message: await toMessage(error) }),
@@ -635,6 +663,7 @@ async function handleSettingsMessage(message: SettingsMessage): Promise<Settings
       'profile',
       'preferences',
       PROFILE_HISTORY_KEY,
+      DAILY_DROP_KEY,
       TOP_PICKS_RANKING_KEY,
       TOP_PICKS_SIGNATURE_KEY,
       'updateCheck',
@@ -936,14 +965,15 @@ async function loadCandidatePool(): Promise<readonly Anime[]> {
 async function handleRecommendationMessage(
   _message: RecommendationMessage,
 ): Promise<RecommendationMessageResponse> {
+  return { ok: true, snapshot: await currentDashboardSnapshot() };
+}
+
+async function currentDashboardSnapshot(): Promise<DashboardRecommendationSnapshot> {
   const stored = await readActiveProviderCache();
   const preferences = normalizeUserPreferences(await storage.get('preferences'));
   const feedback = await feedbackService.list();
   if (stored === undefined) {
-    return {
-      ok: true,
-      snapshot: createEmptyDashboardRecommendationSnapshot(),
-    };
+    return createEmptyDashboardRecommendationSnapshot();
   }
 
   const providerId = await providerRegistry.registry.getActiveProvider();
@@ -959,7 +989,7 @@ async function handleRecommendationMessage(
 
   const cached = await dashboardSnapshotStore.load(signature, Date.now());
   if (cached !== null) {
-    return { ok: true, snapshot: withCurrentSync(cached, stored.sync) };
+    return withCurrentSync(cached, stored.sync);
   }
 
   const snapshot = await buildDashboardRecommendationSnapshot(
@@ -971,7 +1001,64 @@ async function handleRecommendationMessage(
     async () => pool,
   );
   await dashboardSnapshotStore.save(signature, snapshot, Date.now());
-  return { ok: true, snapshot };
+  return snapshot;
+}
+
+async function handleDailyDropMessage(
+  message: DailyDropMessage,
+): Promise<DailyDropMessageResponse> {
+  const stored = await readActiveProviderCache();
+  if (stored === undefined) return { ok: true, snapshot: emptyDailyDropSnapshot() };
+
+  const providerId = await providerRegistry.registry.getActiveProvider();
+  const today = dayKeyOf(Date.now());
+  const snapshot = await currentDashboardSnapshot();
+  const rank = dropCandidateRank(snapshot.daily, snapshot.sections);
+
+  if (message.type === 'daily_drop.claim') {
+    await dailyDropStore.claim(providerId, message.animeId);
+  }
+
+  const history = await dailyDropStore.list(providerId);
+  const current = await reconcileDailyDrop(providerId, today, rank, history);
+  const view = buildDailyDropView(
+    current,
+    history.filter((drop) => drop !== current),
+    rank,
+    today,
+  );
+  return {
+    ok: true,
+    snapshot: view.items.length === 0 ? emptyDailyDropSnapshot() : { status: 'ready', view },
+  };
+}
+
+async function reconcileDailyDrop(
+  providerId: string,
+  today: string,
+  rank: readonly Recommendation[],
+  history: readonly StoredDailyDrop[],
+): Promise<StoredDailyDrop | null> {
+  const existing = history.find((drop) => drop.day === today) ?? null;
+  if (
+    existing !== null &&
+    existing.animeIds.some((id) => rank.some((item) => item.anime.id === id))
+  ) {
+    return existing;
+  }
+  const ids = selectDailyDropAnimeIds(rank, today, seenDropIds(history));
+  if (ids.length === 0) return null;
+  const claimed = existing?.claimedIds.filter((id) => ids.includes(id)) ?? [];
+  const drop = createStoredDailyDrop(providerId, today, ids, claimed);
+  await dailyDropStore.record(drop);
+  return drop;
+}
+
+function emptyDailyDropSnapshot(): DailyDropSnapshot {
+  return {
+    status: 'empty',
+    view: { day: '', items: [], missed: [], unclaimedCount: 0 },
+  };
 }
 
 async function buildCurrentProfileSummary(): Promise<{
