@@ -38,8 +38,10 @@ import { createDailyDropStore, DAILY_DROP_KEY } from '../recommendations/daily-d
 import {
   buildDailyDropView,
   createStoredDailyDrop,
+  dailyDropTaste,
   dayKeyOf,
   dropCandidateRank,
+  filterDailyDropCandidates,
   selectDailyDropAnimeIds,
   seenDropIds,
   type DailyDropSnapshot,
@@ -1013,7 +1015,13 @@ async function handleDailyDropMessage(
   const providerId = await providerRegistry.registry.getActiveProvider();
   const today = dayKeyOf(Date.now());
   const snapshot = await currentDashboardSnapshot();
-  const rank = dropCandidateRank(snapshot.daily, snapshot.sections);
+  const taste = dailyDropTaste(
+    buildUserPreferenceProfile(stored.entries, await feedbackService.list()),
+  );
+  const rank = filterDailyDropCandidates(
+    dropCandidateRank(snapshot.daily, snapshot.sections),
+    taste,
+  );
 
   if (message.type === 'daily_drop.claim') {
     await dailyDropStore.claim(providerId, message.animeId);

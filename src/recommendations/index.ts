@@ -29,20 +29,26 @@ export type {
 export {
   buildDailyDropView,
   createStoredDailyDrop,
+  dailyDropTaste,
   dayDistance,
   dayKeyOf,
   dropCandidateRank,
+  filterDailyDropCandidates,
   isWithinGrace,
+  qualifiesForDailyDrop,
   selectDailyDropAnimeIds,
   seenDropIds,
   DAILY_DROP_GRACE_DAYS,
+  DAILY_DROP_MIN_COMPATIBILITY,
   DAILY_DROP_SIZE,
+  DAILY_DROP_TASTE_GENRE_LIMIT,
   DAILY_DROP_VERSION,
 } from './daily-drop';
 export type {
   DailyDropItem,
   DailyDropItemState,
   DailyDropSnapshot,
+  DailyDropTaste,
   DailyDropView,
 } from './daily-drop';
 export { createDailyDropStore, DAILY_DROP_KEY } from './daily-drop-store';
