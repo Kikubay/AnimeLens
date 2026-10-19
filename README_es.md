@@ -20,7 +20,7 @@
 
 <p align="center">
   <a href="https://github.com/Kikubay/AnimeLens/releases">
-    <img alt="Número de descargas" src="https://img.shields.io/github/downloads/Kikubay/AnimeLens/total?color=green">
+    <img alt="Número de descargas" src="https://img.shields.io/github/downloads/Kikubay/AnimeLens/total?color=green&v=2">
   </a>
   <a href="/releases/latest">
     <img alt="Versión de GitHub (última)" src="https://img.shields.io/github/v/release/Kikubay/AnimeLens?label=Version&color=blue">
