@@ -37,6 +37,136 @@ interface IconProps {
   readonly className?: string;
 }
 
+// Module scope, because the table is static: building it inside the component rebuilt all 26 entries on
+// every render while a dashboard render mounts several hundred icons.
+const ICON_PATHS: Record<IconName, ReactNode> = {
+  'arrow-down': (
+    <>
+      <path d="M12 5v14" />
+      <path d="m6 13 6 6 6-6" />
+    </>
+  ),
+  'arrow-right': (
+    <>
+      <path d="M5 12h14" />
+      <path d="m13 6 6 6-6 6" />
+    </>
+  ),
+  'arrow-up': (
+    <>
+      <path d="M12 19V5" />
+      <path d="m6 11 6-6 6 6" />
+    </>
+  ),
+  check: <path d="m5 12 4 4L19 6" />,
+  'chevron-down': <path d="m6 9 6 6 6-6" />,
+  'chevron-left': <path d="m15 18-6-6 6-6" />,
+  close: (
+    <>
+      <path d="M6 6l12 12" />
+      <path d="M18 6 6 18" />
+    </>
+  ),
+  download: (
+    <>
+      <path d="M12 3v12" />
+      <path d="m7 11 5 5 5-5" />
+      <path d="M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2" />
+    </>
+  ),
+  filter: (
+    <>
+      <path d="M4 6h16" />
+      <path d="M7 12h10" />
+      <path d="M10 18h4" />
+    </>
+  ),
+  home: (
+    <>
+      <path d="m3 10 9-7 9 7v10a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1Z" />
+      <path d="M9 21v-7h6v7" />
+    </>
+  ),
+  info: (
+    <>
+      <circle cx="12" cy="12" r="9" />
+      <path d="M12 11v5" />
+      <path d="M12 8h.01" />
+    </>
+  ),
+  list: (
+    <>
+      <path d="M8 6h12" />
+      <path d="M8 12h12" />
+      <path d="M8 18h12" />
+      <path d="M4 6h.01" />
+      <path d="M4 12h.01" />
+      <path d="M4 18h.01" />
+    </>
+  ),
+  lock: (
+    <>
+      <rect x="4" y="10" width="16" height="11" rx="2" />
+      <path d="M8 10V7a4 4 0 0 1 8 0v3" />
+    </>
+  ),
+  moon: <path d="M20.5 15.5A8.5 8.5 0 0 1 8.5 3.5 8.5 8.5 0 1 0 20.5 15.5Z" />,
+  more: (
+    <>
+      <circle cx="5" cy="12" r="1" fill="currentColor" />
+      <circle cx="12" cy="12" r="1" fill="currentColor" />
+      <circle cx="19" cy="12" r="1" fill="currentColor" />
+    </>
+  ),
+  play: <path d="m9 5 10 7-10 7Z" fill="currentColor" stroke="none" />,
+  refresh: (
+    <>
+      <path d="M20 11a8.1 8.1 0 0 0-14-4L4 9" />
+      <path d="M4 4v5h5" />
+      <path d="M4 13a8.1 8.1 0 0 0 14 4l2-2" />
+      <path d="M20 20v-5h-5" />
+    </>
+  ),
+  search: (
+    <>
+      <circle cx="11" cy="11" r="7" />
+      <path d="m20 20-4-4" />
+    </>
+  ),
+  settings: (
+    <>
+      <circle cx="12" cy="12" r="3" />
+      <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
+    </>
+  ),
+  sparkles: (
+    <>
+      <path d="m12 3-1.3 4.2L7 8.5l3.7 1.3L12 14l1.3-4.2L17 8.5l-3.7-1.3Z" />
+      <path d="m19 14-.7 2.3L16 17l2.3.7L19 20l.7-2.3L22 17l-2.3-.7Z" />
+    </>
+  ),
+  star: <path d="m12 3 2.8 5.7 6.2.9-4.5 4.4 1.1 6.2-5.6-2.9-5.6 2.9 1.1-6.2L3 9.6l6.2-.9Z" />,
+  'thumbs-down': (
+    <path d="M10 15v4a2 2 0 0 0 2 2l4-6V4H7.7a2 2 0 0 0-1.9 1.4l-1.3 6A2 2 0 0 0 6.4 14H10ZM16 4h3v11h-3" />
+  ),
+  'thumbs-up': (
+    <path d="M10 9V5a2 2 0 0 1 2-2l4 6v11H7.7a2 2 0 0 1-1.9-1.4l-1.3-6A2 2 0 0 1 6.4 11H10Zm6 9h3V7h-3" />
+  ),
+  user: (
+    <>
+      <circle cx="12" cy="8" r="3" />
+      <path d="M5 20a7 7 0 0 1 14 0" />
+    </>
+  ),
+  upload: (
+    <>
+      <path d="M12 19V5" />
+      <path d="m6 11 6-6 6 6" />
+      <path d="M5 21h14" />
+    </>
+  ),
+};
+
 export function Icon({ name, size = 18, strokeWidth = 1.8, className }: IconProps) {
   const common = {
     width: size,
@@ -50,137 +180,9 @@ export function Icon({ name, size = 18, strokeWidth = 1.8, className }: IconProp
     'aria-hidden': true,
   };
 
-  const paths: Record<IconName, ReactNode> = {
-    'arrow-down': (
-      <>
-        <path d="M12 5v14" />
-        <path d="m6 13 6 6 6-6" />
-      </>
-    ),
-    'arrow-right': (
-      <>
-        <path d="M5 12h14" />
-        <path d="m13 6 6 6-6 6" />
-      </>
-    ),
-    'arrow-up': (
-      <>
-        <path d="M12 19V5" />
-        <path d="m6 11 6-6 6 6" />
-      </>
-    ),
-    check: <path d="m5 12 4 4L19 6" />,
-    'chevron-down': <path d="m6 9 6 6 6-6" />,
-    'chevron-left': <path d="m15 18-6-6 6-6" />,
-    close: (
-      <>
-        <path d="M6 6l12 12" />
-        <path d="M18 6 6 18" />
-      </>
-    ),
-    download: (
-      <>
-        <path d="M12 3v12" />
-        <path d="m7 11 5 5 5-5" />
-        <path d="M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2" />
-      </>
-    ),
-    filter: (
-      <>
-        <path d="M4 6h16" />
-        <path d="M7 12h10" />
-        <path d="M10 18h4" />
-      </>
-    ),
-    home: (
-      <>
-        <path d="m3 10 9-7 9 7v10a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1Z" />
-        <path d="M9 21v-7h6v7" />
-      </>
-    ),
-    info: (
-      <>
-        <circle cx="12" cy="12" r="9" />
-        <path d="M12 11v5" />
-        <path d="M12 8h.01" />
-      </>
-    ),
-    list: (
-      <>
-        <path d="M8 6h12" />
-        <path d="M8 12h12" />
-        <path d="M8 18h12" />
-        <path d="M4 6h.01" />
-        <path d="M4 12h.01" />
-        <path d="M4 18h.01" />
-      </>
-    ),
-    lock: (
-      <>
-        <rect x="4" y="10" width="16" height="11" rx="2" />
-        <path d="M8 10V7a4 4 0 0 1 8 0v3" />
-      </>
-    ),
-    moon: <path d="M20.5 15.5A8.5 8.5 0 0 1 8.5 3.5 8.5 8.5 0 1 0 20.5 15.5Z" />,
-    more: (
-      <>
-        <circle cx="5" cy="12" r="1" fill="currentColor" />
-        <circle cx="12" cy="12" r="1" fill="currentColor" />
-        <circle cx="19" cy="12" r="1" fill="currentColor" />
-      </>
-    ),
-    play: <path d="m9 5 10 7-10 7Z" fill="currentColor" stroke="none" />,
-    refresh: (
-      <>
-        <path d="M20 11a8.1 8.1 0 0 0-14-4L4 9" />
-        <path d="M4 4v5h5" />
-        <path d="M4 13a8.1 8.1 0 0 0 14 4l2-2" />
-        <path d="M20 20v-5h-5" />
-      </>
-    ),
-    search: (
-      <>
-        <circle cx="11" cy="11" r="7" />
-        <path d="m20 20-4-4" />
-      </>
-    ),
-    settings: (
-      <>
-        <circle cx="12" cy="12" r="3" />
-        <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
-      </>
-    ),
-    sparkles: (
-      <>
-        <path d="m12 3-1.3 4.2L7 8.5l3.7 1.3L12 14l1.3-4.2L17 8.5l-3.7-1.3Z" />
-        <path d="m19 14-.7 2.3L16 17l2.3.7L19 20l.7-2.3L22 17l-2.3-.7Z" />
-      </>
-    ),
-    star: <path d="m12 3 2.8 5.7 6.2.9-4.5 4.4 1.1 6.2-5.6-2.9-5.6 2.9 1.1-6.2L3 9.6l6.2-.9Z" />,
-    'thumbs-down': (
-      <path d="M10 15v4a2 2 0 0 0 2 2l4-6V4H7.7a2 2 0 0 0-1.9 1.4l-1.3 6A2 2 0 0 0 6.4 14H10ZM16 4h3v11h-3" />
-    ),
-    'thumbs-up': (
-      <path d="M10 9V5a2 2 0 0 1 2-2l4 6v11H7.7a2 2 0 0 1-1.9-1.4l-1.3-6A2 2 0 0 1 6.4 11H10Zm6 9h3V7h-3" />
-    ),
-    user: (
-      <>
-        <circle cx="12" cy="8" r="3" />
-        <path d="M5 20a7 7 0 0 1 14 0" />
-      </>
-    ),
-    upload: (
-      <>
-        <path d="M12 19V5" />
-        <path d="m6 11 6-6 6 6" />
-        <path d="M5 21h14" />
-      </>
-    ),
-  };
-
   return (
     <svg {...common} className={className}>
-      {paths[name]}
+      {ICON_PATHS[name]}
     </svg>
   );
 }

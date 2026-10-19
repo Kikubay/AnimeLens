@@ -126,6 +126,17 @@ function reasonHeadline(reason: RecommendationReason | undefined): string | null
     : `${reason.label} ${detail}`;
 }
 
+// Module scope so the memoized derivations below can depend on it without rebuilding it each render.
+function toCardData(recommendation: Recommendation, copy: AppCopy): AnimeCardData {
+  return {
+    ...recommendation.anime,
+    compatibility: recommendation.compatibilityScore,
+    recommendation: reasonHeadline(recommendation.reasons[0]) ?? copy.exploreLead,
+    reasons: recommendation.reasons,
+    category: recommendation.category,
+  };
+}
+
 interface PageProps {
   readonly onNavigate: (page: PageId) => void;
   readonly onSelectAnime: (anime: AnimeCardData) => void;
@@ -213,19 +224,21 @@ export function DashboardPage({
     }
   }, [sync.metadata.status, sync.metadata.lastSyncedAt, loadRecommendations]);
 
-  const toCardData = (recommendation: Recommendation): AnimeCardData => ({
-    ...recommendation.anime,
-    compatibility: recommendation.compatibilityScore,
-    recommendation: reasonHeadline(recommendation.reasons[0]) ?? copy.exploreLead,
-    reasons: recommendation.reasons,
-    category: recommendation.category,
-  });
-  const daily = snapshot.daily === null ? null : toCardData(snapshot.daily);
-  const sections = snapshot.sections.map((section) => ({
-    ...section,
-    title: sectionTitle(section.id, copy),
-    recommendations: section.recommendations.map(toCardData),
-  }));
+  // Both derivations are keyed on `copy`, whose identity is stable because getCopy is module-cached,
+  // so an unrelated re-render no longer hands 96 cards freshly allocated props.
+  const daily = useMemo(
+    () => (snapshot.daily === null ? null : toCardData(snapshot.daily, copy)),
+    [snapshot.daily, copy],
+  );
+  const sections = useMemo(
+    () =>
+      snapshot.sections.map((section) => ({
+        ...section,
+        title: sectionTitle(section.id, copy),
+        recommendations: section.recommendations.map((item) => toCardData(item, copy)),
+      })),
+    [snapshot.sections, copy],
+  );
 
   const displayStatus = !isOnline && daily !== null ? 'offline' : snapshot.status;
   const searchIsActive = isSearchActive(query);

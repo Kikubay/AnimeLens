@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { AuthPhaseFailureError, isAuthServiceUnavailableError } from '../auth/auth-messages';
 import type { AuthSnapshot } from '../auth/auth-types';
 import type { DislikeReason, FeedbackValue } from '../domain/feedback';
@@ -6,6 +6,7 @@ import { submitRecommendationFeedback } from '../feedback/feedback-messages';
 import { requestAuthSnapshot, requestProviderList } from '../auth/auth-messages';
 import { requestSync, requestSyncSnapshot } from '../sync/sync-messages';
 import type { SyncSnapshot } from '../sync/sync-messages';
+import { syncSnapshotsMatch } from '../sync/sync-snapshot-match';
 import { Icon, Modal, Button, Toast } from './components/ui';
 import { applyThemePreference } from '../settings/theme';
 import { DEFAULT_USER_PREFERENCES, type UserPreferences } from '../settings/settings-types';
@@ -37,6 +38,24 @@ const NAV_ITEMS: readonly NavItem[] = [
 ];
 
 const NAV_PAGE_ORDER: readonly PageId[] = NAV_ITEMS.map((item) => item.id);
+
+const SYNC_ACTIVE_POLL_MS = 750;
+const SYNC_IDLE_POLL_MS = 30_000;
+
+const INITIAL_SYNC: SyncSnapshot = {
+  metadata: {
+    status: 'idle',
+    phase: null,
+    progress: null,
+    lastSyncedAt: null,
+    itemCount: 0,
+    nextPageUrl: null,
+    errorCode: null,
+    errorMessage: null,
+    fromCache: false,
+  },
+  progress: null,
+};
 
 function DislikeReasonModal({
   anime,
@@ -166,20 +185,51 @@ export function App() {
   useEffect(() => {
     refreshActiveProviderName();
   }, [auth.status]);
-  const [sync, setSync] = useState<SyncSnapshot>({
-    metadata: {
-      status: 'idle',
-      phase: null,
-      progress: null,
-      lastSyncedAt: null,
-      itemCount: 0,
-      nextPageUrl: null,
-      errorCode: null,
-      errorMessage: null,
-      fromCache: false,
-    },
-    progress: null,
-  });
+  const [sync, setSync] = useState<SyncSnapshot>(INITIAL_SYNC);
+  const syncRef = useRef<SyncSnapshot>(INITIAL_SYNC);
+
+  const applySyncSnapshot = useCallback((next: SyncSnapshot): boolean => {
+    if (syncSnapshotsMatch(syncRef.current, next)) return false;
+    syncRef.current = next;
+    setSync(next);
+    return true;
+  }, []);
+
+  useEffect(() => {
+    let disposed = false;
+    let timer: number | undefined;
+
+    const poll = (delay: number) => {
+      timer = window.setTimeout(() => {
+        if (disposed) return;
+        void requestSyncSnapshot()
+          .then((next) => {
+            if (!disposed) applySyncSnapshot(next);
+          })
+          .catch(() => undefined)
+          .finally(() => {
+            if (disposed) return;
+            poll(
+              syncRef.current.metadata.status === 'syncing'
+                ? SYNC_ACTIVE_POLL_MS
+                : SYNC_IDLE_POLL_MS,
+            );
+          });
+      }, delay);
+    };
+
+    void requestSyncSnapshot()
+      .then((next) => {
+        if (!disposed) applySyncSnapshot(next);
+      })
+      .catch(() => undefined);
+    poll(SYNC_ACTIVE_POLL_MS);
+
+    return () => {
+      disposed = true;
+      if (timer !== undefined) window.clearTimeout(timer);
+    };
+  }, [applySyncSnapshot]);
 
   useEffect(() => {
     let cleanupTheme = applyThemePreference(DEFAULT_USER_PREFERENCES.theme);
@@ -215,25 +265,12 @@ export function App() {
           errorMessage: error instanceof Error ? error.message : copyRef.current.authUnavailable,
         }));
       });
-    void requestSyncSnapshot()
-      .then((snapshot) => {
-        if (!disposed) setSync(snapshot);
-      })
-      .catch(() => undefined);
-    const syncTimer = window.setInterval(() => {
-      void requestSyncSnapshot()
-        .then((snapshot) => {
-          if (!disposed) setSync(snapshot);
-        })
-        .catch(() => undefined);
-    }, 750);
     const handleOnline = () => setIsOnline(true);
     const handleOffline = () => setIsOnline(false);
     window.addEventListener('online', handleOnline);
     window.addEventListener('offline', handleOffline);
     return () => {
       window.clearTimeout(timer);
-      window.clearInterval(syncTimer);
       window.removeEventListener('online', handleOnline);
       window.removeEventListener('offline', handleOffline);
       disposed = true;
@@ -343,7 +380,7 @@ export function App() {
   const syncNow = () => {
     void requestSync('manual')
       .then((snapshot) => {
-        setSync(snapshot);
+        applySyncSnapshot(snapshot);
         setRecommendationsRevision((current) => current + 1);
       })
       .catch(() => showToast(copy.syncUnavailable));
