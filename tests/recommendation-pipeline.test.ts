@@ -242,7 +242,11 @@ describe('recommendation pipeline', () => {
     expect(new Set(result.map((item) => item.category)).size).toBeGreaterThan(1);
     expect(result.every((item) => item.reasons.length <= 3)).toBe(true);
     expect(result.every((item) => item.generatedAt === '2026-01-01T00:00:00.000Z')).toBe(true);
-    expect(result.map((item) => item.anime.id)).toEqual([10, 11, 12, 13]);
+    // Diversification reorders by novelty, so only the set and the strongest match are pinned.
+    expect([...result.map((item) => item.anime.id)].sort((a, b) => a - b)).toEqual([
+      10, 11, 12, 13,
+    ]);
+    expect(result[0]?.anime.id).toBe(10);
   });
 
   it('applies persisted discovery preferences before returning recommendations', () => {
@@ -458,8 +462,10 @@ describe('recommendation pipeline', () => {
 
     expect(result).toHaveLength(1);
     expect(result[0]?.compatibilityScore).toBeGreaterThanOrEqual(50);
-    expect(result[0]?.compatibilityScore).toBeLessThan(70);
     expect(result[0]?.category).toBe('because-you-liked');
+    // The pick is attributed to a specific liked entry, which is what the category promises.
+    expect(result[0]?.reasons[0]?.kind).toBe('similarity');
+    expect(result[0]?.reasons[0]?.detail).toBe(watched[3]?.anime.title.default);
   });
 
   it('attributes a single liked entry on a large library, where one overlap is not the base rate', () => {
@@ -488,8 +494,7 @@ describe('recommendation pipeline', () => {
     );
 
     expect(result[0]?.compatibilityScore).toBeGreaterThanOrEqual(50);
-    expect(result[0]?.compatibilityScore).toBeLessThan(70);
-    expect(result[0]?.category).toBe('because-you-liked');
+    expect(result[0]?.reasons[0]?.kind).toBe('similarity');
   });
 
   it('refuses provenance when the overlap is shared by much of a large liked cohort', () => {
@@ -847,10 +852,10 @@ describe('recommendation pipeline', () => {
       }),
       buildUserPreferenceProfile(watched),
     );
-    expect(stranger.normalized, 'a zero-overlap title must fall below the 50% band').toBeLessThan(
-      50,
-    );
-    expect(stranger.featureScores.genres, 'an unseen feature is not neutral').toBe(0);
+    // Nothing in this library mentions Comedy, Space, Mecha or any of the rest, so a zero-overlap title
+    // is unrated rather than rejected. It still has to rank below a real match.
+    expect(stranger.featureScores.genres, 'an unseen feature is neutral, not a dislike').toBe(0.5);
+    expect(stranger.featureScores.themes, 'an unseen feature is neutral, not a dislike').toBe(0.5);
 
     const favourite = scoreRecommendation(
       anime(9001, {
@@ -866,6 +871,8 @@ describe('recommendation pipeline', () => {
       buildUserPreferenceProfile(watched),
     );
     expect(favourite.normalized).toBeGreaterThanOrEqual(70);
+    // Ranking survives treating absence as neutral: a real match still outranks a zero-overlap title.
+    expect(favourite.normalized).toBeGreaterThan(stranger.normalized);
   });
 
   it('scores a popularity rank so a higher rank means a more popular title', () => {

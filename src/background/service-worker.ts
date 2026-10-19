@@ -235,7 +235,8 @@ type AuthMessage =
   | {
       readonly type: 'auth.complete_pin_connect';
       readonly providerId: ProviderId;
-      readonly token: string;
+      /** Omitted when the worker already captured the token from the pin tab. */
+      readonly token?: string;
     }
   | { readonly type: 'auth.get_token_exchange_diagnostic' }
   | { readonly type: 'auth.get_pin_token' };
@@ -244,7 +245,7 @@ type AuthResponse =
   | { readonly ok: true; readonly snapshot: AuthSnapshot }
   | { readonly ok: true; readonly diagnostic: TokenExchangeDiagnostic | null }
   | { readonly ok: true; readonly providers: ProviderStatus[] }
-  | { readonly ok: true; readonly pinToken: string | null }
+  | { readonly ok: true; readonly pinAvailable: boolean }
   | { readonly ok: false; readonly message: string };
 
 type WorkerResponse =
@@ -480,13 +481,30 @@ async function handleAuthMessage(message: AuthMessage): Promise<AuthResponse> {
     return { ok: true, providers: await providerRegistry.listProviderStatuses() };
   }
   if (message.type === 'auth.get_pin_token') {
-    return { ok: true, pinToken: await readStoredAnilistPinToken() };
+    // Availability only: the token itself never crosses into the popup, which is the one place a
+    // compromised bundle could read it. `complete_pin_connect` reads it back from here.
+    return { ok: true, pinAvailable: (await readStoredAnilistPinToken()) !== null };
   }
   if (message.type === 'auth.complete_pin_connect') {
     if (message.providerId !== 'anilist') {
       return { ok: false, message: (await currentCopy()).pinFlowAniListOnly };
     }
-    const snapshot = await providerRegistry.completeAnilistPinSignIn(message.token);
+    // An omitted token means "use the one the worker already captured from the pin tab", so the
+    // auto-detect path never has to hold the secret in the popup at all.
+    const supplied = message.token?.trim() ?? '';
+    const accessToken = supplied.length > 0 ? supplied : await readStoredAnilistPinToken();
+    if (accessToken === null) {
+      return {
+        ok: true,
+        snapshot: {
+          status: 'error',
+          profile: null,
+          errorCode: 'invalid_callback',
+          errorMessage: (await currentCopy()).pinFlowNoTokenDetected,
+        },
+      };
+    }
+    const snapshot = await providerRegistry.completeAnilistPinSignIn(accessToken);
     if (snapshot.status === 'authenticated') {
       await forgetAnilistPinToken();
       void configureScheduledTasks().catch(reportBackgroundFailure);
@@ -874,12 +892,12 @@ async function fetchCandidatePool(clusters: TasteClusters): Promise<readonly Ani
 
     const degrade = async <T>(
       load: () => Promise<readonly T[]> | undefined,
-    ): Promise<readonly T[]> => {
+    ): Promise<{ readonly items: readonly T[]; readonly failed: boolean }> => {
       try {
-        return (await load()) ?? [];
+        return { items: (await load()) ?? [], failed: false };
       } catch (error) {
         reportBackgroundFailure(error);
-        return [];
+        return { items: [], failed: true };
       }
     };
 
@@ -897,9 +915,15 @@ async function fetchCandidatePool(clusters: TasteClusters): Promise<readonly Ani
       degrade<Anime>(() => fetchTasteDerived(provider, clusters, tasteLimit)),
     ]);
 
+    // A source returning nothing is normal; a source that threw is a provider outage. Treating the
+    // second like the first turns an outage into a cached, nearly-empty dashboard with no error shown.
+    if (suggested.failed && ranked.failed && deepRanked.failed && tasteDerived.failed) {
+      throw new Error('Every candidate source failed for the active provider.');
+    }
+
     const merged: Anime[] = [];
     const seen = new Set<number>();
-    for (const batch of [suggested, ranked, deepRanked, tasteDerived]) {
+    for (const batch of [suggested.items, ranked.items, deepRanked.items, tasteDerived.items]) {
       for (const anime of batch) {
         if (seen.has(anime.id)) continue;
         seen.add(anime.id);
@@ -937,17 +961,12 @@ async function loadCandidatePool(
     return candidatePoolInFlight.request;
   }
 
-  const request = (async () => {
-    try {
-      return await fetchCandidatePool(clusters);
-    } catch (error) {
-      reportBackgroundFailure(error);
-      return [] as readonly Anime[];
-    }
-  })();
+  const request = (async () => fetchCandidatePool(clusters))();
   candidatePoolInFlight = { poolKey, request };
 
   try {
+    // Propagated on purpose: an empty-but-ready dashboard hides a provider outage, and an empty pool
+    // signature would also be cached for the whole TTL.
     const pool = await request;
 
     if (pool.length > 0) {
@@ -975,7 +994,15 @@ async function handleRecommendationMessage(
   const providerId = await providerRegistry.registry.getActiveProvider();
   const watched = stored.entries.filter((entry) => entry.status !== 'plan_to_watch');
   const clusters = buildTasteClusters(buildUserPreferenceProfile(watched, feedback));
-  const pool = await loadCandidatePool(providerId, clusters);
+  let pool: readonly Anime[];
+  try {
+    pool = await loadCandidatePool(providerId, clusters);
+  } catch (error) {
+    reportBackgroundFailure(error);
+    // Surfacing this as an error keeps the dashboard off a cached empty pool instead of rendering a
+    // handful of plan-to-watch titles as if that were the recommendation set.
+    return { ok: false, message: await toUserFacingRecommendationError(error) };
+  }
   const signature = dashboardSignature({
     providerId,
     cacheVersion: stored.version,
@@ -1215,11 +1242,13 @@ function createIdleMetadata(): SyncMetadata {
 function isAuthMessage(value: unknown): value is AuthMessage {
   if (typeof value !== 'object' || value === null || !('type' in value)) return false;
   if (value.type === 'auth.complete_pin_connect') {
+    // The token is optional: omitting it asks the worker to reuse the one it captured itself, which
+    // is what keeps the secret out of the popup entirely.
+    const token = (value as { token?: unknown }).token;
     return (
       'providerId' in value &&
       isProviderId((value as { providerId: unknown }).providerId) &&
-      'token' in value &&
-      typeof (value as { token: unknown }).token === 'string'
+      (token === undefined || typeof token === 'string')
     );
   }
   return (
@@ -1265,6 +1294,14 @@ async function toUserFacingSearchError(error: unknown): Promise<string> {
     return copy.searchUnavailable(providerName);
   }
   return copy.backgroundActionFailed;
+}
+
+// A dashboard that cannot reach its provider is a different failure from a search that returns
+// nothing, and reusing the search copy here would promise a retry that never helps.
+async function toUserFacingRecommendationError(error: unknown): Promise<string> {
+  const copy = getCopy(await currentLanguage());
+  if (error instanceof ApiError && error.code === 'network_error') return copy.recommendationsError;
+  return copy.recommendationsUnavailable;
 }
 
 function toSyncErrorCode(error: unknown): SyncMetadata['errorCode'] {

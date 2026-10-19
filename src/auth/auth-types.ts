@@ -43,10 +43,13 @@ export interface AuthSession {
   readonly profile: UserProfile;
 }
 
+export type PkceChallengeMethod = 'S256' | 'plain';
+
 export interface OAuthTransaction {
   readonly state: string;
   readonly codeVerifier: string;
   readonly codeChallenge: string;
+  readonly codeChallengeMethod: PkceChallengeMethod;
   readonly redirectUri: string;
   readonly createdAt: number;
 }

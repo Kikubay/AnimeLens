@@ -37,6 +37,11 @@
   Idioma: <a href="https://github.com/Kikubay/AnimeLens/blob/main/README.md">English</a> - <a href="https://github.com/Kikubay/AnimeLens/blob/main/README_fr.md">Français</a> - <a href="https://github.com/Kikubay/AnimeLens/blob/main/README_es.md">Español</a>
 </p>
 
+<p align="center">
+  La interfaz en sí está disponible en inglés, francés y español. Cámbiala en
+  <strong>Ajustes</strong>.
+</p>
+
 <br />
 
 > _Nota: Cuando AnimeLens se publique en Chrome Web Store y addons.mozilla.org, la instalación será un solo clic y la configuración manual de OAuth se gestionará automáticamente en segundo plano._
@@ -67,7 +72,17 @@
 - 📊 **Análisis de perfil y tarjetas de gustos**: ¡visualiza tu recorrido por el anime! Genera preciosas "Tarjetas de gustos" listas para compartir, que muestran tus géneros favoritos, tus estadísticas de visionado y tus animes mejor puntuados (con desempate inteligente para tus favoritos absolutos).
 - 📺 **"Dónde ver"**: abre cualquier recomendación para ver en qué plataformas se emite, con un enlace directo a cada una.
 - 🎬 **"Añadir a la lista" unificado**: tanto si recorres recomendaciones como si usas las funciones de añadido rápido, todas las acciones se dirigen automáticamente a tu proveedor activo.
+- 🌍 **Interfaz multilingüe**: el panel se distribuye en inglés, francés y español, y se cambia en **Ajustes**.
+- 🔍 **Resultados de búsqueda ordenables**: ordena lo que encuentres por relevancia, puntuación de compatibilidad, popularidad, fecha o título, en orden ascendente o descendente.
+- ⏳ **Señales de gusto según la fecha**: tu gusto se pondera por cuándo viste algo, para que el atracón de anoche supere a una etapa que abandonaste hace tres años.
+- 🎚️ **Calibración de la escala de puntuación**: las recomendaciones se puntúan según *tu* escala. Si valoras con generosidad, o si solo confías en la puntuación de la comunidad para ciertos tipos de series, el motor aprende la diferencia en lugar de asumir a un usuario promedio.
+- 🔥 **Rachas de uso y XP**: aparece de vez en cuando y el contador de rachas lo notará. Los días solo se acreditan tras pasar tiempo real con el panel abierto, así que premia el hábito y no los clics inactivos.
+- 🖼️ **Marcos y paletas desbloqueables para las tarjetas de gustos**: gana marcos y paletas con tus propias señales de gusto y viste con ellos tu Tarjeta de gustos compartible.
+- 🔔 **Notificaciones diarias de recomendaciones**: activa una notificación del navegador al día. Sin cuenta, sin servicio push y sin servidor detrás.
+- 💾 **Exportación e importación en JSON**: descarga tus comentarios, preferencias e historial de perfil en un archivo JSON y cárgalo en otro ordenador. Los tokens y tu biblioteca se dejan fuera a propósito.
 - 🔒 **Arquitectura que prioriza la privacidad**: AnimeLens nunca te pide tu contraseña ni tu Client Secret. Todas las sesiones OAuth, las preferencias y los datos sincronizados se almacenan de forma segura y local en el almacenamiento de la extensión de tu navegador.
+
+> El detalle completo vive en [PRIVACY.md](PRIVACY.md).
 
 ---
 
@@ -417,13 +432,13 @@ o addons.mozilla.org se actualiza sola.
 
 ## Privacidad y seguridad
 
-- AnimeLens no solicita ni almacena tu contraseña de MAL ni de AniList.
-- AnimeLens no requiere un Client Secret para ninguno de los dos proveedores.
-- Los Client ID son configuración OAuth pública.
-- La autorización de AniList se lee de la URL de la pestaña de la página de pin y se guarda de forma local; nunca se envía a ningún sitio salvo a la propia API de AniList.
-- Las sesiones OAuth, las preferencias, los datos de anime sincronizados y los comentarios sobre las recomendaciones se almacenan localmente en el almacenamiento de la extensión de tu navegador.
-- Las solicitudes se hacen directamente desde la extensión a MyAnimeList, a AniList y a GitHub.
+- Sin analíticas, sin telemetría, sin rastreo, sin informes de fallos y sin scripts de terceros.
+- AnimeLens no solicita ni almacena tu contraseña de MAL ni de AniList, y no requiere ningún Client Secret para ninguno de los dos proveedores. Los Client ID son configuración OAuth pública.
+- Las solicitudes se hacen directamente desde la extensión a MyAnimeList, a AniList y a GitHub, y a ningún otro sitio. Tu token de MAL solo se envía a `api.myanimelist.net`, tu token de AniList solo a `graphql.anilist.co`, y la única página web pública que AnimeLens lee se solicita sin credenciales adjuntas.
+- Las sesiones OAuth, las preferencias, los datos de anime sincronizados y los comentarios sobre las recomendaciones se almacenan localmente en el almacenamiento de la extensión de tu navegador. Desinstalarla lo elimina todo.
 - Esto también se aplica a la imagen de Docker autoalojada: ejecuta la aplicación de escritorio en un contenedor y no añade ningún servidor, así que las solicitudes siguen saliendo del contenedor directamente hacia los proveedores.
+
+La versión que prevalece, con el desglose completo de permisos y cómo eliminarlo todo, está en [PRIVACY.md](PRIVACY.md).
 
 ---
 

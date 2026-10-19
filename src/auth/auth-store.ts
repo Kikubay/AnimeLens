@@ -26,6 +26,7 @@ function isOAuthTransaction(value: unknown): value is OAuthTransaction {
     candidate.codeVerifier.length > 0 &&
     typeof candidate.codeChallenge === 'string' &&
     candidate.codeChallenge.length > 0 &&
+    (candidate.codeChallengeMethod === 'S256' || candidate.codeChallengeMethod === 'plain') &&
     typeof candidate.redirectUri === 'string' &&
     candidate.redirectUri.length > 0 &&
     typeof candidate.createdAt === 'number' &&

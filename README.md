@@ -37,6 +37,11 @@
   Language: <a href="https://github.com/Kikubay/AnimeLens/blob/main/README.md">English</a> - <a href="https://github.com/Kikubay/AnimeLens/blob/main/README_fr.md">Français</a> - <a href="https://github.com/Kikubay/AnimeLens/blob/main/README_es.md">Español</a>
 </p>
 
+<p align="center">
+  The interface itself is available in English, Français and Español. Switch it in
+  <strong>Settings</strong>.
+</p>
+
 <br />
 
 > _Note: Once AnimeLens launches on the Chrome Web Store and addons.mozilla.org, installation will be a single click, and the manual OAuth setup will be handled automatically in the background._
@@ -67,7 +72,17 @@
 - 📊 **Profile Analysis & Taste Cards**: Visualize your anime journey! Generate beautiful, shareable "Taste Cards" showcasing your top genres, completion stats, and highest-rated anime (with smart tie-breaking for your absolute favorites).
 - 📺 **"Where to Watch"**: Open any recommendation to see which platforms stream it, with a direct link to each one.
 - 🎬 **Unified "Add-to-List"**: Whether you are browsing recommendations or using quick-add features, all actions automatically target your currently active provider.
+- 🌍 **Multilingual Interface**: The dashboard ships in English, Français and Español, switchable from Settings.
+- 🔍 **Sortable Search Results**: Sort what you find by relevance, compatibility score, popularity, newest or title, in either ascending or descending order.
+- ⏳ **Recency-Aware Taste Signals**: Your taste is weighted by how recently you watched something, so last night's binge outranks a phase you left behind three years ago.
+- 🎚️ **Rating-Scale Calibration**: Recommendations are scored against *your* scale. If you rate generously, or you only trust the community score for certain kinds of shows, the engine learns the difference instead of assuming an average user.
+- 🔥 **Usage Streaks and XP**: Show up and the streak counter notices. Days are only credited after real time spent with the dashboard open, so it rewards habit rather than idle clicks.
+- 🖼️ **Unlockable Taste-Card Frames and Palettes**: Earn frames and palettes from your own taste signals and dress your shareable Taste Card in them.
+- 🔔 **Daily Recommendation Notifications**: Opt in to one browser notification a day. No account, no push service, no server behind it.
+- 💾 **JSON Export and Import**: Download your feedback, preferences and profile history as a JSON file and load it back on another machine. Tokens and your library are deliberately left out.
 - 🔒 **Privacy-First Architecture**: AnimeLens never asks for your passwords or Client Secrets. All OAuth sessions, preferences, and synchronized data are stored securely and locally in your browser's extension storage.
+
+> The full detail lives in [PRIVACY.md](PRIVACY.md).
 
 ---
 
@@ -413,13 +428,20 @@ updates itself.
 
 ## Privacy and security
 
-- AnimeLens does not request or store your MAL or AniList password.
-- AnimeLens does not require a Client Secret for either provider.
-- Client IDs are public OAuth configuration.
-- AniList authorization is read from the pin-page tab URL and stored locally; it is never sent anywhere except to AniList's own API.
-- OAuth sessions, preferences, synchronized anime data, and recommendation feedback are stored locally in your browser's extension storage.
-- Requests are made directly from the extension to MyAnimeList, AniList, and GitHub.
-- This holds for the self-hosted Docker image too: it runs the desktop app in a container and adds no server, so requests still leave the container for the providers directly.
+- No analytics, no telemetry, no tracking, no crash reporting, and no third-party scripts.
+- AnimeLens does not request or store your MAL or AniList password, and requires no Client Secret
+  for either provider. Client IDs are public OAuth configuration.
+- Requests go directly from the extension to MyAnimeList, AniList and GitHub, and nowhere else. Your
+  MAL token is only ever sent to `api.myanimelist.net`, your AniList token only to
+  `graphql.anilist.co`, and the one public web page AnimeLens reads is fetched with no credentials
+  attached.
+- OAuth sessions, preferences, synchronized anime data and recommendation feedback are stored
+  locally in your browser's extension storage. Uninstalling removes all of it.
+- This holds for the self-hosted Docker image too: it runs the desktop app in a container and adds
+  no server, so requests still leave the container for the providers directly.
+
+The authoritative version of this, including the full permission-by-permission breakdown and how
+to delete everything, is [PRIVACY.md](PRIVACY.md).
 
 ---
 

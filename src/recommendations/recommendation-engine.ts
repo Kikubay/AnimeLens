@@ -36,6 +36,8 @@ import {
 import { tasteRecencyWeight } from './taste-decay';
 
 const MAX_SCORE = 100;
+// The midpoint of every 0..1 preference score: no evidence either way.
+const NEUTRAL_FEATURE_SCORE = 0.5;
 const DEFAULT_GENERATED_AT = '1970-01-01T00:00:00.000Z';
 const MIN_VALID_ID = 1;
 const MAX_REASON_COUNT = 3;
@@ -330,19 +332,33 @@ export function generateRecommendations(
         anime,
         score,
         category: categorize(anime, score, provenance),
+        provenanceKnown: provenance !== null,
       };
     })
     .filter((candidate) => candidate.score.normalized >= discovery.minimumCompatibilityScore)
     .sort(compareCandidates);
 
-  return ensureSectionMinimums(
-    diversify(
-      ensureDiscoveryVariety(candidates),
-      options.limit ?? 20,
-      options.generatedAt ?? DEFAULT_GENERATED_AT,
+  return toRecommendations(
+    ensureSectionMinimums(
+      diversify(ensureDiscoveryVariety(candidates), options.limit ?? 20),
+      input.watched.length,
     ),
-    input.watched.length,
+    options.generatedAt ?? DEFAULT_GENERATED_AT,
   );
+}
+
+function toRecommendations(
+  candidates: readonly ScoredCandidate[],
+  generatedAt: string,
+): Recommendation[] {
+  return candidates.map((candidate) => ({
+    id: `local-${candidate.anime.id}`,
+    anime: candidate.anime,
+    category: candidate.category,
+    compatibilityScore: candidate.score.normalized,
+    reasons: candidate.score.reasons.slice(0, MAX_REASON_COUNT),
+    generatedAt,
+  }));
 }
 
 const SECTION_MEMBERSHIP: readonly {
@@ -367,11 +383,11 @@ function sectionKeyOf(category: RecommendationCategory): string {
 }
 
 function ensureSectionMinimums(
-  recommendations: readonly Recommendation[],
+  candidates: readonly ScoredCandidate[],
   analyzedCount: number,
-): Recommendation[] {
-  const minimum = minimumSectionTitles(analyzedCount, recommendations.length);
-  const result = recommendations.map((item) => ({ ...item }));
+): readonly ScoredCandidate[] {
+  const minimum = minimumSectionTitles(analyzedCount, candidates.length);
+  const result = candidates.map((item) => ({ ...item }));
   const sectionCount = (key: string): number =>
     result.filter((item) => sectionKeyOf(item.category) === key).length;
   const movableInto = (
@@ -380,14 +396,14 @@ function ensureSectionMinimums(
   ): number | undefined => {
     const byProximity =
       targetCategory === 'highly-compatible'
-        ? (left: Recommendation, right: Recommendation) =>
-            right.compatibilityScore - left.compatibilityScore
-        : (left: Recommendation, right: Recommendation) =>
-            left.compatibilityScore - right.compatibilityScore;
+        ? (left: ScoredCandidate, right: ScoredCandidate) =>
+            right.score.normalized - left.score.normalized
+        : (left: ScoredCandidate, right: ScoredCandidate) =>
+            left.score.normalized - right.score.normalized;
     return result
       .map((item, index) => ({ item, index }))
       .filter((entry) => sectionKeyOf(entry.item.category) === donorKey)
-      .filter((entry) => admitsToSection(targetCategory, entry.item.compatibilityScore))
+      .filter((entry) => admitsToSection(targetCategory, entry.item))
       .sort((left, right) => byProximity(left.item, right.item))[0]?.index;
   };
 
@@ -402,6 +418,8 @@ function ensureSectionMinimums(
         donorIndex = movableInto(donor.key, targetCategory);
         if (donorIndex !== undefined) break;
       }
+      // A section with nothing that legitimately belongs in it stays empty rather than being filled
+      // with a mislabelled title, so the claim the UI prints under it is never false.
       if (donorIndex === undefined) break;
       result[donorIndex] = { ...result[donorIndex], category: targetCategory };
     }
@@ -409,8 +427,17 @@ function ensureSectionMinimums(
   return result;
 }
 
-function admitsToSection(category: RecommendationCategory, compatibilityScore: number): boolean {
-  return category !== 'highly-compatible' || compatibilityScore >= HIGHLY_COMPATIBLE_MIN_SCORE;
+// Every invariant `categorize` enforces, replayed for a title arriving from a donor section. Without
+// the full set, an "Because You Liked" row could show a title with no liked entry behind it and a
+// "Hidden Gem" could show something the community scored 3/10.
+function admitsToSection(category: RecommendationCategory, candidate: ScoredCandidate): boolean {
+  const score = candidate.score.normalized;
+  if (category === 'highly-compatible') return score >= HIGHLY_COMPATIBLE_MIN_SCORE;
+  if (category === 'because-you-liked') {
+    return score >= BECAUSE_YOU_LIKED_MIN_SCORE && candidate.provenanceKnown;
+  }
+  if (category === 'hidden-gem') return hasCommunityAcclaim(candidate.anime);
+  return true;
 }
 
 function ensureDiscoveryVariety(candidates: readonly ScoredCandidate[]): ScoredCandidate[] {
@@ -437,8 +464,7 @@ function ensureDiscoveryVariety(candidates: readonly ScoredCandidate[]): ScoredC
 function diversify(
   candidates: readonly ScoredCandidate[],
   limit: number,
-  generatedAt: string,
-): Recommendation[] {
+): readonly ScoredCandidate[] {
   const safeLimit = Math.max(0, Math.floor(limit));
   const remaining = [...candidates];
   const selected: ScoredCandidate[] = [];
@@ -472,14 +498,7 @@ function diversify(
       increment(studioCounts, normalizeName(studio.name));
   }
 
-  return selected.map((candidate) => ({
-    id: `local-${candidate.anime.id}`,
-    anime: candidate.anime,
-    category: candidate.category,
-    compatibilityScore: candidate.score.normalized,
-    reasons: candidate.score.reasons.slice(0, MAX_REASON_COUNT),
-    generatedAt,
-  }));
+  return selected;
 }
 
 type MutablePreference = { positive: number; negative: number; count: number };
@@ -665,8 +684,8 @@ function effectiveWeights(
 }
 
 function scoreNamedFeatures(values: readonly string[], preferences: FeaturePreferenceMap): number {
-  if (preferences.size === 0) return 0.5;
-  if (values.length === 0) return 0;
+  if (preferences.size === 0) return NEUTRAL_FEATURE_SCORE;
+  if (values.length === 0) return NEUTRAL_FEATURE_SCORE;
   const total = values.reduce(
     (sum, value) => sum + featurePreferenceScore(preferences.get(normalizeName(value))),
     0,
@@ -713,10 +732,17 @@ function scorePopularity(popularityRank: number | null, memberCount: number | nu
   return 0.5;
 }
 
-/** Returns 0..1 for one feature, where 0.5 means the evidence so far points neither way. */
+/**
+ * Returns 0..1 for one feature, where 0.5 means the evidence so far points neither way.
+ *
+ * An absent key is neutral rather than negative: once a profile has any entry on a dimension, scoring
+ * everything it has never seen as 0 would rank a TV-only library above every film and quietly end
+ * discovery. Only a key the user has actually pushed down scores below the midpoint.
+ */
 export function featurePreferenceScore(preference: FeaturePreference | undefined): number {
-  if (preference === undefined || preference.count === 0) return 0;
-  return clamp(0.5 + featurePreferenceStrength(preference) / 2, 0, 1);
+  if (preference === undefined) return NEUTRAL_FEATURE_SCORE;
+  if (preference.count === 0) return 0;
+  return clamp(NEUTRAL_FEATURE_SCORE + featurePreferenceStrength(preference) / 2, 0, 1);
 }
 
 /** Unbounded, because the score saturates at 1 for anything liked and ranking by it would only alphabetise a profile. */

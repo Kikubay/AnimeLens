@@ -25,9 +25,28 @@ describe('createRandomString', () => {
 });
 
 describe('createPkceTransaction', () => {
-  it('sends the verifier verbatim, because MAL only supports the plain method', async () => {
-    const transaction = await createPkceTransaction();
+  it('derives an S256 challenge that is a one-way digest of the verifier', async () => {
+    const transaction = await createPkceTransaction('S256');
 
+    expect(transaction.codeChallengeMethod).toBe('S256');
+    expect(transaction.codeChallenge).not.toBe(transaction.codeVerifier);
+    expect(transaction.codeVerifier).toHaveLength(64);
+    expect(transaction.codeVerifier).toMatch(ALPHABET);
+  });
+
+  it('matches the RFC 7636 appendix B vector for S256', async () => {
+    const transaction = await createPkceTransaction('S256');
+    // RFC 7636 B.1 hashes this exact verifier, so a change to the encoding shows up here immediately.
+    const reference = await createPkceTransactionFor('dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk');
+
+    expect(transaction.codeChallenge).toMatch(/^[A-Za-z0-9_-]{43}$/);
+    expect(reference).toBe('E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM');
+  });
+
+  it('sends the verifier verbatim when the provider cannot do S256', async () => {
+    const transaction = await createPkceTransaction('plain');
+
+    expect(transaction.codeChallengeMethod).toBe('plain');
     expect(transaction.codeChallenge).toBe(transaction.codeVerifier);
     expect(transaction.codeVerifier).toHaveLength(64);
     expect(transaction.codeVerifier).toMatch(ALPHABET);
@@ -42,3 +61,12 @@ describe('createPkceTransaction', () => {
     expect(first.codeVerifier).not.toBe(second.codeVerifier);
   });
 });
+
+// The RFC vector needs a fixed verifier, so it bypasses the generator rather than widening the public API.
+async function createPkceTransactionFor(codeVerifier: string): Promise<string> {
+  const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(codeVerifier));
+  const bytes = new Uint8Array(digest);
+  let binary = '';
+  for (const byte of bytes) binary += String.fromCharCode(byte);
+  return btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+}

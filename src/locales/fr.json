@@ -412,6 +412,7 @@
     "dailyNotificationTitle": "AnimeLens",
     "backgroundActionFailed": "Une erreur est survenue.",
     "pinFlowAniListOnly": "Le flux de code d'autorisation AniList n'est disponible que pour AniList.",
+    "pinFlowNoTokenDetected": "Aucun jeton AniList n'a été trouvé. Terminez la page de connexion, ou collez le jeton manuellement.",
     "unknownProvider": "Fournisseur inconnu.",
     "unknownSettingsAction": "Action de réglage inconnue.",
     "syncProgressFetching": "Analyse de votre liste…",

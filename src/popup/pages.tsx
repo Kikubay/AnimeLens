@@ -65,7 +65,7 @@ import {
   completeAniListPinSignIn,
   connectProvider,
   disconnectProvider,
-  requestAnilistPinToken,
+  requestAnilistPinAvailability,
   setActiveProvider,
 } from '../auth/auth-messages';
 import type { ProviderId } from '../auth/auth-types';
@@ -1598,7 +1598,8 @@ export function SettingsPage({
   const [anilistClientId, setAnilistClientId] = useState('');
   const [isSavingAnilistClientId, setIsSavingAnilistClientId] = useState(false);
   const [providerActionInFlight, setProviderActionInFlight] = useState<ProviderId | null>(null);
-  const [pinTabToken, setPinTabToken] = useState<string | null>(null);
+  // Only whether a token is waiting, never the token itself: it stays in the worker.
+  const [pinTokenAvailable, setPinTokenAvailable] = useState(false);
 
   const canAutoDetectPinToken = !isDesktopHost();
 
@@ -1662,17 +1663,17 @@ export function SettingsPage({
 
   useEffect(() => {
     if (anilistSignedIn || !canAutoDetectPinToken) {
-      setPinTabToken(null);
+      setPinTokenAvailable(false);
       return;
     }
     let disposed = false;
     const detectPinTab = () => {
-      void requestAnilistPinToken()
-        .then((token) => {
-          if (!disposed) setPinTabToken(token);
+      void requestAnilistPinAvailability()
+        .then((available) => {
+          if (!disposed) setPinTokenAvailable(available);
         })
         .catch(() => {
-          if (!disposed) setPinTabToken(null);
+          if (!disposed) setPinTokenAvailable(false);
         });
     };
     detectPinTab();
@@ -1797,10 +1798,11 @@ export function SettingsPage({
   };
 
   const submitPinToken = () => {
-    const token = pinTokenDraft.trim() || pinTabToken?.trim() || '';
-    if (token.length === 0 || isVerifyingPin) return;
+    const token = pinTokenDraft.trim();
+    const useCaptured = token.length === 0 && pinTokenAvailable;
+    if ((!useCaptured && token.length === 0) || isVerifyingPin) return;
     setIsVerifyingPin(true);
-    void completeAniListPinSignIn(token)
+    void completeAniListPinSignIn(useCaptured ? undefined : token)
       .then((authSnapshot) => {
         if (disposed.current) return;
         if (authSnapshot.status !== 'authenticated' || authSnapshot.profile === null) {
@@ -1809,7 +1811,7 @@ export function SettingsPage({
           onFeedback(failureMessage);
           return;
         }
-        setPinTabToken(null);
+        setPinTokenAvailable(false);
         setPinTokenDraft('');
         setPinFlowActive(false);
         return requestSettingsSnapshot().then((value) => {
@@ -2083,10 +2085,10 @@ export function SettingsPage({
           />
         ))}
 
-        {(canAutoDetectPinToken ? pinTabToken !== null : pinFlowActive || pinTabToken !== null) &&
+        {(canAutoDetectPinToken ? pinTokenAvailable : pinFlowActive || pinTokenAvailable) &&
           !anilistSignedIn && (
             <div className="pin-signin-panel">
-              <p>{pinTabToken !== null ? copy.pinDetected : copy.pinPastePrompt}</p>
+              <p>{pinTokenAvailable ? copy.pinDetected : copy.pinPastePrompt}</p>
               {!canAutoDetectPinToken && (
                 <input
                   className="mal-client-id-input"
@@ -2104,7 +2106,7 @@ export function SettingsPage({
                   size="sm"
                   variant="secondary"
                   disabled={
-                    isVerifyingPin || (pinTokenDraft.trim().length === 0 && pinTabToken === null)
+                    isVerifyingPin || (pinTokenDraft.trim().length === 0 && !pinTokenAvailable)
                   }
                   onClick={submitPinToken}
                 >

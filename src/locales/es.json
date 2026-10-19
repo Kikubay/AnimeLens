@@ -412,6 +412,7 @@
     "dailyNotificationTitle": "AnimeLens",
     "backgroundActionFailed": "Algo ha salido mal.",
     "pinFlowAniListOnly": "El flujo de código de autorización de AniList solo está disponible para AniList.",
+    "pinFlowNoTokenDetected": "No se encontró ningún token de AniList. Termina la página de inicio de sesión o pega el token manualmente.",
     "unknownProvider": "Proveedor desconocido.",
     "unknownSettingsAction": "Acción de ajuste desconocida.",
     "syncProgressFetching": "Analizando tu lista…",

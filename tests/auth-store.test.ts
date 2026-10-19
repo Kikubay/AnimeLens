@@ -142,6 +142,7 @@ describe('ChromeAuthSessionStore', () => {
       state: 'state',
       codeVerifier: 'verifier',
       codeChallenge: 'challenge',
+      codeChallengeMethod: 'S256',
       redirectUri: 'https://extension.test.chromiumapp.org/',
       createdAt: Date.now(),
     };

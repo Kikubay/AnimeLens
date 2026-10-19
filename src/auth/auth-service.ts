@@ -11,6 +11,7 @@ import type {
   OAuthTokenResponse,
   OAuthTokenStrategy,
   OAuthTransaction,
+  PkceChallengeMethod,
   ProviderId,
   TokenExchangeDiagnostic,
   TokenExchangeErrorCode,
@@ -28,6 +29,11 @@ export interface MalAuthConfig {
   readonly providerId?: ProviderId;
   /** Defaults to `'code_exchange'` (MAL). */
   readonly tokenStrategy?: OAuthTokenStrategy;
+  /**
+   * Defaults to `'plain'` for MAL, whose token endpoint rejects S256, and to `'S256'` for any provider
+   * that supports it. `plain` ships the verifier in the clear, so it is only ever a documented fallback.
+   */
+  readonly pkceChallengeMethod?: PkceChallengeMethod;
 }
 
 export class MalAuthService {
@@ -44,11 +50,16 @@ export class MalAuthService {
   // Also single-flight, and more urgently: MAL rotates refresh tokens, so two concurrent refreshes would invalidate each other.
   private refreshInFlight: Promise<AuthSession | null> | null = null;
 
+  // A refresh already in flight when the user signs out would otherwise write its result back and flip
+  // the UI straight to authenticated again, so every write is gated on this.
+  private signedOut = false;
+
   // Cleared on the next successful connect.
   private lastTokenExchangeDiagnostic: TokenExchangeDiagnostic | null = null;
 
   private readonly providerId: ProviderId;
   private readonly tokenStrategy: OAuthTokenStrategy;
+  private readonly pkceChallengeMethod: PkceChallengeMethod;
 
   constructor(
     private readonly config: MalAuthConfig,
@@ -62,9 +73,14 @@ export class MalAuthService {
   ) {
     this.providerId = config.providerId ?? 'mal';
     this.tokenStrategy = config.tokenStrategy ?? 'code_exchange';
+    this.pkceChallengeMethod =
+      config.pkceChallengeMethod ?? (this.providerId === 'mal' ? 'plain' : 'S256');
   }
 
   async getSnapshot(): Promise<AuthSnapshot> {
+    // A connect in flight owns the state: deriving it from the store here would overwrite 'authorizing'
+    // with the previous session and make the UI flicker to what looks like the wrong account.
+    if (this.connectInFlight !== null) return this.snapshot;
     let session: AuthSession | null;
     try {
       session = await this.getValidSession();
@@ -89,6 +105,8 @@ export class MalAuthService {
   }
 
   connect(): Promise<AuthSnapshot> {
+    // Reconnecting is the only thing that clears a sign-out, so a queued refresh cannot be revived by it.
+    this.signedOut = false;
     if (this.connectInFlight !== null) return this.connectInFlight;
     this.connectInFlight = this.performConnect().finally(() => {
       this.connectInFlight = null;
@@ -114,11 +132,14 @@ export class MalAuthService {
       if (
         stored !== null &&
         stored.redirectUri === redirectUri &&
+        // A stored transaction whose method no longer matches was derived differently, so its
+        // challenge would not verify against the verifier this exchange sends.
+        stored.codeChallengeMethod === this.pkceChallengeMethod &&
         this.now() - stored.createdAt <= TRANSACTION_MAX_AGE_MS
       ) {
         transaction = stored;
       } else {
-        const pkce = await createPkceTransaction();
+        const pkce = await createPkceTransaction(this.pkceChallengeMethod);
         transaction = { ...pkce, redirectUri, createdAt: this.now() };
         await this.sessionStore.setTransaction(transaction);
       }
@@ -137,7 +158,7 @@ export class MalAuthService {
               state: transaction.state,
               redirect_uri: transaction.redirectUri,
               code_challenge: transaction.codeChallenge,
-              code_challenge_method: 'plain',
+              code_challenge_method: transaction.codeChallengeMethod,
               scope: 'write:users',
             },
       ).toString();
@@ -232,9 +253,15 @@ export class MalAuthService {
   }
 
   async disconnect(): Promise<AuthSnapshot> {
-    // Let an in-flight connect settle, otherwise its finally-block resurrects state we just cleared.
+    this.signedOut = true;
+    // Let in-flight work settle before clearing, otherwise a connect's finally-block or a refresh's
+    // write-back resurrects the session we are about to drop. `signedOut` covers the narrow window in
+    // which a refresh starts between these awaits and the clear below.
     if (this.connectInFlight !== null) {
       await this.connectInFlight.catch(() => undefined);
+    }
+    if (this.refreshInFlight !== null) {
+      await this.refreshInFlight.catch(() => undefined);
     }
     await Promise.all([this.sessionStore.clearSession(), this.sessionStore.clearTransaction()]);
     this.snapshot = this.createSnapshot('signed_out');
@@ -272,6 +299,7 @@ export class MalAuthService {
   }
 
   private async refreshSession(session: AuthSession): Promise<AuthSession | null> {
+    if (this.signedOut) return null;
     try {
       const refreshed = await this.oauthClient.refreshToken({
         clientId: await this.getClientId(),
@@ -284,6 +312,8 @@ export class MalAuthService {
           status: null,
         });
       }
+      // The user signed out while this request was open; persisting now would undo that.
+      if (this.signedOut) return null;
       const refreshedSession: AuthSession = {
         ...session,
         accessToken: refreshed.accessToken,

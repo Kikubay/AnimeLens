@@ -400,6 +400,7 @@ export interface AppCopy {
   readonly dailyNotificationTitle: string;
   readonly backgroundActionFailed: string;
   readonly pinFlowAniListOnly: string;
+  readonly pinFlowNoTokenDetected: string;
   readonly unknownProvider: string;
   readonly unknownSettingsAction: string;
   readonly syncProgressFetching: string;

@@ -37,11 +37,16 @@
   Langue : <a href="https://github.com/Kikubay/AnimeLens/blob/main/README.md">English</a> - <a href="https://github.com/Kikubay/AnimeLens/blob/main/README_fr.md">Français</a> - <a href="https://github.com/Kikubay/AnimeLens/blob/main/README_es.md">Español</a>
 </p>
 
+<p align="center">
+  L'interface elle-même est disponible en anglais, en français et en espagnol. Changez-la dans
+  <strong>Paramètres</strong>.
+</p>
+
 <br />
 
 > *Note : Une fois qu'AnimeLens sera lancé sur le Chrome Web Store et addons.mozilla.org, l'installation se fera en un seul clic, et la configuration manuelle d'OAuth sera gérée automatiquement en arrière-plan.*
 
-___
+---
 
 ## 📑 Sommaire
 
@@ -57,7 +62,7 @@ ___
 - [Licence](#licence)
 - [Soutenir le projet](#soutenir-le-projet)
 
-___
+---
 
 ## Fonctionnalités
 
@@ -67,9 +72,19 @@ ___
 - 📊 **Analyse de profil et Cartes de goût** : Visualisez votre parcours d'animé ! Générez de magnifiques « Cartes de goût » (Taste Cards) partageables, mettant en valeur vos genres préférés, vos statistiques d'achèvement et vos animés les mieux notés (avec une gestion intelligente des ex æquo pour vos favoris absolus).
 - 📺 **« Où regarder »** : Ouvrez n'importe quelle recommandation pour voir sur quelles plateformes elle est diffusée, avec un lien direct vers chacune d'elles.
 - 🎬 **« Ajouter à la liste » unifié** : Que vous parcouriez les recommandations ou que vous utilisiez les fonctionnalités d'ajout rapide, toutes les actions ciblent automatiquement votre fournisseur actif.
+- 🌍 **Interface multilingue** : Le tableau de bord est disponible en anglais, en français et en espagnol, et se change dans les **Paramètres**.
+- 🔍 **Résultats de recherche triables** : Triez ce que vous trouvez par pertinence, score de compatibilité, popularité, date ou titre, dans l'ordre croissant comme dans l'ordre décroissant.
+- ⏳ **Signaux de goût pondérés par la récence** : Vos goûts sont pondérés selon la date de votre visionnage, afin que la soirée d'hier prime sur une phase que vous avez quittée il y a trois ans.
+- 🎚️ **Calibrage de l'échelle de notation** : Les recommandations sont évaluées selon *votre* échelle. Si vous notez généreusement, ou si vous ne vous fiez au score de la communauté que pour certains types de séries, le moteur apprend la différence au lieu de supposer un utilisateur moyen.
+- 🔥 **Séries de jours et XP** : Revenez, et le compteur de série le remarque. Les jours ne sont crédités qu'après un temps réel passé avec le tableau de bord ouvert, ce qui récompense l'habitude plutôt que les clics inactifs.
+- 🖼️ **Cadres et palettes de Cartes de goût à débloquer** : Gagnez des cadres et des palettes grâce à vos propres signaux de goût, et habillez-en votre Carte de goût partageable.
+- 🔔 **Notifications quotidiennes de recommandations** : Activez une notification de navigateur par jour. Aucun compte, aucun service push, aucun serveur derrière.
+- 💾 **Export et import JSON** : Téléchargez vos retours, vos préférences et votre historique de profil dans un fichier JSON, puis rechargez-les sur une autre machine. Les jetons et votre bibliothèque en sont volontairement exclus.
 - 🔒 **Architecture respectueuse de la vie privée** : AnimeLens ne demande jamais vos mots de passe ni vos secrets client (Client Secrets). Toutes les sessions OAuth, préférences et données synchronisées sont stockées de manière sécurisée et locale dans le stockage de l'extension de votre navigateur.
 
-___
+> Le détail complet se trouve dans [PRIVACY.md](PRIVACY.md).
+
+---
 
 ## Aperçu
 
@@ -99,7 +114,7 @@ ___
   </tr>
 </table>
 
-___
+---
 
 ## Installation
 
@@ -213,7 +228,7 @@ appelle un proxy inverse devant elle.
 > Les deux versions de l'extension diffèrent à deux endroits : `manifest.json`, car Firefox n'a pas de service worker d'arrière-plan et exécute donc le même bundle en tant que page d'événement avec un ID d'extension Gecko épinglé ; et une surcharge CSS, car la barre de défilement de Firefox prend de la largeur au contenu au lieu de le chevaucher. Exécutez `npm run build:extension:package` pour produire un `.zip` prêt pour le magasin pour chaque cible.
 </details>
 
-___
+---
 
 ## Configuration
 
@@ -274,7 +289,7 @@ Firefox :                                 https://<hash>.extensions.allizom.org/
 - Les tokens d'accès AniList sont de longue durée (environ un an). Lorsqu'il expire, AniList s'affiche comme déconnecté et vous n'avez qu'à autoriser à nouveau.
 </details>
 
-___
+---
 
 ## Changer de compte
 
@@ -284,7 +299,7 @@ MyAnimeList et AniList peuvent rester connectés en même temps. Dans **Paramèt
 - Le fournisseur **actif** reçoit la synchronisation, les recommandations et les actions d'ajout à la liste.
 - Le changement est instantané : chaque fournisseur conserve sa propre liste mise en cache, donc revenir en arrière fonctionne même hors ligne, puis une nouvelle synchronisation s'exécute en arrière-plan.
 
-___
+---
 
 ## Mise à jour
 
@@ -301,7 +316,7 @@ Lorsqu'une version plus récente est disponible :
 
 Les navigateurs ne mettent pas à jour automatiquement les extensions installées depuis un dossier non empaqueté, il s'agit donc d'une étape manuelle. Une version signée installée depuis le Chrome Web Store ou addons.mozilla.org se met à jour elle-même.
 
-___
+---
 
 ## Dépannage
 
@@ -384,26 +399,26 @@ ___
 
 </details>
 
-___
+---
 
 ## Problèmes et suggestions
 
 - 🐛 **Vous avez trouvé un bug ?** [Ouvrez un problème](https://github.com/Kikubay/AnimeLens/issues/new?template=bug_report.md)
 - 💡 **Vous avez une idée de fonctionnalité ?** [Ouvrez une demande de fonctionnalité](https://github.com/Kikubay/AnimeLens/issues/new?template=feature_request.md)
 
-___
+---
 
 ## Confidentialité et sécurité
 
-- AnimeLens ne demande ni ne stocke votre mot de passe MAL ou AniList.
-- AnimeLens ne requiert pas de secret client pour l'un ou l'autre des fournisseurs.
-- Les ID clients sont des configurations OAuth publiques.
-- L'autorisation AniList est lue depuis l'URL de l'onglet de la page pin et stockée localement ; elle n'est jamais envoyée nulle part sauf à l'API propre d'AniList.
-- Les sessions OAuth, les préférences, les données d'animés synchronisées et les retours sur les recommandations sont stockés localement dans le stockage de l'extension de votre navigateur.
-- Les requêtes sont faites directement depuis l'extension vers MyAnimeList, AniList et GitHub.
-- Cela vaut aussi pour l'image Docker auto-hébergée : elle exécute l'application de bureau dans un conteneur et n'ajoute aucun serveur, les requêtes quittent donc toujours le conteneur pour les fournisseurs.
+- Aucune analytique, aucune télémétrie, aucun pistage, aucun rapport d'erreur et aucun script tiers.
+- AnimeLens ne demande ni ne stocke votre mot de passe MAL ou AniList, et ne requiert aucun secret client pour l'un ou l'autre des fournisseurs. Les ID clients sont une configuration OAuth publique.
+- Les requêtes sont faites directement depuis l'extension vers MyAnimeList, AniList et GitHub, et nulle part ailleurs. Votre jeton MAL n'est envoyé qu'à `api.myanimelist.net`, votre jeton AniList qu'à `graphql.anilist.co`, et la seule page web publique qu'AnimeLens lit est récupérée sans aucun identifiant joint.
+- Les sessions OAuth, les préférences, les données d'animés synchronisées et les retours sur les recommandations sont stockés localement dans le stockage de l'extension de votre navigateur. La désinstallation les supprime tous.
+- Cela vaut aussi pour l'image Docker auto-hébergée : elle exécute l'application de bureau dans un conteneur et n'ajoute aucun serveur, les requêtes quittent donc toujours le conteneur pour les fournisseurs directement.
 
-___
+La version faisant foi de ce document, avec le détail complet des permissions et la marche à suivre pour tout supprimer, se trouve dans [PRIVACY.md](PRIVACY.md).
+
+---
 
 ## Licence
 
@@ -417,7 +432,7 @@ AnimeLens est sous une licence **copyleft non commerciale** personnalisée, bas�
 
 *Note : AnimeLens est un projet indépendant et n'est pas affilié à MyAnimeList ou AniList, ni approuvé par eux.*
 
-___
+---
 
 ## Soutenir le projet
 

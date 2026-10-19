@@ -1,6 +1,7 @@
 export { MalAuthService, AuthServiceError } from './auth-service';
 export { ChromeAuthSessionStore } from './auth-store';
 export { createPkceTransaction, createRandomString } from './pkce';
+export type { PkceChallengeMethod } from './auth-types';
 export { FetchMalOAuthClient, MAL_TOKEN_URL } from './mal-oauth-client';
 export {
   requestAuthSnapshot,

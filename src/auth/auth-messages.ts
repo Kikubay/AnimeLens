@@ -84,12 +84,13 @@ export async function setActiveProvider(providerId: ProviderId): Promise<AuthSna
   return requestAuthMessage({ type: 'auth.set_active_provider', providerId });
 }
 
-// AniList hands the user a token to paste, so sign-in completes in two messages.
-export async function completeAniListPinSignIn(token: string): Promise<AuthSnapshot> {
+// AniList hands the user a token to paste, so sign-in completes in two messages. Passing no token
+// asks the worker to reuse the one it captured from the pin tab.
+export async function completeAniListPinSignIn(token?: string): Promise<AuthSnapshot> {
   const response = (await chrome.runtime.sendMessage({
     type: 'auth.complete_pin_connect',
     providerId: 'anilist' as const,
-    token,
+    ...(token === undefined ? {} : { token }),
   })) as AuthMessageResponse | undefined;
   if (response === undefined || typeof response !== 'object') {
     throw new AuthServiceUnavailableError();
@@ -101,14 +102,11 @@ export async function completeAniListPinSignIn(token: string): Promise<AuthSnaps
   throw new Error(response.message);
 }
 
-/** Null whenever no pin tab is open, which is the normal state outside an in-flight AniList sign-in. */
-export async function requestAnilistPinToken(): Promise<string | null> {
+/** Whether a pin tab is waiting, which is the normal state outside an in-flight AniList sign-in. */
+export async function requestAnilistPinAvailability(): Promise<boolean> {
   const response = (await chrome.runtime.sendMessage({ type: 'auth.get_pin_token' })) as
-    { readonly ok: boolean; readonly pinToken?: unknown } | undefined;
-  if (response === undefined || !response.ok) return null;
-  return typeof response.pinToken === 'string' && response.pinToken.length > 0
-    ? response.pinToken
-    : null;
+    { readonly ok: boolean; readonly pinAvailable?: unknown } | undefined;
+  return response !== undefined && response.ok && response.pinAvailable === true;
 }
 
 async function requestAuthMessage(message: {
