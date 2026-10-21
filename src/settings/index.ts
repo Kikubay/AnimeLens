@@ -14,7 +14,6 @@ export {
 export type {
   RecommendationMode,
   SettingsSnapshot,
-  SyncFrequency,
   ThemePreference,
   UserPreferences,
 } from './settings-types';

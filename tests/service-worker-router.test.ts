@@ -1,7 +1,10 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 import { CANDIDATE_POOL_STORAGE_KEY } from '../src/recommendations/candidate-pool-store';
 import { DASHBOARD_SNAPSHOT_STORAGE_KEY } from '../src/recommendations/recommendation-snapshot-store';
 import { DATA_EXPORT_APP, DATA_EXPORT_VERSION } from '../src/settings/data-transfer';
+import { DEFAULT_USER_PREFERENCES } from '../src/settings/settings-types';
 
 interface StorageArea {
   readonly store: Map<string, unknown>;
@@ -292,6 +295,33 @@ describe('background scheduling', () => {
       throw new Error('storage exploded');
     };
     await expect(loadWorker()).resolves.toBeUndefined();
+  });
+
+  it('schedules no background sync alarm, so the list only syncs when the popup opens', async () => {
+    await loadWorker();
+    await sendOk({
+      type: 'settings.update_preferences',
+      preferences: { ...DEFAULT_USER_PREFERENCES },
+    });
+
+    expect(alarms.map((alarm) => alarm.name)).not.toContain('animelens-sync');
+  });
+});
+
+describe('sync triggers', () => {
+  it('starts a sync when the popup asks for one', async () => {
+    await loadWorker();
+
+    const response = await sendOk({ type: 'sync.start', reason: 'initial' });
+
+    expect(response.ok).toBe(true);
+    expect(response.snapshot).toHaveProperty('metadata');
+  });
+
+  it('asks for a sync when the popup opens', () => {
+    const app = readFileSync(resolve(__dirname, '../src/popup/App.tsx'), 'utf8');
+
+    expect(app).toContain("requestSync('initial')");
   });
 });
 

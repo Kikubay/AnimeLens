@@ -132,7 +132,6 @@ const DEFAULT_CANDIDATE_POOL_CONFIG: CandidatePoolConfig = {
 };
 const DEFAULT_TASTE_POOL_LIMIT = 50;
 const DAILY_RECOMMENDATION_ALARM = 'animelens-daily-recommendation';
-const SYNC_ALARM = 'animelens-sync';
 let updateCheckInFlight: Promise<UpdateSnapshot> | null = null;
 
 const candidatePoolStore = createCandidatePoolStore(createSessionStorageArea());
@@ -159,6 +158,11 @@ let syncSnapshot: SyncSnapshot = {
   metadata: createIdleMetadata(),
   progress: null,
 };
+// A restarted worker rebuilds its snapshot from the cache, and that read is asynchronous. A request
+// answered before it finishes would report an unsynced list, so the snapshot is only ever served once
+// the hydration has settled.
+let syncHydration: Promise<void> = Promise.resolve();
+let hydrationGeneration = 0;
 const syncService = new AuthenticatedAnimeListSyncService(providerRegistry, storage);
 
 void providerRegistry.migrateLegacySessions().catch(reportBackgroundFailure);
@@ -179,9 +183,6 @@ function reportBackgroundFailure(error: unknown): void {
 chrome.alarms?.onAlarm.addListener((alarm) => {
   if (alarm.name === DAILY_RECOMMENDATION_ALARM) {
     void showDailyRecommendationNotification().catch(reportBackgroundFailure);
-  }
-  if (alarm.name === SYNC_ALARM) {
-    void startSync('manual').catch(reportBackgroundFailure);
   }
 });
 
@@ -759,15 +760,10 @@ async function settingsSnapshot(): Promise<SettingsSnapshotSuccess> {
 }
 
 const DAILY_RECOMMENDATION_PERIOD_MINUTES = 24 * 60;
-const SYNC_PERIOD_MINUTES = {
-  daily: 24 * 60,
-  weekly: 7 * 24 * 60,
-} as const satisfies Record<string, number>;
 
 async function configureScheduledTasks(): Promise<void> {
   const preferences = normalizeUserPreferences(await storage.get('preferences'));
   await updateDailyRecommendationAlarm(preferences.dailyRecommendationsEnabled);
-  await updateSyncAlarm(preferences.syncFrequency);
 }
 
 async function reconcileAlarm(name: string, periodMinutes: number | null): Promise<void> {
@@ -792,12 +788,6 @@ async function updateDailyRecommendationAlarm(enabled: boolean): Promise<void> {
     DAILY_RECOMMENDATION_ALARM,
     enabled ? DAILY_RECOMMENDATION_PERIOD_MINUTES : null,
   );
-}
-
-async function updateSyncAlarm(
-  frequency: ReturnType<typeof normalizeUserPreferences>['syncFrequency'],
-): Promise<void> {
-  await reconcileAlarm(SYNC_ALARM, frequency === 'manual' ? null : SYNC_PERIOD_MINUTES[frequency]);
 }
 
 async function showDailyRecommendationNotification(): Promise<void> {
@@ -1143,7 +1133,10 @@ async function handleFeedbackMessage(message: FeedbackMessage): Promise<Feedback
 }
 
 async function handleSyncMessage(message: SyncMessage): Promise<SyncMessageResponse> {
-  if (message.type === 'sync.get_snapshot') return { ok: true, snapshot: syncSnapshot };
+  if (message.type === 'sync.get_snapshot') {
+    await syncHydration;
+    return { ok: true, snapshot: syncSnapshot };
+  }
   if (message.type === 'sync.invalidate') {
     await syncService.invalidate();
     syncSnapshot = { metadata: createIdleMetadata(), progress: null };
@@ -1201,14 +1194,19 @@ async function startSync(reason: 'initial' | 'manual' | 'reconnect'): Promise<vo
   }
 }
 
-async function hydrateCachedSync(): Promise<void> {
-  try {
-    const cached = await syncService.getCachedResult(await currentLanguage());
-    if (cached !== null)
+function hydrateCachedSync(): Promise<void> {
+  hydrationGeneration += 1;
+  const generation = hydrationGeneration;
+  syncHydration = (async () => {
+    try {
+      const cached = await syncService.getCachedResult(await currentLanguage());
+      if (cached === null || generation !== hydrationGeneration) return;
       syncSnapshot = { metadata: cached.metadata, progress: cached.metadata.progress };
-  } catch {
-    return;
-  }
+    } catch {
+      return;
+    }
+  })();
+  return syncHydration;
 }
 
 function updateProgress(progress: SyncProgress): void {

@@ -47,7 +47,6 @@ export interface UserPreferences {
   readonly theme: ThemePreference;
   readonly language: Language;
   readonly contentRating: ContentRatingPreference;
-  readonly syncFrequency: SyncFrequency;
   readonly recommendationMode: RecommendationMode;
   readonly includeHiddenGems: boolean;
   readonly includeOlderAnime: boolean;
@@ -68,7 +67,6 @@ export interface UserPreferences {
 
 export type ThemePreference = 'dark' | 'light' | 'system';
 export type ContentRatingPreference = 'safe' | 'questionable' | 'explicit';
-export type SyncFrequency = 'manual' | 'daily' | 'weekly';
 
 export interface SettingsSnapshot {
   readonly preferences: UserPreferences;
@@ -129,7 +127,6 @@ export const DEFAULT_USER_PREFERENCES: UserPreferences = {
   theme: 'dark',
   language: 'en',
   contentRating: 'safe',
-  syncFrequency: 'manual',
   recommendationMode: 'personalized',
   includeHiddenGems: true,
   includeOlderAnime: true,
@@ -180,9 +177,6 @@ export function normalizeUserPreferences(value: unknown): UserPreferences {
     contentRating: isContentRating(value.contentRating)
       ? value.contentRating
       : DEFAULT_USER_PREFERENCES.contentRating,
-    syncFrequency: isSyncFrequency(value.syncFrequency)
-      ? value.syncFrequency
-      : DEFAULT_USER_PREFERENCES.syncFrequency,
     recommendationMode: isRecommendationMode(value.recommendationMode)
       ? value.recommendationMode
       : DEFAULT_USER_PREFERENCES.recommendationMode,
@@ -238,9 +232,6 @@ function isTheme(value: unknown): value is ThemePreference {
 }
 function isContentRating(value: unknown): value is ContentRatingPreference {
   return value === 'safe' || value === 'questionable' || value === 'explicit';
-}
-function isSyncFrequency(value: unknown): value is SyncFrequency {
-  return value === 'manual' || value === 'daily' || value === 'weekly';
 }
 function animeFormatArray(value: unknown): readonly AnimeFormat[] {
   return Array.isArray(value)

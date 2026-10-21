@@ -262,6 +262,14 @@ export function App() {
       .then((snapshot) => {
         if (disposed) return;
         setAuth(snapshot);
+        if (snapshot.status !== 'authenticated') return;
+        // Opening the popup is the only automatic trigger, and the sync reuses the cached list
+        // whenever it is still fresh, so this costs nothing until the list actually goes stale.
+        void requestSync('initial')
+          .then((next) => {
+            if (!disposed) applySyncSnapshot(next);
+          })
+          .catch(() => undefined);
       })
       .catch((error: unknown) => {
         if (disposed) return;
@@ -283,7 +291,7 @@ export function App() {
       disposed = true;
       cleanupTheme();
     };
-  }, []);
+  }, [applySyncSnapshot]);
 
   useLayoutEffect(() => {
     if (loading) return;
@@ -326,7 +334,7 @@ export function App() {
     setSelectedAnime(anime);
     beginTransition('detail');
   };
-  const showToast = (message: string) => setToast(message);
+  const showToast = useCallback((message: string) => setToast(message), []);
 
   // Only the day boundary and the warm-up towards it need a write, so an ordinary session is silent.
   const recordUsageEvent = (event: UsageEvent) => {

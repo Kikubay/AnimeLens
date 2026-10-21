@@ -85,6 +85,11 @@ import type { AnimeCardData } from './components/anime';
 import { AnimeGrid, FeaturedAnime } from './components/anime';
 import { AnimeSearchField, AnimeSearchPanel } from './components/anime-search';
 import { isSearchActive } from './search-state';
+import {
+  acceptsDashboardResponse,
+  decideDashboardRefresh,
+  hasDashboard,
+} from './dashboard-refresh';
 import { TasteCardModal } from './components/taste-card-modal';
 import { TopPicksModal } from './components/top-picks-modal';
 import { GridPickerModal } from './components/grid-picker-modal';
@@ -174,6 +179,7 @@ export function DashboardPage({
   onAuthAction,
   sync,
   onSync,
+  onFeedback,
   onRecommendationFeedback,
   recommendationsRevision = 0,
   copy,
@@ -182,6 +188,7 @@ export function DashboardPage({
 }: DashboardPageProps) {
   const requestSequence = useRef(0);
   const disposed = useRef(false);
+  const dashboardVisible = useRef(false);
   const [query, setQuery] = useState('');
   const [snapshot, setSnapshot] = useState<DashboardRecommendationSnapshot>({
     status: 'loading',
@@ -196,20 +203,29 @@ export function DashboardPage({
   const loadRecommendations = useCallback(() => {
     const sequence = requestSequence.current + 1;
     requestSequence.current = sequence;
-    setSnapshot((current) => ({ ...current, status: 'loading', errorMessage: null }));
+    // A refresh that runs while a dashboard is on screen swaps the content in place, so the reader
+    // keeps their place instead of watching the page empty out and refill.
+    if (decideDashboardRefresh('start', dashboardVisible.current).outcome === 'loading') {
+      setSnapshot((current) => ({ ...current, status: 'loading', errorMessage: null }));
+    }
     void requestDashboardRecommendations()
       .then((nextSnapshot) => {
-        if (!disposed.current && sequence === requestSequence.current) setSnapshot(nextSnapshot);
+        if (!acceptsDashboardResponse(disposed.current, sequence, requestSequence.current)) return;
+        dashboardVisible.current = hasDashboard(nextSnapshot.status);
+        setSnapshot(nextSnapshot);
       })
       .catch((error: unknown) => {
-        if (disposed.current || sequence !== requestSequence.current) return;
+        if (!acceptsDashboardResponse(disposed.current, sequence, requestSequence.current)) return;
+        const failure = decideDashboardRefresh('failed', dashboardVisible.current);
+        if (failure.notify) onFeedback(copy.recommendationsError);
+        if (failure.outcome !== 'replace') return;
         setSnapshot((current) => ({
           ...current,
           status: 'error',
           errorMessage: error instanceof Error ? error.message : copy.recommendationsUnavailable,
         }));
       });
-  }, [copy.recommendationsUnavailable]);
+  }, [copy.recommendationsError, copy.recommendationsUnavailable, onFeedback]);
 
   useEffect(() => {
     disposed.current = false;
