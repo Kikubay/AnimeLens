@@ -7,6 +7,7 @@ import { AlarmsShim } from './shim/alarms';
 import { IdentityShim } from './shim/identity';
 import { NotificationsShim, RuntimeShim, TabsShim, getURL, readManifest } from './shim/runtime';
 import { FileStorageArea, MemoryStorageArea } from './shim/storage';
+import { createSafeStorageCodec } from './shim/secrets';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const rendererRoot = join(here, 'renderer');
@@ -36,7 +37,10 @@ registerAppScheme();
 const runtime = new RuntimeShim();
 
 // One area for the whole process: two instances over the same file would each keep their own cache and silently drop the other's writes.
-const localStorage = new FileStorageArea(join(app.getPath('userData'), 'animelens-storage.json'));
+const localStorage = new FileStorageArea(
+  join(app.getPath('userData'), 'animelens-storage.json'),
+  () => createSafeStorageCodec(),
+);
 const alarms = new AlarmsShim(localStorage);
 const identity = new IdentityShim();
 
