@@ -273,6 +273,95 @@ describe('recommendation pipeline', () => {
     expect(result.map((item) => item.anime.id)).toEqual([23]);
   });
 
+  it('keeps short and long series when the short series preference is off', () => {
+    const result = generateRecommendations(
+      {
+        watched: [],
+        candidates: [
+          anime(30, { episodeCount: 12, memberCount: 1_000_000 }),
+          anime(31, { episodeCount: 24, memberCount: 1_000_000 }),
+        ],
+      },
+      { discovery: { includeShortSeries: false } },
+    );
+
+    expect(result.map((item) => item.anime.id).sort()).toEqual([30, 31]);
+  });
+
+  it('favours short series without hiding the long ones', () => {
+    const candidates = [
+      anime(32, { episodeCount: 24, memberCount: 1_000_000 }),
+      anime(33, { episodeCount: 12, memberCount: 1_000_000 }),
+    ];
+
+    const favoured = generateRecommendations(
+      { watched: [], candidates },
+      { discovery: { includeShortSeries: true } },
+    );
+    const ignored = generateRecommendations(
+      { watched: [], candidates },
+      { discovery: { includeShortSeries: false } },
+    );
+
+    expect(favoured.map((item) => item.anime.id).sort()).toEqual([32, 33]);
+    expect(ignored.map((item) => item.anime.id).sort()).toEqual([32, 33]);
+    const favouredScores = new Map(
+      favoured.map((item) => [item.anime.id, item.compatibilityScore]),
+    );
+    expect(favouredScores.get(33)).toBeGreaterThan(favouredScores.get(32) ?? 0);
+  });
+
+  it('keeps series and films together when movies are allowed', () => {
+    const result = generateRecommendations(
+      {
+        watched: [],
+        candidates: [
+          anime(34, { type: 'movie', memberCount: 1_000_000 }),
+          anime(35, { type: 'tv', memberCount: 1_000_000 }),
+        ],
+      },
+      { discovery: { includeMovies: true } },
+    );
+
+    expect(result.map((item) => item.anime.id).sort()).toEqual([34, 35]);
+  });
+
+  it('drops films when movies are not allowed', () => {
+    const result = generateRecommendations(
+      {
+        watched: [],
+        candidates: [
+          anime(36, { type: 'movie', memberCount: 1_000_000 }),
+          anime(37, { type: 'tv', memberCount: 1_000_000 }),
+        ],
+      },
+      { discovery: { includeMovies: false } },
+    );
+
+    expect(result.map((item) => item.anime.id)).toEqual([37]);
+  });
+
+  it.each([
+    { contentRating: 'safe' as const, expected: [41, 43] },
+    { contentRating: 'questionable' as const, expected: [41, 42, 43] },
+    { contentRating: 'explicit' as const, expected: [41, 42, 43, 44] },
+  ])('keeps only the titles the $contentRating rating allows', ({ contentRating, expected }) => {
+    const result = generateRecommendations(
+      {
+        watched: [],
+        candidates: [
+          anime(41, { contentRating: 'safe', memberCount: 1_000_000 }),
+          anime(42, { contentRating: 'questionable', memberCount: 1_000_000 }),
+          anime(43, { contentRating: undefined, memberCount: 1_000_000 }),
+          anime(44, { contentRating: 'explicit', memberCount: 1_000_000 }),
+        ],
+      },
+      { discovery: { contentRating } },
+    );
+
+    expect(result.map((item) => item.anime.id).sort((a, b) => a - b)).toEqual(expected);
+  });
+
   it('applies hidden-gem, completed-title, and minimum-score preferences', () => {
     const result = generateRecommendations(
       {

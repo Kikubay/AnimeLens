@@ -319,6 +319,11 @@ export interface AppCopy {
   readonly moviesDescription: string;
   readonly shortSeries: string;
   readonly shortSeriesDescription: string;
+  readonly contentRating: string;
+  readonly contentRatingDescription: string;
+  readonly contentRatingSafe: string;
+  readonly contentRatingQuestionable: string;
+  readonly contentRatingExplicit: string;
   readonly discoveryStyle: string;
   readonly discoveryStyleDescription: string;
   readonly whereToWatch: string;

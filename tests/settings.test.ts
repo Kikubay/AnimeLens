@@ -1,4 +1,6 @@
 import { describe, expect, it } from 'vitest';
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 import {
   DEFAULT_USER_PREFERENCES,
   normalizeSettingsText,
@@ -6,6 +8,22 @@ import {
   persistableTasteCardPicksLayout,
   TASTE_CARD_COVER_SCALE_RANGE,
 } from '../src/settings/settings-types';
+
+describe('settings row separators', () => {
+  const styles = readFileSync(resolve(__dirname, '../src/popup/styles.css'), 'utf8');
+
+  it('draws the separator under a row instead of above it', () => {
+    const modeSetting = styles.slice(styles.indexOf('.mode-setting {'));
+    const rule = modeSetting.slice(0, modeSetting.indexOf('}'));
+
+    expect(rule).toContain('border-bottom: 1px solid var(--line-soft)');
+    expect(rule).not.toContain('border-top');
+  });
+
+  it('leaves no trailing separator on the last row of a section', () => {
+    expect(styles).toContain('.settings-list > :last-child');
+  });
+});
 
 describe('settings preferences', () => {
   it('defaults recommendations and daily notifications to safe values', () => {

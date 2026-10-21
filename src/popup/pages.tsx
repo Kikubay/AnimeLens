@@ -74,6 +74,7 @@ import {
   DEFAULT_USER_PREFERENCES,
   persistableTasteCardPicksLayout,
   normalizeSettingsText,
+  type ContentRatingPreference,
   type RecommendationMode,
   type ThemePreference,
   type UserPreferences,
@@ -2179,6 +2180,23 @@ export function SettingsPage({
         </div>
       </SettingsSection>
       <SettingsSection title={copy.recommendations} eyebrow={copy.discovery}>
+        <div className="mode-setting">
+          <div>
+            <strong>{copy.contentRating}</strong>
+            <p>{copy.contentRatingDescription}</p>
+          </div>
+          <RadioGroup<ContentRatingPreference>
+            className="segmented-control"
+            ariaLabel={copy.contentRating}
+            value={preferences.contentRating}
+            onChange={(contentRating) => save({ contentRating }, copy.savedPreference)}
+            options={[
+              { value: 'safe', label: copy.contentRatingSafe },
+              { value: 'questionable', label: copy.contentRatingQuestionable },
+              { value: 'explicit', label: copy.contentRatingExplicit },
+            ]}
+          />
+        </div>
         <SettingToggle
           title={copy.hiddenGems}
           description={copy.hiddenGemsDescription}

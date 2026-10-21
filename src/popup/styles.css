@@ -2281,6 +2281,9 @@ button:focus-visible {
 .setting-row:last-child {
   border: 0;
 }
+.settings-list > :last-child {
+  border-bottom: 0;
+}
 
 .provider-actions {
   display: flex;
@@ -2396,7 +2399,7 @@ button:focus-visible {
   justify-content: space-between;
   gap: 12px;
   padding: 14px 13px;
-  border-top: 1px solid var(--line-soft);
+  border-bottom: 1px solid var(--line-soft);
 }
 .mode-setting > div:first-child {
   min-width: 0;
@@ -2466,7 +2469,6 @@ button:focus-visible {
   display: grid;
   gap: 10px;
   padding: 14px 13px;
-  border-top: 1px solid var(--line-soft);
 }
 .blacklist-heading strong {
   display: block;

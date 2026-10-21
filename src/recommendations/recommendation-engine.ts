@@ -58,6 +58,7 @@ const SIMILARITY_DIMENSIONS = [
   { key: 'staff', weight: 0.1 },
 ] as const;
 const DISCOVERY_PREFERENCE_WEIGHT = 0.12;
+const SHORT_SERIES_MAX_EPISODES = 13;
 const CATEGORY_DISPERSION_PENALTY = 0.35;
 const GENRE_DISPERSION_PENALTY = 0.25;
 const STUDIO_DISPERSION_PENALTY = 0.1;
@@ -239,8 +240,16 @@ function statedPreferenceTerm(
   const genres = preferences?.preferredGenres ?? [];
   const formats = preferences?.preferredFormats ?? [];
   const seasons = preferences?.preferredSeasons ?? [];
-  if (genres.length === 0 && formats.length === 0 && seasons.length === 0) return null;
-  return { genres: new Set(genres.map(normalizeName)), formats, seasons };
+  const shortSeries = preferences?.includeShortSeries ?? false;
+  if (genres.length === 0 && formats.length === 0 && seasons.length === 0 && !shortSeries) {
+    return null;
+  }
+  return {
+    genres: new Set(genres.map(normalizeName)),
+    formats,
+    seasons,
+    shortSeries,
+  };
 }
 
 function scoreStatedPreference(anime: Anime, term: StatedPreference): number {
@@ -257,8 +266,16 @@ function scoreStatedPreference(anime: Anime, term: StatedPreference): number {
   if (term.seasons.length > 0) {
     dimensions.push(anime.season !== null && term.seasons.includes(anime.season) ? 1 : 0);
   }
+  if (term.shortSeries) {
+    dimensions.push(shortSeriesAffinity(anime));
+  }
   if (dimensions.length === 0) return 0.5;
   return dimensions.reduce((sum, value) => sum + value, 0) / dimensions.length;
+}
+
+function shortSeriesAffinity(anime: Anime): number {
+  if (anime.episodeCount === null) return NEUTRAL_FEATURE_SCORE;
+  return anime.episodeCount <= SHORT_SERIES_MAX_EPISODES ? 1 : 0;
 }
 
 export function generateRecommendations(
@@ -301,13 +318,6 @@ export function generateRecommendations(
     .filter((anime) => !anime.themes.some((theme) => rejectedThemes.has(normalizeName(theme.name))))
     .filter((anime) => discovery.includeMovies || anime.type !== 'movie')
     .filter((anime) => discovery.includeOlderAnime || anime.year === null || anime.year >= 2010)
-    .filter(
-      (anime) =>
-        discovery.includeShortSeries ||
-        anime.episodeCount === null ||
-        anime.episodeCount > 13 ||
-        anime.type === 'movie',
-    )
     .filter((anime) =>
       discovery.contentRating === 'explicit'
         ? true
@@ -872,6 +882,7 @@ interface StatedPreference {
   readonly genres: ReadonlySet<string>;
   readonly formats: readonly AnimeType[];
   readonly seasons: readonly AnimeSeason[];
+  readonly shortSeries: boolean;
 }
 
 function buildLikedAffinity(watched: readonly AnimeListEntry[]): readonly LikedAffinity[] {
