@@ -28,7 +28,9 @@ import {
 import type { UpdateSnapshot } from '../updates/update-checker';
 import { DetailPage, DashboardPage, LoadingPage, ProfilePage, SettingsPage } from './pages';
 import type { AnimeCardData } from './components/anime';
-import type { PageId } from './pages';
+import type { PageId } from './page-id';
+import { restoreScrollPosition } from './scroll-restore';
+import { requestPopupViewState, savePopupViewState } from './view-state-messages';
 import { PAGE_EXIT_MS, transitionDirection, type PageTransition } from './page-transition';
 
 interface NavItem {
@@ -154,6 +156,15 @@ export function App() {
     dashboard: 0,
     profile: 0,
     settings: 0,
+  });
+  const pendingScroll = useRef<number | null>(null);
+  const restorePage = useRef<PageId | null>(null);
+  const [restoreRequest, setRestoreRequest] = useState(0);
+  const [viewRestored, setViewRestored] = useState(false);
+  const persistTimer = useRef<number | null>(null);
+  const latestView = useRef<{ page: PageId; selectedAnime: AnimeCardData | undefined }>({
+    page: 'dashboard',
+    selectedAnime: undefined,
   });
   const [loading, setLoading] = useState(true);
   const [toast, setToast] = useState<string | undefined>();
@@ -293,10 +304,89 @@ export function App() {
     };
   }, [applySyncSnapshot]);
 
+  useEffect(() => {
+    let disposed = false;
+    void requestPopupViewState()
+      .then((state) => {
+        if (disposed || state === null) return;
+        scrollPositions.current = { ...scrollPositions.current, ...state.scrollPositions };
+        setSelectedAnime(state.selectedAnime ?? undefined);
+        setPage(state.page);
+        pendingScroll.current = state.scrollPositions[state.page] ?? 0;
+        restorePage.current = state.page;
+        setRestoreRequest((value) => value + 1);
+      })
+      .catch(() => undefined)
+      .finally(() => {
+        if (!disposed) setViewRestored(true);
+      });
+    return () => {
+      disposed = true;
+    };
+  }, []);
+
+  useEffect(() => {
+    latestView.current = { page, selectedAnime };
+  }, [page, selectedAnime]);
+
+  const persistViewState = useCallback(() => {
+    const current = latestView.current;
+    void savePopupViewState({
+      page: current.page,
+      scrollPositions: { ...scrollPositions.current },
+      selectedAnime: current.page === 'detail' ? (current.selectedAnime ?? null) : null,
+    }).catch(() => undefined);
+  }, []);
+
+  const schedulePersist = useCallback(() => {
+    if (persistTimer.current !== null) window.clearTimeout(persistTimer.current);
+    persistTimer.current = window.setTimeout(() => {
+      persistTimer.current = null;
+      persistViewState();
+    }, 300);
+  }, [persistViewState]);
+
+  useEffect(() => {
+    if (!viewRestored) return undefined;
+    const onScroll = () => {
+      scrollPositions.current[page] = window.scrollY;
+      schedulePersist();
+    };
+    window.addEventListener('scroll', onScroll, { passive: true });
+    return () => window.removeEventListener('scroll', onScroll);
+  }, [page, viewRestored, schedulePersist]);
+
+  useEffect(() => {
+    if (!viewRestored) return;
+    schedulePersist();
+  }, [page, selectedAnime, viewRestored, schedulePersist]);
+
+  useEffect(() => {
+    if (!viewRestored) return undefined;
+    const persistNow = () => persistViewState();
+    const onVisibilityChange = () => {
+      if (document.visibilityState === 'hidden') persistNow();
+    };
+    window.addEventListener('pagehide', persistNow);
+    document.addEventListener('visibilitychange', onVisibilityChange);
+    return () => {
+      window.removeEventListener('pagehide', persistNow);
+      document.removeEventListener('visibilitychange', onVisibilityChange);
+    };
+  }, [viewRestored, persistViewState]);
+
   useLayoutEffect(() => {
-    if (loading) return;
+    const target = pendingScroll.current;
+    if (target !== null) {
+      const pageAtRestore = restorePage.current;
+      return restoreScrollPosition(target, () => {
+        if (pendingScroll.current === null) return false;
+        return latestView.current.page === pageAtRestore;
+      });
+    }
     window.scrollTo(0, scrollPositions.current[page] ?? 0);
-  }, [loading, page]);
+    return undefined;
+  }, [loading, page, restoreRequest]);
 
   const rememberScrollPosition = (currentPage: PageId) => {
     if (currentPage === 'dashboard' || currentPage === 'profile' || currentPage === 'settings') {
@@ -326,10 +416,12 @@ export function App() {
 
   const navigate = (nextPage: PageId) => {
     if (nextPage === page) return;
+    pendingScroll.current = null;
     rememberScrollPosition(page);
     beginTransition(nextPage);
   };
   const selectAnime = (anime: AnimeCardData) => {
+    pendingScroll.current = null;
     rememberScrollPosition(page);
     setSelectedAnime(anime);
     beginTransition('detail');

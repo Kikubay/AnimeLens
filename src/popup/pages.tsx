@@ -119,7 +119,9 @@ import {
   Skeleton,
 } from './components/ui';
 
-export type PageId = 'dashboard' | 'detail' | 'profile' | 'settings';
+import type { PageId } from './page-id';
+
+export type { PageId } from './page-id';
 
 function sectionTitle(id: RecommendationSectionId, copy: AppCopy): string {
   switch (id) {

@@ -46,6 +46,12 @@ import {
 } from '../recommendations/recommendation-snapshot-store';
 import { createSessionStorageArea } from '../storage/session-area';
 import { ChromeStorageAdapter } from '../storage/storage-adapter';
+import {
+  POPUP_VIEW_STATE_KEY,
+  parsePopupViewState,
+  type PopupViewState,
+} from '../popup/view-state';
+import { entryProviderId } from '../domain/entry-provider';
 import { emptyProfileSummary, profileSummaryFromModel } from '../profile/profile-types';
 import type { UserProfileSummary } from '../profile/profile-types';
 import type { ProfileMessage, ProfileMessageResponse } from '../profile/profile-messages';
@@ -148,6 +154,7 @@ let updateCheckInFlight: Promise<UpdateSnapshot> | null = null;
 
 const candidatePoolStore = createCandidatePoolStore(createSessionStorageArea());
 const dashboardSnapshotStore = createDashboardSnapshotStore(createSessionStorageArea());
+const popupViewStateArea = createSessionStorageArea();
 let candidatePoolInFlight: {
   readonly poolKey: string;
   readonly request: Promise<readonly Anime[]>;
@@ -326,9 +333,19 @@ type AuthResponse =
     }
   | { readonly ok: false; readonly message: string };
 
+type PopupMessage =
+  | { readonly type: 'popup.get_view_state' }
+  | { readonly type: 'popup.save_view_state'; readonly state: unknown };
+
+type PopupResponse =
+  | { readonly ok: true; readonly state: PopupViewState | null }
+  | { readonly ok: true; readonly saved: true }
+  | { readonly ok: false; readonly message: string };
+
 type WorkerResponse =
   | AuthResponse
   | AuthResponse
+  | PopupResponse
   | SyncMessageResponse
   | FeedbackMessageResponse
   | ProfileMessageResponse
@@ -434,9 +451,44 @@ chrome.runtime.onMessage.addListener(
         );
       return true;
     }
+    if (isPopupMessage(message)) {
+      void handlePopupMessage(message)
+        .then(sendResponse)
+        .catch(async (error: unknown) =>
+          sendResponse({ ok: false, message: await toMessage(error) }),
+        );
+      return true;
+    }
     return false;
   },
 );
+
+async function handlePopupMessage(message: PopupMessage): Promise<PopupResponse> {
+  if (message.type === 'popup.get_view_state') {
+    return { ok: true, state: await readPopupViewState() };
+  }
+  const parsed = parsePopupViewState(message.state);
+  if (parsed === null) return { ok: false, message: 'The view state is not usable.' };
+  await writePopupViewState(parsed);
+  return { ok: true, saved: true };
+}
+
+async function readPopupViewState(): Promise<PopupViewState | null> {
+  const stored = await popupViewStateArea.get(POPUP_VIEW_STATE_KEY);
+  return parsePopupViewState(stored);
+}
+
+async function writePopupViewState(state: PopupViewState): Promise<void> {
+  const activeProvider = await providerRegistry.registry.getActiveProvider();
+  // A title belongs to the provider it came from, so a record from the other one would put the
+  // wrong show on the list it is added to.
+  const selectedAnime =
+    state.selectedAnime !== null && entryProviderId(state.selectedAnime) === activeProvider
+      ? state.selectedAnime
+      : null;
+  const page = state.page === 'detail' && selectedAnime === null ? 'dashboard' : state.page;
+  await popupViewStateArea.set(POPUP_VIEW_STATE_KEY, { ...state, page, selectedAnime });
+}
 
 async function handleUpdateMessage(message: UpdateMessage): Promise<UpdateResponse> {
   const snapshot = await checkForUpdates();
@@ -754,6 +806,7 @@ async function handleSettingsMessage(message: SettingsMessage): Promise<Settings
     // The registry caches the active provider, so it has to forget what it remembers about a key
     // that is no longer there.
     providerRegistry.registry.invalidateCache();
+    await popupViewStateArea.remove(POPUP_VIEW_STATE_KEY);
     await profileHistoryStore.clear();
     await invalidateCandidatePool();
     syncSnapshot = { metadata: createIdleMetadata(), progress: null };
@@ -1422,6 +1475,12 @@ function createIdleMetadata(): SyncMetadata {
     errorMessage: null,
     fromCache: false,
   };
+}
+
+function isPopupMessage(value: unknown): value is PopupMessage {
+  if (typeof value !== 'object' || value === null || !('type' in value)) return false;
+  if (value.type === 'popup.get_view_state') return true;
+  return value.type === 'popup.save_view_state' && 'state' in value;
 }
 
 function isAuthMessage(value: unknown): value is AuthMessage {
