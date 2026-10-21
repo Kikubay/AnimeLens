@@ -1,14 +1,14 @@
 import type { RecommendationFeedback } from '../domain/feedback';
 import type { UserProfile } from '../domain/user-profile';
-import type { UserPreferences } from '../domain/preferences';
+import type { UserPreferences } from '../settings/settings-types';
 import type { AnimeCache } from '../domain/sync';
 
-export interface StoredSession {
+interface StoredSession {
   readonly accessToken: string;
   readonly expiresAt: number | null;
 }
 
-export type StoredAnimeData = AnimeCache;
+type StoredAnimeData = AnimeCache;
 
 // `positive` and `negative` only exist to rank the live list, so they aren't stored on every snapshot.
 export interface StoredPreferenceItem {

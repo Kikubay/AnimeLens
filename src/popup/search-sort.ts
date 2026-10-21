@@ -3,7 +3,7 @@ import type { AppCopy } from '../locales';
 
 export type SearchSortKey = 'relevance' | 'score' | 'popularity' | 'newest' | 'title';
 
-export type SearchSortDirection = 'desc' | 'asc';
+type SearchSortDirection = 'desc' | 'asc';
 
 export interface SearchSort {
   readonly key: SearchSortKey;
@@ -79,7 +79,7 @@ export const SEARCH_SORT_OPTIONS: readonly SearchSortOption[] = [
 
 export const DEFAULT_SEARCH_SORT: SearchSort = { key: 'relevance', direction: 'desc' };
 
-export function searchSortOption(key: SearchSortKey): SearchSortOption {
+function searchSortOption(key: SearchSortKey): SearchSortOption {
   return SEARCH_SORT_OPTIONS.find((option) => option.key === key) ?? SEARCH_SORT_OPTIONS[0];
 }
 

@@ -4,7 +4,7 @@ export type AnimeId = number;
 
 export type AnimeProviderId = 'mal' | 'anilist';
 
-export type AnimeContentRating = 'safe' | 'questionable' | 'explicit';
+type AnimeContentRating = 'safe' | 'questionable' | 'explicit';
 
 export type AnimeStatus =
   'watching' | 'completed' | 'on_hold' | 'dropped' | 'plan_to_watch' | 'rewatching';
@@ -17,14 +17,14 @@ export type AnimeFormat = AnimeType;
 
 export type AnimeSeason = 'winter' | 'spring' | 'summer' | 'fall';
 
-export interface AnimeTitleSet {
+interface AnimeTitleSet {
   readonly default: string;
   readonly english: string | null;
   readonly japanese: string | null;
   readonly synonyms: readonly string[];
 }
 
-export interface AnimeImageSet {
+interface AnimeImageSet {
   readonly medium: string | null;
   readonly large: string | null;
 }

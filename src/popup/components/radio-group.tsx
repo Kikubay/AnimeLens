@@ -6,7 +6,7 @@ import {
   radioTabStopIndex,
 } from '../radio-group-navigation';
 
-export interface RadioGroupOption<T extends string> {
+interface RadioGroupOption<T extends string> {
   readonly value: T;
   readonly label: string;
   readonly content?: ReactNode;

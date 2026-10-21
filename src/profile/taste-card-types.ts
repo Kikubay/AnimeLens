@@ -27,14 +27,12 @@ export const TASTE_CARD_FORMAT_ORDER: readonly TasteCardFormat[] = ['tall', 'por
 
 export const TASTE_CARD_GENRE_LIMIT = 3;
 
-export const TASTE_CARD_PICK_LIMIT = 3;
-
-export interface TasteCardGenre {
+interface TasteCardGenre {
   readonly name: string;
   readonly score: number;
 }
 
-export interface TasteCardPick {
+interface TasteCardPick {
   readonly title: string;
   readonly score: number;
   /** Remote URL, inlined to a data URL before painting. */
@@ -42,7 +40,7 @@ export interface TasteCardPick {
   readonly largeImageUrl: string | null;
 }
 
-export interface TasteCardStats {
+interface TasteCardStats {
   readonly analyzedCount: number;
   readonly ratedCount: number;
   readonly averageScore: number | null;

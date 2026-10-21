@@ -188,7 +188,7 @@ export function Icon({ name, size = 18, strokeWidth = 1.8, className }: IconProp
   );
 }
 
-export type ButtonVariant = 'primary' | 'secondary' | 'ghost' | 'danger';
+type ButtonVariant = 'primary' | 'secondary' | 'ghost' | 'danger';
 
 interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
   readonly variant?: ButtonVariant;
@@ -256,37 +256,6 @@ export function Badge({ tone = 'neutral', className = '', children, ...props }: 
     <span className={`badge badge-${tone} ${className}`} {...props}>
       {children}
     </span>
-  );
-}
-
-interface TabItem {
-  readonly id: string;
-  readonly label: string;
-}
-
-interface TabsProps {
-  readonly items: readonly TabItem[];
-  readonly activeId: string;
-  readonly onChange: (id: string) => void;
-  readonly label: string;
-}
-
-export function Tabs({ items, activeId, onChange, label }: TabsProps) {
-  return (
-    <div className="tabs" role="tablist" aria-label={label}>
-      {items.map((item) => (
-        <button
-          className={`tab${item.id === activeId ? ' is-active' : ''}`}
-          key={item.id}
-          type="button"
-          role="tab"
-          aria-selected={item.id === activeId}
-          onClick={() => onChange(item.id)}
-        >
-          {item.label}
-        </button>
-      ))}
-    </div>
   );
 }
 
@@ -380,61 +349,6 @@ export function Modal({ open, title, onClose, children, closeLabel, className = 
       </section>
     </div>,
     document.body,
-  );
-}
-
-interface DropdownProps {
-  readonly label: string;
-  readonly value: string;
-  readonly options: readonly string[];
-  readonly onChange: (value: string) => void;
-}
-
-export function Dropdown({ label, value, options, onChange }: DropdownProps) {
-  const [open, setOpen] = useState(false);
-  const rootRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    const close = (event: MouseEvent) => {
-      if (rootRef.current !== null && !rootRef.current.contains(event.target as Node))
-        setOpen(false);
-    };
-    document.addEventListener('mousedown', close);
-    return () => document.removeEventListener('mousedown', close);
-  }, []);
-
-  return (
-    <div className="dropdown" ref={rootRef}>
-      <span className="sr-only">{label}</span>
-      <button
-        className="dropdown-trigger"
-        type="button"
-        aria-expanded={open}
-        onClick={() => setOpen(!open)}
-      >
-        {value}
-        <Icon name="chevron-down" size={14} />
-      </button>
-      {open && (
-        <div className="dropdown-menu" role="menu">
-          {options.map((option) => (
-            <button
-              className={`dropdown-option${option === value ? ' is-selected' : ''}`}
-              key={option}
-              type="button"
-              role="menuitem"
-              onClick={() => {
-                onChange(option);
-                setOpen(false);
-              }}
-            >
-              {option}
-              {option === value && <Icon name="check" size={14} />}
-            </button>
-          ))}
-        </div>
-      )}
-    </div>
   );
 }
 

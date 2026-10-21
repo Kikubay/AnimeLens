@@ -1,16 +1,9 @@
 import type { Anime } from './anime';
 
 export type RecommendationCategory =
-  | 'top-match'
-  | 'highly-compatible'
-  | 'because-you-liked'
-  | 'genre-discovery'
-  | 'hidden-gem'
-  | 'explore'
-  | 'continue-watching';
+  'highly-compatible' | 'because-you-liked' | 'genre-discovery' | 'hidden-gem' | 'explore';
 
-export type RecommendationReasonKind =
-  'genre' | 'theme' | 'format' | 'rating' | 'similarity' | 'discovery';
+export type RecommendationReasonKind = 'genre' | 'theme' | 'rating' | 'similarity' | 'discovery';
 
 export interface RecommendationReason {
   readonly kind: RecommendationReasonKind;

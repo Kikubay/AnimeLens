@@ -12,24 +12,24 @@ import { normalizeStreamingSites } from '../../../domain/streaming';
 
 // The DTOs are trimmed to what we consume, and normalization degrades a malformed field to `null` rather than failing a whole sync.
 
-export interface AniListTitleDto {
+interface AniListTitleDto {
   readonly romaji?: string | null;
   readonly english?: string | null;
   readonly native?: string | null;
 }
 
-export interface AniListStudioNodeDto {
+interface AniListStudioNodeDto {
   readonly id: number;
   readonly name: string;
 }
 
-export interface AniListTagDto {
+interface AniListTagDto {
   readonly id: number;
   readonly name: string;
   readonly rank?: number | null;
 }
 
-export interface AniListStaffEdgeDto {
+interface AniListStaffEdgeDto {
   readonly role?: string | null;
   readonly node?: {
     readonly id: number;
@@ -39,7 +39,7 @@ export interface AniListStaffEdgeDto {
 }
 
 // Trust `type`, not `site`: only `STREAMING` is watchable, and `site` is a display name rather than an enum.
-export interface AniListExternalLinkDto {
+interface AniListExternalLinkDto {
   readonly site?: string | null;
   readonly url?: string | null;
   readonly type?: string | null;

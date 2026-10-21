@@ -1,9 +1,5 @@
 import type { Anime, AnimeType } from '../domain/anime';
-import {
-  ANIME_SEARCH_MAX_LENGTH,
-  ANIME_SEARCH_MIN_LENGTH,
-  parseAnimeSearchQuery,
-} from './anime-search-query';
+import { ANIME_SEARCH_MAX_LENGTH, ANIME_SEARCH_MIN_LENGTH } from './anime-search-query';
 
 export { ANIME_SEARCH_MAX_LENGTH, ANIME_SEARCH_MIN_LENGTH };
 
@@ -86,8 +82,4 @@ export function isAnimeSearchMessage(value: unknown): value is AnimeSearchMessag
     }
   }
   return true;
-}
-
-export function isSearchableQuery(query: string): boolean {
-  return parseAnimeSearchQuery(query) !== null;
 }

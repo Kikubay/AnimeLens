@@ -29,11 +29,11 @@ export interface TopPickPlan {
 }
 
 // Bounds the grid pool so a huge list can't bloat the profile snapshot that ships it.
-export const MAX_GRID_CANDIDATES = 120;
+const MAX_GRID_CANDIDATES = 120;
 
 export const GRID_SLOT_COUNT = 9;
 
-export const DEFAULT_TOP_PICK_LIMIT = 3;
+const DEFAULT_TOP_PICK_LIMIT = 3;
 
 interface RankedEntry {
   readonly candidate: TopPickCandidate;

@@ -88,7 +88,7 @@ function Poster({
   );
 }
 
-export function AnimeCard({
+function AnimeCard({
   anime,
   featured = false,
   onSelect,

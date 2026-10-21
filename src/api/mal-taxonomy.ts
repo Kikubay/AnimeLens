@@ -1,6 +1,6 @@
 import { normalizeAnimeTag } from './anime-search-query';
 
-export interface MalTaxonomyEntry {
+interface MalTaxonomyEntry {
   readonly id: number;
   readonly name: string;
 }

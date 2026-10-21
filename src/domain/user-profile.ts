@@ -10,7 +10,7 @@ export interface UserProfile {
   readonly timeZone: string | null;
 }
 
-export interface PreferenceSignal {
+interface PreferenceSignal {
   readonly positive: number;
   readonly negative: number;
   readonly count: number;

@@ -2,11 +2,11 @@ import type { StoredProfileSnapshot } from '../storage/storage-types';
 import { diffProfileSnapshots, type ProfileAxis, type ProfileChangeKind } from './profile-delta';
 
 export const RECAP_MIN_WINDOW_DAYS = 5;
-export const RECAP_TARGET_WINDOW_DAYS = 7;
+const RECAP_TARGET_WINDOW_DAYS = 7;
 
 const MS_PER_DAY = 24 * 60 * 60 * 1000;
 
-export interface WeeklyRecapShift {
+interface WeeklyRecapShift {
   readonly kind: ProfileChangeKind;
   readonly axis: ProfileAxis;
   readonly name: string;

@@ -12,7 +12,7 @@ export const MIN_SCORE_DELTA = 5;
 
 export const MAX_CHANGES = 4;
 
-export const MIN_AVERAGE_DELTA = 0.3;
+const MIN_AVERAGE_DELTA = 0.3;
 
 export type ProfileAxis = 'genres' | 'themes' | 'studios';
 
@@ -30,14 +30,14 @@ export interface ProfileChange {
   readonly toScore: number | null;
 }
 
-export interface ProfileAverageChange {
+interface ProfileAverageChange {
   readonly from: number;
   readonly to: number;
   readonly direction: 'up' | 'down';
 }
 
 // 'baseline' = nothing to compare against, 'ready' = something crossed a threshold, 'stable' = nothing meaningful moved, 'unavailable' = the stored history is another shape or provider.
-export type ProfileDeltaStatus = 'baseline' | 'ready' | 'stable' | 'unavailable';
+type ProfileDeltaStatus = 'baseline' | 'ready' | 'stable' | 'unavailable';
 
 export interface ProfileDelta {
   readonly status: ProfileDeltaStatus;

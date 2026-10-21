@@ -23,7 +23,6 @@ import fixtureData from './data/demo-anime.json';
 import { buildDemoLibrary, type DemoAnimeFixture } from './library';
 import { buildRecord } from './records';
 import { persistDemoProvider, readDemoProvider, readDemoSeed } from './session';
-import { DEMO_DISABLED_MESSAGE, DEMO_VERSION } from './messages';
 
 const fixtures = fixtureData.anime as readonly DemoAnimeFixture[];
 const PROVIDER_DISPLAY: Readonly<Record<AnimeProviderId, string>> = {
@@ -208,4 +207,3 @@ class DemoHost {
 }
 
 export const demoHost = new DemoHost();
-export { DEMO_DISABLED_MESSAGE, DEMO_VERSION };

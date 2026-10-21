@@ -15,7 +15,7 @@ const MAX_ASSET_BYTES = 4 * 1024 * 1024;
 // 2x supersampling keeps the small type and rounded bar edges crisp when the PNG is zoomed or opened full-size; the cost is ~4x the encode work.
 export const TASTE_CARD_EXPORT_SCALE = 2;
 
-export class TasteCardRenderError extends Error {
+class TasteCardRenderError extends Error {
   readonly reason: 'asset' | 'render' | 'encode';
 
   constructor(reason: TasteCardRenderError['reason'], message: string) {

@@ -20,7 +20,6 @@
   --warning: #d8bd87;
   --success: #88c69e;
   --danger: #e29a9a;
-  --danger-hover: #db9999;
   --negative-fill: #c98794;
   --brand: #4f8ef7;
   --text-secondary: #a5a2a4;
@@ -71,7 +70,6 @@
   --warning: #8a6412;
   --success: #347a4d;
   --danger: #9c2b2b;
-  --danger-hover: #a83232;
   --negative-fill: #a8445a;
   --brand: #1a5fc7;
   --text-secondary: #54505a;
@@ -822,8 +820,7 @@ button:focus-visible {
   bottom: 22px;
   font-size: 21px;
 }
-.poster-index,
-.featured-poster-mark {
+.poster-index {
   position: absolute;
   z-index: 1;
   top: 14px;
@@ -831,13 +828,6 @@ button:focus-visible {
   color: rgb(255 255 255 / 65%);
   font-family: ui-monospace, monospace;
   font-size: var(--font-sm);
-}
-.featured-poster-mark {
-  top: auto;
-  bottom: 14px;
-  left: auto;
-  right: 14px;
-  font-size: var(--font-xs);
 }
 .poster-noise {
   position: absolute;
@@ -904,9 +894,6 @@ button:focus-visible {
 .section-heading,
 .featured-footer,
 .detail-inline,
-.profile-hero,
-.account-row,
-.feedback-row,
 .setting-row,
 .bar-label {
   display: flex;
@@ -1677,11 +1664,6 @@ button:focus-visible {
   font-size: var(--font-md);
   line-height: 1.55;
 }
-.reason-tags {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 5px;
-}
 .detail-score-row {
   display: flex;
   align-items: center;
@@ -1730,10 +1712,6 @@ button:focus-visible {
   color: var(--muted);
 }
 
-.profile-hero {
-  gap: 11px;
-  margin-bottom: 22px;
-}
 .taste-level-card {
   margin-top: 10px;
   padding: 13px;
@@ -1995,9 +1973,6 @@ button:focus-visible {
   color: var(--dim);
   font-size: var(--font-xs);
 }
-.profile-hero .icon-button {
-  margin-left: auto;
-}
 .avatar {
   display: grid;
   width: 42px;
@@ -2010,24 +1985,6 @@ button:focus-visible {
   background: var(--accent-well);
   font-family: ui-monospace, monospace;
   font-size: var(--font-md);
-}
-.avatar-small {
-  width: 32px;
-  height: 32px;
-  font-size: var(--font-xs);
-}
-.profile-hero h2 {
-  margin: 4px 0;
-  font-size: 18px;
-  letter-spacing: -0.05em;
-}
-.profile-hero p:last-child {
-  margin: 0;
-  color: var(--muted);
-  font-size: var(--font-sm);
-}
-.taste-card {
-  padding: 15px;
 }
 .taste-stat-grid {
   display: grid;
@@ -2052,10 +2009,6 @@ button:focus-visible {
   margin-top: 2px;
   color: var(--muted);
   font-size: var(--font-xs);
-}
-.taste-bars {
-  display: grid;
-  gap: 10px;
 }
 .bar-label {
   justify-content: space-between;
@@ -2083,17 +2036,6 @@ button:focus-visible {
   background: var(--accent);
   transition: width 350ms ease;
 }
-.feedback-card {
-  overflow: hidden;
-}
-.feedback-row {
-  gap: 9px;
-  padding: 11px;
-  border-bottom: 1px solid var(--line-soft);
-}
-.feedback-row:last-child {
-  border: 0;
-}
 .feedback-positive,
 .state-icon {
   display: grid;
@@ -2105,27 +2047,6 @@ button:focus-visible {
   color: var(--success);
   background: rgb(136 198 158 / 10%);
 }
-.feedback-row strong {
-  font-size: var(--font-md);
-}
-.feedback-row p {
-  margin: 3px 0 0;
-  color: var(--muted);
-  font-size: var(--font-xs);
-}
-.feedback-row button {
-  margin-left: auto;
-  padding: 3px;
-  border: 0;
-  color: var(--dim);
-  background: none;
-  cursor: pointer;
-  font-size: var(--font-xs);
-}
-.feedback-row button:hover {
-  color: var(--danger-hover);
-}
-
 .page-title {
   margin-bottom: 22px;
 }
@@ -2643,38 +2564,6 @@ button:focus-visible {
   background: rgb(226 154 154 / 12%);
 }
 
-.account-card {
-  display: grid;
-  gap: 13px;
-  margin-top: 10px;
-  padding: 13px;
-}
-.account-row {
-  gap: 9px;
-}
-.account-row strong {
-  font-size: var(--font-md);
-}
-.account-row p {
-  margin: 3px 0 0;
-  color: var(--muted);
-  font-size: var(--font-xs);
-}
-.account-row .badge {
-  margin-left: auto;
-}
-.component-states {
-  margin-top: 25px;
-}
-.component-states h3 {
-  margin: 6px 0 3px;
-  font-size: 14px;
-}
-.helper-copy {
-  margin: 0 0 12px;
-  color: var(--muted);
-  font-size: var(--font-sm);
-}
 .state-panel {
   display: flex;
   flex-direction: column;
@@ -2804,11 +2693,6 @@ button:focus-visible {
   gap: 7px;
   margin-top: 18px;
 }
-.modal-meta strong {
-  color: var(--text);
-  font-weight: 500;
-}
-
 .loading-page {
   display: grid;
   gap: 13px;

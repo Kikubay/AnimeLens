@@ -136,7 +136,6 @@ export function buildUserPreferenceProfile(
     const weight = tasteRecencyWeight(item.createdAt, now);
     if (item.value === 'dislike' && item.reasons !== undefined && item.reasons.length > 0) {
       addReasonedFeedbackSignals(
-        item.features,
         item.reasons,
         signal,
         {
@@ -581,7 +580,6 @@ function isActiveFeedback(feedback: RecommendationFeedback, now: string): boolea
 }
 
 function addReasonedFeedbackSignals(
-  features: FeedbackFeatureSnapshot,
   reasons: readonly DislikeReason[],
   signal: number,
   maps: {

@@ -3,7 +3,7 @@ import type { StreamingLink } from '../domain/streaming';
 import type { UserProfile } from '../domain/user-profile';
 import type { RecommendationPeriod } from '../domain/recommendation-period';
 
-export interface AnimeListFetchProgress {
+interface AnimeListFetchProgress {
   readonly page: number;
   readonly itemsFetched: number;
   readonly nextPageUrl: string | null;
@@ -74,5 +74,3 @@ export interface AnimeProvider {
 }
 
 export const EMPTY_SEARCH_PAGE: AnimeSearchPage = { results: [], hasMore: false };
-
-export type User = UserProfile;

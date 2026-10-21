@@ -1,11 +1,11 @@
 import type { AuthErrorCode } from '../auth/auth-types';
-import { LANGUAGES, MESSAGE_PARAMS, placeholdersOf, type AppCopy, type Language } from './schema';
+import { LANGUAGES, placeholdersOf, type AppCopy, type Language } from './schema';
 import en from './en.json';
 import es from './es.json';
 import fr from './fr.json';
 
-export { LANGUAGES, MESSAGE_PARAMS, placeholdersOf };
-export type { AppCopy, Language, TemplatedKey } from './schema';
+export { LANGUAGES, placeholdersOf };
+export type { AppCopy, Language } from './schema';
 
 // Typing the imported locale files against this makes a missing or misspelled key a compile error instead of an untranslated string.
 export type MessageKey = Exclude<keyof AppCopy, 'authErrorMessage'>;
@@ -116,23 +116,19 @@ export function categoryLabel(copy: AppCopy, category: string): string {
 }
 
 const CATEGORY_KEYS: Readonly<Record<string, CategoryMessageKey>> = {
-  'top-match': 'categoryTopMatch',
   'highly-compatible': 'categoryHighlyCompatible',
   'because-you-liked': 'categoryBecauseYouLiked',
   'genre-discovery': 'categoryGenreDiscovery',
   'hidden-gem': 'categoryHiddenGem',
   explore: 'categoryExplore',
-  'continue-watching': 'categoryContinueWatching',
 };
 
 type CategoryMessageKey =
-  | 'categoryTopMatch'
   | 'categoryHighlyCompatible'
   | 'categoryBecauseYouLiked'
   | 'categoryGenreDiscovery'
   | 'categoryHiddenGem'
-  | 'categoryExplore'
-  | 'categoryContinueWatching';
+  | 'categoryExplore';
 
 export function normalizeLanguage(value: unknown): Language {
   if (typeof value !== 'string') return 'en';
@@ -141,7 +137,7 @@ export function normalizeLanguage(value: unknown): Language {
   return tag.startsWith('es') ? 'es' : 'en';
 }
 
-export function detectBrowserLanguage(): Language {
+function detectBrowserLanguage(): Language {
   return normalizeLanguage(typeof navigator === 'undefined' ? undefined : navigator.language);
 }
 

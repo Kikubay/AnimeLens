@@ -8,7 +8,7 @@ export type ExtensionTarget = 'chromium' | 'gecko';
 export const DEFAULT_GECKO_ID = 'animelens@kikubay.github.io';
 
 /** 128 is the floor: 127 and older reject the manifest outright once `data_collection_permissions` is present. */
-export const DEFAULT_STRICT_MIN_VERSION = '128.0';
+const DEFAULT_STRICT_MIN_VERSION = '128.0';
 
 interface GeckoSettings {
   readonly id: string;

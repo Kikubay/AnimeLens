@@ -37,10 +37,9 @@ const TITLE_TIERS: readonly TasteTitleTier[] = [
   { level: MAX_TASTE_LEVEL, key: 'tasteLevelTitleLegend' },
 ];
 
-export type TasteSourceKey =
-  'analyzed' | 'rated' | 'feedback' | 'preferences' | 'dimensions' | 'streak';
+type TasteSourceKey = 'analyzed' | 'rated' | 'feedback' | 'preferences' | 'dimensions' | 'streak';
 
-export interface TasteSource {
+interface TasteSource {
   readonly key: TasteSourceKey;
   readonly label: string;
   readonly xp: number;

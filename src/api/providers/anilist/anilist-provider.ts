@@ -122,7 +122,7 @@ export class AniListProvider implements AnimeProvider {
   };
 
   constructor(
-    private readonly httpClient: HttpClient,
+    httpClient: HttpClient,
     private readonly accessToken: string,
     private readonly userId: number | null = null,
     graphqlClient?: AniListGraphQLClient,

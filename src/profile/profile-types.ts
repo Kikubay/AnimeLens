@@ -6,7 +6,7 @@ import { emptyTopPickPlan, planTopPicks, type TopPickPlan } from './top-picks';
 import type { ProfileDelta } from './profile-delta';
 import type { WeeklyRecap } from './weekly-recap';
 
-export interface ProfilePreferenceItem {
+interface ProfilePreferenceItem {
   readonly name: string;
   readonly score: number;
   readonly positive: number;
@@ -14,7 +14,7 @@ export interface ProfilePreferenceItem {
   readonly count: number;
 }
 
-export interface DetectedPreference {
+interface DetectedPreference {
   readonly key: ProfileSignalKey;
   readonly label: string;
   readonly detail: string;

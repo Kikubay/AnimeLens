@@ -113,21 +113,15 @@ export function cosmeticsForSlot(slot: CosmeticSlot): readonly CosmeticDefinitio
   return COSMETIC_CATALOG.filter((cosmetic) => cosmetic.slot === slot);
 }
 
-export function defaultCosmeticForSlot(slot: CosmeticSlot): CosmeticDefinition {
-  const base = cosmeticsForSlot(slot).find((cosmetic) => cosmetic.requirement.kind === 'default');
-  if (base === undefined) throw new Error(`No default cosmetic for the ${slot} slot.`);
-  return base;
-}
-
 export function cosmeticById(id: unknown): CosmeticDefinition | null {
   return COSMETIC_CATALOG.find((cosmetic) => cosmetic.id === id) ?? null;
 }
 
-export function isFrameId(value: unknown): value is FrameId {
+function isFrameId(value: unknown): value is FrameId {
   return cosmeticById(value)?.slot === 'frame';
 }
 
-export function isPaletteId(value: unknown): value is PaletteId {
+function isPaletteId(value: unknown): value is PaletteId {
   return cosmeticById(value)?.slot === 'palette';
 }
 

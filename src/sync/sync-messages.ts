@@ -1,7 +1,7 @@
 import type { SyncMetadata, SyncProgress } from '../domain/sync';
 import type { SyncReason } from './sync-types';
 
-export type SyncMessageType = 'sync.get_snapshot' | 'sync.start' | 'sync.invalidate';
+type SyncMessageType = 'sync.get_snapshot' | 'sync.start' | 'sync.invalidate';
 
 export interface SyncMessage {
   readonly type: SyncMessageType;

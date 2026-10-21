@@ -91,7 +91,7 @@ export const TASTE_CARD_COVER_SCALE_RANGE: { readonly min: number; readonly max:
 };
 export const DEFAULT_TASTE_CARD_COVER_SCALE = 1;
 
-export const DEFAULT_TASTE_CARD_PREFERENCES: TasteCardPreferences = {
+const DEFAULT_TASTE_CARD_PREFERENCES: TasteCardPreferences = {
   showGenres: true,
   showPicks: true,
   coverScale: DEFAULT_TASTE_CARD_COVER_SCALE,
@@ -106,7 +106,7 @@ export function clampTasteCardCoverScale(value: unknown): number {
   return Math.min(max, Math.max(min, Math.round(value * 100) / 100));
 }
 
-export function normalizeTasteCardPreferences(value: unknown): TasteCardPreferences {
+function normalizeTasteCardPreferences(value: unknown): TasteCardPreferences {
   if (!isRecord(value)) return DEFAULT_TASTE_CARD_PREFERENCES;
   return {
     showGenres:

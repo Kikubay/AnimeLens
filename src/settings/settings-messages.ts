@@ -22,7 +22,7 @@ export interface SettingsSnapshotSuccess {
 export type SettingsResponse =
   SettingsSnapshotSuccess | { readonly ok: false; readonly message: string };
 
-export interface DataTransferResult {
+interface DataTransferResult {
   readonly kind: 'export' | 'import';
   readonly json: string;
   readonly feedback: number;
@@ -64,10 +64,6 @@ export async function exportLocalData(): Promise<DataTransferResponse> {
 
 export async function importLocalData(payload: unknown): Promise<DataTransferResponse> {
   return requestData({ type: 'settings.import_data', payload });
-}
-
-export async function disconnectMal(): Promise<SettingsSnapshot> {
-  return requestSettings({ type: 'settings.disconnect_mal' });
 }
 
 export function isSettingsMessage(value: unknown): value is SettingsMessage {

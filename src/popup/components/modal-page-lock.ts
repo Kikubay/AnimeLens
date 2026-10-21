@@ -1,12 +1,12 @@
-export interface PageLockStyleTarget {
+interface PageLockStyleTarget {
   readonly style: { overflow: string };
 }
 
-export interface PageLockInertTarget {
+interface PageLockInertTarget {
   inert: boolean;
 }
 
-export interface PageLockEventTarget {
+interface PageLockEventTarget {
   addEventListener(
     type: string,
     listener: (event: Event) => void,
@@ -22,7 +22,7 @@ export interface PageLockTargets {
   readonly events: PageLockEventTarget;
 }
 
-export interface PageLockDialog {
+interface PageLockDialog {
   contains(node: Node | null): boolean;
 }
 

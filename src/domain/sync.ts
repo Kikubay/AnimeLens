@@ -1,13 +1,12 @@
-export type SyncStatus = 'idle' | 'syncing' | 'success' | 'error' | 'offline';
+type SyncStatus = 'idle' | 'syncing' | 'success' | 'error' | 'offline';
 
-export type SyncPhase = 'fetching' | 'analyzing' | 'calculating' | 'complete' | 'cache';
+type SyncPhase = 'fetching' | 'analyzing' | 'calculating' | 'complete' | 'cache';
 
 export type SyncErrorCode =
   | 'network_error'
   | 'rate_limited'
   | 'unauthorized'
   | 'invalid_response'
-  | 'cache_corrupted'
   | 'storage_full'
   | 'unknown';
 

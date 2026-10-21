@@ -2,9 +2,7 @@ import type { Anime, AnimeId, AnimeSeason, AnimeType } from './anime';
 
 export type FeedbackValue = 'like' | 'dislike' | 'seen' | 'not_now';
 
-export type RecommendationFeedbackAction = FeedbackValue;
-
-export type DislikeReasonKind = 'genre' | 'theme' | 'general';
+type DislikeReasonKind = 'genre' | 'theme' | 'general';
 
 export interface DislikeReason {
   readonly kind: DislikeReasonKind;

@@ -24,7 +24,7 @@ const REQUIREMENT_KEYS = {
   refinedProfile: 'profileStrengthNeedFeedback',
 } as const satisfies Readonly<Record<ProfileSignalKey, StringCopyKey>>;
 
-export interface ProfileStrengthSignal extends ProfileSignalState {
+interface ProfileStrengthSignal extends ProfileSignalState {
   readonly label: string;
   readonly requirement: string;
 }

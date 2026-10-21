@@ -20,7 +20,7 @@ class RecordingHttpClient implements HttpClient {
     throw new Error(`Unexpected GET to ${url}`);
   }
 
-  async post<T>(url: string, options: RequestInit = {}): Promise<HttpResponse<T>> {
+  async post<T>(_url: string, options: RequestInit = {}): Promise<HttpResponse<T>> {
     const body = JSON.parse(String(options.body ?? '{}')) as {
       query: string;
       variables: Record<string, unknown>;

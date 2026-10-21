@@ -4,7 +4,7 @@ import { normalizeStreamingSites } from '../../../domain/streaming';
 // MAL's API has no streaming-links field and rejects unknown ones with 400, so we scrape the website instead — the section is found by its heading text (class names are obfuscated) and picked apart by `broadcast-item`. MV3 workers have no DOMParser, hence the tag scanner rather than a parser. When MAL redesigns this breaks by rendering no card, never by throwing.
 
 // Already covered by the `myanimelist.net` host permission.
-export const MAL_WEB_ANIME_URL = 'https://myanimelist.net/anime';
+const MAL_WEB_ANIME_URL = 'https://myanimelist.net/anime';
 
 // Anime pages are ~200KB and we only ever need the section itself.
 const SECTION_WINDOW_CHARS = 12_000;

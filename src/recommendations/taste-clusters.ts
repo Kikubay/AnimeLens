@@ -6,8 +6,8 @@ import type {
 } from './recommendation-types';
 
 /** A provider tag filter ORs whatever it is given, so a cluster widens a query rather than narrowing it. */
-export const TASTE_CLUSTER_SIZE = 3;
-export const TASTE_CLUSTER_LIMIT = 3;
+const TASTE_CLUSTER_SIZE = 3;
+const TASTE_CLUSTER_LIMIT = 3;
 /** Below this the evidence is neutral, so querying it would only dilute the pool. */
 export const TASTE_MIN_FEATURE_SCORE = 0.62;
 const TASTE_MIN_FEATURE_STRENGTH = (TASTE_MIN_FEATURE_SCORE - 0.5) * 2;

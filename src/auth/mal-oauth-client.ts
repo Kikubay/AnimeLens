@@ -2,7 +2,7 @@ import { ApiError } from '../api/api-errors';
 import type { HttpClient } from '../api/http-client';
 import type { MalOAuthClient, OAuthTokenResponse } from './auth-types';
 
-export const MAL_TOKEN_URL = 'https://myanimelist.net/v1/oauth2/token';
+const MAL_TOKEN_URL = 'https://myanimelist.net/v1/oauth2/token';
 
 export class FetchMalOAuthClient implements MalOAuthClient {
   constructor(

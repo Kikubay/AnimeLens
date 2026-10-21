@@ -36,13 +36,13 @@ export function decodeAniListTokenExpiry(accessToken: string, now: number = Date
 
 export type { ProviderId };
 
-export const ALL_PROVIDER_IDS: readonly ProviderId[] = ['mal', 'anilist'];
+const ALL_PROVIDER_IDS: readonly ProviderId[] = ['mal', 'anilist'];
 
 export function isProviderId(value: unknown): value is ProviderId {
   return value === 'mal' || value === 'anilist';
 }
 
-export const ACTIVE_PROVIDER_STORAGE_KEY = 'activeProvider';
+const ACTIVE_PROVIDER_STORAGE_KEY = 'activeProvider';
 const LEGACY_AUTH_SESSION_KEY = 'authSession';
 
 export interface ProviderStatus {
@@ -88,7 +88,7 @@ export class ProviderRegistryService {
 
   constructor(
     readonly registry: ProviderRegistry,
-    private readonly identity: IdentityWebAuthFlow,
+    identity: IdentityWebAuthFlow,
     oauthClient: OAuthClient,
     private readonly httpClient: HttpClient,
     dependencies: {
@@ -249,5 +249,3 @@ export class ProviderRegistryService {
     return this.sessionStores[providerId];
   }
 }
-
-export { MAL_AUTHORIZATION_URL };

@@ -8,7 +8,7 @@ export type OAuthTokenStrategy =
   /** Token in the redirect fragment, nothing to refresh (AniList). */
   | 'implicit';
 
-export type AuthStatus =
+type AuthStatus =
   'signed_out' | 'authorizing' | 'exchanging' | 'syncing' | 'authenticated' | 'expired' | 'error';
 
 export type AuthErrorCode =
@@ -111,28 +111,6 @@ export interface TokenExchangeDiagnostic {
   readonly error: TokenExchangeErrorCode;
   readonly message: string;
   readonly phase: 'token_exchange' | 'profile_fetch';
-}
-
-// Older builds reported an unregistered redirect URI as 'invalid_redirect_uri'; MAL calls that a configuration problem.
-export function normalizeTokenExchangeDiagnostic(
-  diagnostic: TokenExchangeDiagnostic,
-): TokenExchangeDiagnostic {
-  return {
-    ...diagnostic,
-    error: diagnostic.error === 'invalid_redirect_uri' ? 'mal_configuration' : diagnostic.error,
-  };
-}
-
-export function isTokenExchangeDiagnostic(value: unknown): value is TokenExchangeDiagnostic {
-  if (typeof value !== 'object' || value === null) return false;
-  if (!('error' in value) || !('message' in value) || !('phase' in value)) return false;
-  const typed = value as TokenExchangeDiagnostic;
-  return (
-    typeof typed.error === 'string' &&
-    typeof typed.message === 'string' &&
-    typeof typed.phase === 'string' &&
-    (typed.phase === 'token_exchange' || typed.phase === 'profile_fetch')
-  );
 }
 
 // chrome.storage can hand back stale or half-written data after a schema change, and everything downstream trusts this shape.

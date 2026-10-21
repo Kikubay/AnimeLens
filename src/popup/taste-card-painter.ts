@@ -270,7 +270,7 @@ interface ResolvedLayout {
   readonly picksGeometry: PicksGeometry;
 }
 
-export interface PicksGeometry {
+interface PicksGeometry {
   readonly layout: TasteCardPicksLayout;
   /** List: cover edge and row pitch. Triangle: podium heights. Grid: cell edge. */
   readonly cover: number;
@@ -282,8 +282,8 @@ export interface PicksGeometry {
 }
 
 // The 3x3 layout is a full-card composition, not a block in the stack.
-export const GRID_COLUMNS = 3;
-export const GRID_ROWS = 3;
+const GRID_COLUMNS = 3;
+const GRID_ROWS = 3;
 const GRID_SLOT_COUNT = GRID_COLUMNS * GRID_ROWS;
 const GRID_GUTTER = 10;
 const GRID_MARGIN = 12;
@@ -521,7 +521,7 @@ export function paintTasteCard(
 
   if (picksGeometry.layout === 'grid') {
     // A wall of covers with only the brand mark: the artwork is the whole card.
-    paintPickGrid(context, model, images, format);
+    paintPickGrid(context, images, format);
     paintGridBrand(context, metrics, width, height);
     context.restore();
     return;
@@ -889,7 +889,6 @@ function paintTopPicks(
 // A cell with no artwork stays a dim placeholder rather than being filled with something else, so a partial grid reads as incomplete instead of misleading.
 function paintPickGrid(
   context: CanvasRenderingContext2D,
-  model: TasteCardModel,
   images: TasteCardImages,
   format: TasteCardFormat,
 ): void {

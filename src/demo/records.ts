@@ -31,12 +31,6 @@ export interface DemoAnimeFixture {
   }[];
 }
 
-export interface DemoFixture {
-  readonly generatedAt: string;
-  readonly source: string;
-  readonly anime: readonly DemoAnimeFixture[];
-}
-
 function genreId(name: string): number {
   return findMalGenreId(name) ?? 9001;
 }
@@ -53,7 +47,7 @@ const MAL_THEME_ALIASES: Readonly<Record<string, string>> = {
   'non bipedal': 'Anthropomorphic',
 };
 
-export function toAniListRecord(fixture: DemoAnimeFixture): Anime {
+function toAniListRecord(fixture: DemoAnimeFixture): Anime {
   return normalizeAniList({
     id: fixture.id,
     title: {
@@ -82,7 +76,7 @@ export function toAniListRecord(fixture: DemoAnimeFixture): Anime {
   });
 }
 
-export function toMalRecord(fixture: DemoAnimeFixture): Anime {
+function toMalRecord(fixture: DemoAnimeFixture): Anime {
   const genres = fixture.genres.map((name) => ({ id: genreId(name), name }));
   const seenThemes = new Set<string>();
   const themes: { id: number; name: string }[] = [];

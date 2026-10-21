@@ -2,7 +2,7 @@ import type { PageId } from './pages';
 
 export type TransitionDirection = 'forward' | 'backward';
 
-export type PageTransitionPhase = 'exit' | 'enter';
+type PageTransitionPhase = 'exit' | 'enter';
 
 export interface PageTransition {
   readonly direction: TransitionDirection;

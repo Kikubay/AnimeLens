@@ -121,18 +121,6 @@ export function isUsagePending(streak: UsageStreak, now: number): boolean {
   );
 }
 
-export function isUsageStreak(value: unknown): value is UsageStreak {
-  return (
-    isRecord(value) &&
-    (value.trackedDay === null || isDayKey(value.trackedDay)) &&
-    isDuration(value.visibleMs) &&
-    (value.lastSeenAt === null || isTimestamp(value.lastSeenAt)) &&
-    (value.lastQualifyingDay === null || isDayKey(value.lastQualifyingDay)) &&
-    isCount(value.streakDays) &&
-    isCount(value.xp)
-  );
-}
-
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null;
 }

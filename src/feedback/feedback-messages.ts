@@ -32,14 +32,6 @@ export async function submitRecommendationFeedback(
   return response.feedback;
 }
 
-export async function requestFeedback(): Promise<readonly RecommendationFeedback[]> {
-  const response = (await chrome.runtime.sendMessage({
-    type: 'feedback.list',
-  })) as FeedbackMessageResponse;
-  if (!response.ok) throw new Error(response.message);
-  return response.feedback;
-}
-
 export function isFeedbackMessage(value: unknown): value is FeedbackMessage {
   if (typeof value !== 'object' || value === null || !('type' in value)) return false;
   if (value.type === 'feedback.list') return true;

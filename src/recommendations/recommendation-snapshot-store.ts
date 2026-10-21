@@ -5,7 +5,7 @@ import type { SessionStorageArea } from '../storage/session-area';
 import type { DashboardRecommendationSnapshot } from './recommendation-messages';
 
 export const DASHBOARD_SNAPSHOT_STORAGE_KEY = 'dashboardSnapshot';
-export const DASHBOARD_SNAPSHOT_TTL_MS = 5 * 60 * 1000;
+const DASHBOARD_SNAPSHOT_TTL_MS = 5 * 60 * 1000;
 
 export interface DashboardSignatureInput {
   readonly providerId: string;

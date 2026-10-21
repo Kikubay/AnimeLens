@@ -56,7 +56,7 @@ fragment AnimeMedia on Media {
 }
 `;
 
-export const ANIME_MEDIA_DETAIL_FRAGMENT = `
+const ANIME_MEDIA_DETAIL_FRAGMENT = `
 fragment AnimeMediaDetail on Media {
   ...AnimeMedia
   staff(perPage: 8) { edges { role node { id name { full } image { large } } } }

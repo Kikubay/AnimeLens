@@ -1,16 +1,14 @@
-import type { AnimeListEntry } from '../domain/anime';
-
-export interface MalPaging {
+interface MalPaging {
   readonly previous?: string;
   readonly next?: string;
 }
 
-export interface MalListResponse<T> {
+interface MalListResponse<T> {
   readonly data: readonly T[];
   readonly paging?: MalPaging;
 }
 
-export interface MalPictureDto {
+interface MalPictureDto {
   readonly medium?: string;
   readonly large?: string;
 }
@@ -40,7 +38,6 @@ export interface MalAnimeDto {
   };
   readonly synopsis?: string;
   readonly mean?: number;
-  readonly rank?: number;
   readonly popularity?: number;
   readonly num_list_users?: number;
   readonly num_episodes?: number;
@@ -55,7 +52,7 @@ export interface MalAnimeDto {
   readonly staff?: readonly MalStaffDto[];
 }
 
-export interface MalListStatusDto {
+interface MalListStatusDto {
   readonly status?: string;
   readonly score?: number;
   readonly num_episodes_watched?: number;
@@ -80,7 +77,3 @@ export interface MalUserDto {
 }
 
 export type MalAnimeListResponse = MalListResponse<MalAnimeNodeDto>;
-export type MalAnimeDetailsResponse = MalAnimeDto;
-export type MalUserResponse = MalUserDto;
-
-export type AnimeListMapper = (entry: MalAnimeNodeDto) => AnimeListEntry;

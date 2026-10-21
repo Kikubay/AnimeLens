@@ -2737,7 +2737,7 @@ function SettingRow({
   );
 }
 
-export function SettingsLoadingPage() {
+function SettingsLoadingPage() {
   return (
     <div className="page-content loading-page settings-page">
       <Skeleton className="skeleton-eyebrow" />

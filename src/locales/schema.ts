@@ -82,13 +82,11 @@ export interface AppCopy {
   readonly animeNotFound: string;
   readonly recommendationUnavailable: string;
   readonly backToRecommendations: string;
-  readonly categoryTopMatch: string;
   readonly categoryHighlyCompatible: string;
   readonly categoryGenreDiscovery: string;
   readonly categoryBecauseYouLiked: string;
   readonly categoryHiddenGem: string;
   readonly categoryExplore: string;
-  readonly categoryContinueWatching: string;
   readonly genres: string;
   readonly themes: string;
   readonly studio: string;
@@ -625,9 +623,6 @@ type AssertCoverage = [UndeclaredTemplatedKey] extends [never]
 
 const _coverage: AssertCoverage = true;
 void _coverage;
-
-export { MESSAGE_PARAMS };
-export type { TemplatedKey };
 
 export function placeholdersOf(key: keyof AppCopy): readonly string[] {
   return (MESSAGE_PARAMS as Readonly<Record<string, readonly string[]>>)[key] ?? EMPTY;

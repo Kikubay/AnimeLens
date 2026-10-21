@@ -58,5 +58,4 @@ export function createRuntimeProviderRegistryService(
   });
 }
 
-export { ProviderRegistry, ProviderRegistryService } from '../providers/provider-registry';
 export type { ProviderId } from './auth-types';

@@ -7,7 +7,7 @@ export type UpdateTarget = 'chromium' | 'gecko' | 'desktop' | 'demo';
 
 declare const __UPDATE_TARGET__: string | undefined;
 
-export function currentUpdateTarget(): UpdateTarget {
+function currentUpdateTarget(): UpdateTarget {
   const injected = typeof __UPDATE_TARGET__ === 'string' ? __UPDATE_TARGET__ : null;
   if (
     injected === 'chromium' ||
@@ -125,7 +125,7 @@ export function compareVersions(left: string, right: string): number {
   return comparePrerelease(leftVersion.prerelease, rightVersion.prerelease);
 }
 
-export function isVersionNewer(candidate: string, current: string): boolean {
+function isVersionNewer(candidate: string, current: string): boolean {
   return compareVersions(candidate, current) > 0;
 }
 

@@ -1,10 +1,9 @@
-import type { AuthSnapshot, ProviderId, TokenExchangeDiagnostic } from './auth-types';
-import { isTokenExchangeDiagnostic } from './auth-types';
+import type { AuthSnapshot, ProviderId } from './auth-types';
 import type { ProviderStatusView } from '../settings/settings-types';
 
 export type AuthMessageType = 'auth.get_snapshot' | 'auth.connect' | 'auth.disconnect';
 
-export interface AuthMessageResponse {
+interface AuthMessageResponse {
   readonly ok: boolean;
   readonly snapshot?: AuthSnapshot | null;
   readonly message?: string;
@@ -129,17 +128,6 @@ async function requestAuthMessage(message: {
   throw new Error(errorMessage);
 }
 
-export async function requestTokenExchangeDiagnostic(): Promise<TokenExchangeDiagnostic | null> {
-  const response = (await chrome.runtime.sendMessage({
-    type: 'auth.get_token_exchange_diagnostic',
-  })) as
-    { readonly ok: boolean; readonly diagnostic?: unknown; readonly message?: string } | undefined;
-  if (response === undefined || typeof response !== 'object' || !response.ok) {
-    return null;
-  }
-  return isTokenExchangeDiagnostic(response.diagnostic) ? response.diagnostic : null;
-}
-
 export class AuthPhaseFailureError extends Error {
   readonly phase: AuthSnapshot['phase'];
   constructor(phase: AuthSnapshot['phase'], message: string) {
@@ -147,16 +135,4 @@ export class AuthPhaseFailureError extends Error {
     this.name = 'AuthPhaseFailureError';
     this.phase = phase;
   }
-}
-
-export function isAuthPhaseFailureError(value: unknown): value is AuthPhaseFailureError {
-  if (value instanceof AuthPhaseFailureError) return true;
-  if (
-    value instanceof Error &&
-    'phase' in value &&
-    typeof (value as AuthPhaseFailureError).phase === 'string'
-  ) {
-    return (value as AuthPhaseFailureError).name === 'AuthPhaseFailureError';
-  }
-  return false;
 }

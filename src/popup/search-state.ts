@@ -30,12 +30,6 @@ export function toggleSearchFormat(selected: readonly string[], key: string): re
   return selected.includes(key) ? selected.filter((entry) => entry !== key) : [...selected, key];
 }
 
-export function searchFormatKeys(selected: readonly string[]): readonly string[] {
-  return SEARCH_FORMAT_FILTERS.filter((filter) => selected.includes(filter.key)).map(
-    (filter) => filter.key,
-  );
-}
-
 export function searchFormatTypes(selected: readonly string[]): readonly AnimeType[] {
   return SEARCH_FORMAT_FILTERS.filter((filter) => selected.includes(filter.key)).flatMap(
     (filter) => filter.types,

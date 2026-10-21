@@ -12,7 +12,7 @@ import type { AnimeCacheStore } from './sync-types';
 // Always MAL; `ChromeAnimeCacheStore` migrates it into the MAL-scoped key on first read.
 const LEGACY_STORAGE_KEY = 'animeData';
 
-export function animeCacheStorageKey(providerId: 'mal' | 'anilist'): StorageKey {
+function animeCacheStorageKey(providerId: 'mal' | 'anilist'): StorageKey {
   return `animeData:${providerId}`;
 }
 

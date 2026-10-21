@@ -1,6 +1,4 @@
 export const MAL_API_BASE_URL = 'https://api.myanimelist.net/v2';
-export const MAL_USER_SCOPE = 'write:users';
-
 export const MAL_LIMITS = {
   animeSearch: 100,
   animeRanking: 100,
@@ -8,7 +6,7 @@ export const MAL_LIMITS = {
   userAnimeList: 1000,
 } as const;
 
-export const MAL_ANIME_FIELDS = [
+const MAL_ANIME_FIELDS = [
   'id',
   'title',
   'main_picture',
@@ -26,7 +24,7 @@ export const MAL_ANIME_FIELDS = [
   'studios',
 ];
 
-export const MAL_LIST_STATUS_FIELDS = [
+const MAL_LIST_STATUS_FIELDS = [
   'status',
   'score',
   'num_episodes_watched',

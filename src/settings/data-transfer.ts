@@ -20,8 +20,6 @@ export const EXPORTED_STORAGE_KEYS = [
   'profileHistory',
 ] as const;
 
-export type ExportedStorageKey = (typeof EXPORTED_STORAGE_KEYS)[number];
-
 export const EXCLUDED_STORAGE_KEYS = [
   'animeData',
   'animeData:mal',

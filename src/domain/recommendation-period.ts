@@ -1,4 +1,4 @@
-export const RECOMMENDATION_YEAR_MIN = 1950;
+const RECOMMENDATION_YEAR_MIN = 1950;
 export const RECOMMENDATION_YEAR_DEFAULT_START = 2010;
 
 export interface RecommendationPeriod {

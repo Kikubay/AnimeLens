@@ -46,11 +46,6 @@ const TASTES: readonly { readonly label: string; readonly genres: readonly strin
   { label: 'Adventure & Fantasy', genres: ['Adventure', 'Fantasy', 'Drama'] },
 ];
 
-export function pickTasteLabel(seed: number): string {
-  const taste = TASTES[seed % TASTES.length] ?? TASTES[0];
-  return taste?.label ?? '';
-}
-
 function rankByTaste(
   fixtures: readonly DemoAnimeFixture[],
   taste: readonly string[],
@@ -132,7 +127,4 @@ export function buildDemoLibrary(
   return { watched, candidates };
 }
 
-export const DEMO_TASTES = TASTES;
-export const DEMO_TOTAL = LIBRARY_SIZE;
 export type { DemoAnimeFixture };
-export { createRandom as createDemoRandom };

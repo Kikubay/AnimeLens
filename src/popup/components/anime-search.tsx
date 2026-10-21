@@ -232,7 +232,7 @@ function SearchResultRow({
   );
 }
 
-export function AnimeSearchFormatFilter({
+function AnimeSearchFormatFilter({
   keys,
   onToggle,
   copy,
@@ -258,7 +258,7 @@ export function AnimeSearchFormatFilter({
   );
 }
 
-export function AnimeSearchSort({
+function AnimeSearchSort({
   sort,
   onToggleKey,
   onFlipDirection,

@@ -14,7 +14,7 @@ export interface HttpClient {
 }
 
 /** Without this a stalled connection hangs the sync forever, since `fetch` never settles on its own. */
-export const DEFAULT_REQUEST_TIMEOUT_MS = 30_000;
+const DEFAULT_REQUEST_TIMEOUT_MS = 30_000;
 
 export class FetchHttpClient implements HttpClient {
   constructor(
