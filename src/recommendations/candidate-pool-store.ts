@@ -15,17 +15,33 @@ interface StoredCandidatePool {
 export interface CandidatePoolStore {
   /** `null` means "fetch it", which covers a miss, an expiry and a rejected blob alike. */
   load(poolKey: string, now: number): Promise<readonly Anime[] | null>;
+  /**
+   * The last pool whose key starts with the given prefix, however old it is. A provider outage is a
+   * reason to serve it: the engine scores the candidates again, so a pool built for another taste or
+   * another period still holds usable titles.
+   */
+  loadStale(keyPrefix: string): Promise<readonly Anime[] | null>;
   save(poolKey: string, pool: readonly Anime[], now: number): Promise<void>;
   clear(): Promise<void>;
 }
 
 export function createCandidatePoolStore(area: SessionStorageArea): CandidatePoolStore {
+  const read = async (): Promise<StoredCandidatePool | null> => {
+    const stored = await area.get(CANDIDATE_POOL_STORAGE_KEY);
+    return isStoredCandidatePool(stored) ? stored : null;
+  };
+
   return {
     async load(poolKey, now) {
-      const stored = await area.get(CANDIDATE_POOL_STORAGE_KEY);
-      if (!isStoredCandidatePool(stored)) return null;
-      if (stored.poolKey !== poolKey) return null;
+      const stored = await read();
+      if (stored === null || stored.poolKey !== poolKey) return null;
       return now - stored.fetchedAt < CANDIDATE_POOL_TTL_MS ? stored.pool : null;
+    },
+
+    async loadStale(keyPrefix) {
+      const stored = await read();
+      if (stored === null || !stored.poolKey.startsWith(keyPrefix)) return null;
+      return stored.pool;
     },
 
     async save(poolKey, pool, now) {

@@ -28,6 +28,7 @@ import type { SyncMessage, SyncMessageResponse, SyncSnapshot } from '../sync/syn
 import { isSyncMessage } from '../sync/sync-messages';
 import type { SyncMetadata, SyncProgress } from '../domain/sync';
 import { buildUserPreferenceProfile } from '../recommendations/recommendation-engine';
+import { recommendationErrorMessage } from '../recommendations/recommendation-errors';
 import {
   currentCalendarYear,
   normalizeRecommendationPeriod,
@@ -149,6 +150,15 @@ let candidatePoolInFlight: {
   readonly request: Promise<readonly Anime[]>;
 } | null = null;
 
+// A provider that is refusing every request is not going to answer the next one either, so the
+// pool fetch waits before trying again instead of failing a dozen calls on every popup open.
+let providerOutage: {
+  readonly providerId: ProviderId;
+  readonly until: number;
+  readonly error: unknown;
+} | null = null;
+const PROVIDER_OUTAGE_COOLDOWN_MS = 2 * 60 * 1000;
+
 async function invalidateCandidatePool(): Promise<void> {
   candidatePoolInFlight = null;
   await candidatePoolStore.clear();
@@ -181,10 +191,11 @@ chrome.storage.session
   .setAccessLevel?.({ accessLevel: 'TRUSTED_CONTEXTS' })
   ?.catch(reportBackgroundFailure);
 
-function reportBackgroundFailure(error: unknown): void {
+function reportBackgroundFailure(error: unknown, context?: string): void {
+  const reason = error instanceof Error ? error.message : 'Unknown background error';
   console.warn(
     'AnimeLens background task failed:',
-    error instanceof Error ? error.message : 'Unknown background error',
+    context === undefined ? reason : `${context} — ${reason}`,
   );
 }
 
@@ -270,7 +281,9 @@ type WorkerResponse =
   | UpdateResponse;
 
 chrome.runtime.onInstalled.addListener(() => {
-  console.info('AnimeLens extension installed');
+  console.info(
+    `AnimeLens extension installed — version ${chrome.runtime.getManifest().version ?? 'unknown'}`,
+  );
 });
 
 chrome.runtime.onMessage.addListener(
@@ -891,13 +904,15 @@ async function fetchCandidatePool(
   ).withAccessToken(async (accessToken) => {
     const provider = await providerRegistry.createActiveProvider(accessToken);
 
+    const failures: { readonly source: string; readonly error: unknown }[] = [];
     const degrade = async <T>(
+      source: string,
       load: () => Promise<readonly T[]> | undefined,
     ): Promise<{ readonly items: readonly T[]; readonly failed: boolean }> => {
       try {
         return { items: (await load()) ?? [], failed: false };
       } catch (error) {
-        reportBackgroundFailure(error);
+        failures.push({ source, error });
         return { items: [], failed: true };
       }
     };
@@ -907,7 +922,7 @@ async function fetchCandidatePool(
     const rankingSlices = Math.max(1, config.rankingSlices ?? DEFAULT_RANKING_SLICES);
     const rankingStride = config.rankingStride ?? config.rankingLimit * 4;
     const rankingRequests = Array.from({ length: rankingSlices }, (_unused, index) =>
-      degrade<Anime>(() =>
+      degrade<Anime>(`ranking ${index + 1}`, () =>
         provider.getAnimeRanking?.(
           config.rankingLimit,
           config.rankingOffset + rankingStride * index,
@@ -916,15 +931,28 @@ async function fetchCandidatePool(
       ),
     );
     const [suggested, tasteDerived, ...rankedSlices] = await Promise.all([
-      degrade<Anime>(() => provider.getAnimeSuggestions?.(config.suggestionLimit)),
-      degrade<Anime>(() => fetchTasteDerived(provider, clusters, tasteLimit, period)),
+      degrade<Anime>('suggestions', () => provider.getAnimeSuggestions?.(config.suggestionLimit)),
+      degrade<Anime>('taste clusters', () =>
+        fetchTasteDerived(provider, clusters, tasteLimit, period),
+      ),
       ...rankingRequests,
     ]);
 
     // A source returning nothing is normal; a source that threw is a provider outage. Treating the
     // second like the first turns an outage into a cached, nearly-empty dashboard with no error shown.
     if (suggested.failed && tasteDerived.failed && rankedSlices.every((slice) => slice.failed)) {
-      throw new Error('Every candidate source failed for the active provider.');
+      // One line for the whole outage: five sources failing the same way is one problem, not five.
+      reportBackgroundFailure(
+        failures[0]?.error,
+        `every candidate source (${failures.map((failure) => failure.source).join(', ')})`,
+      );
+      throw new ApiError('Every candidate source failed for the active provider.', {
+        code: 'network_error',
+      });
+    }
+
+    for (const failure of failures) {
+      reportBackgroundFailure(failure.error, failure.source);
     }
 
     const merged: Anime[] = [];
@@ -974,6 +1002,14 @@ async function loadCandidatePool(
     return candidatePoolInFlight.request;
   }
 
+  if (
+    providerOutage !== null &&
+    providerOutage.providerId === providerId &&
+    Date.now() < providerOutage.until
+  ) {
+    return await stalePoolOrThrow(providerId, poolKey, providerOutage.error);
+  }
+
   const request = (async () => fetchCandidatePool(clusters, period))();
   candidatePoolInFlight = { poolKey, request };
 
@@ -981,14 +1017,49 @@ async function loadCandidatePool(
     // Propagated on purpose: an empty-but-ready dashboard hides a provider outage, and an empty pool
     // signature would also be cached for the whole TTL.
     const pool = await request;
+    providerOutage = null;
 
     if (pool.length > 0) {
-      await candidatePoolStore.save(poolKey, pool, Date.now());
+      try {
+        await candidatePoolStore.save(poolKey, pool, Date.now());
+      } catch (error) {
+        // A cache that refuses the write is not a provider outage, so it must not be recorded as one.
+        reportBackgroundFailure(error, 'candidate pool cache');
+      }
     }
     return pool;
+  } catch (error) {
+    providerOutage = {
+      providerId,
+      until: Date.now() + PROVIDER_OUTAGE_COOLDOWN_MS,
+      error,
+    };
+    return await stalePoolOrThrow(providerId, poolKey, error);
   } finally {
     if (candidatePoolInFlight?.request === request) candidatePoolInFlight = null;
   }
+}
+
+// A provider that is down still has a catalogue, so the pool it served last time is better than an
+// empty dashboard. The candidates are titles rather than account data, the engine scores them again
+// and the list they are filtered against is cached on the same timeline.
+async function stalePoolOrThrow(
+  providerId: ProviderId,
+  poolKey: string,
+  error: unknown,
+): Promise<readonly Anime[]> {
+  try {
+    const stale =
+      (await candidatePoolStore.loadStale(poolKey)) ??
+      (await candidatePoolStore.loadStale(providerId));
+    if (stale !== null && stale.length > 0) {
+      console.warn('AnimeLens is serving the last candidate pool it fetched.');
+      return stale;
+    }
+  } catch (cacheError) {
+    reportBackgroundFailure(cacheError, 'candidate pool cache');
+  }
+  throw error;
 }
 
 function candidatePoolKey(
@@ -1025,9 +1096,9 @@ async function handleRecommendationMessage(
   try {
     pool = await loadCandidatePool(providerId, clusters, period);
   } catch (error) {
-    reportBackgroundFailure(error);
     // Surfacing this as an error keeps the dashboard off a cached empty pool instead of rendering a
-    // handful of plan-to-watch titles as if that were the recommendation set.
+    // handful of plan-to-watch titles as if that were the recommendation set. The failure itself was
+    // already reported where it happened, so it is not logged a second time for every request.
     return { ok: false, message: await toUserFacingRecommendationError(error) };
   }
   const signature = dashboardSignature({
@@ -1335,8 +1406,9 @@ async function toUserFacingSearchError(error: unknown): Promise<string> {
 // nothing, and reusing the search copy here would promise a retry that never helps.
 async function toUserFacingRecommendationError(error: unknown): Promise<string> {
   const copy = getCopy(await currentLanguage());
-  if (error instanceof ApiError && error.code === 'network_error') return copy.recommendationsError;
-  return copy.recommendationsUnavailable;
+  const providerName =
+    (await providerRegistry.registry.getActiveProvider()) === 'anilist' ? 'AniList' : 'MyAnimeList';
+  return recommendationErrorMessage(error, providerName, copy);
 }
 
 function toSyncErrorCode(error: unknown): SyncMetadata['errorCode'] {

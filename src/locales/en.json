@@ -69,6 +69,7 @@
     "authHint": "This message is often related to the redirect URL or Client ID, not your internet connection.",
     "recommendationsUnavailable": "Recommendations unavailable",
     "recommendationsError": "Unable to calculate your recommendations.",
+    "recommendationsProviderUnavailable": "{name} is temporarily unavailable. Try again in a moment.",
     "retry": "Retry",
     "selectionPreparing": "Your selection is being prepared",
     "syncListFirst": "Sync a MAL list containing some anime to receive your first recommendations.",

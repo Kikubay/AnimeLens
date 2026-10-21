@@ -54,6 +54,7 @@ export interface AppCopy {
   readonly authHint: string;
   readonly recommendationsUnavailable: string;
   readonly recommendationsError: string;
+  readonly recommendationsProviderUnavailable: (name: string) => string;
   readonly retry: string;
   readonly selectionPreparing: string;
   readonly syncListFirst: string;
@@ -576,6 +577,7 @@ const MESSAGE_PARAMS = {
   weeklyRecapWeek: ['week'],
   weeklyRecapWindow: ['days'],
   weeklyRecapAverageMoved: ['from', 'to'],
+  recommendationsProviderUnavailable: ['name'],
   providerConnectedToast: ['name'],
   providerDisconnectedToast: ['name'],
   providerActiveToast: ['name'],

@@ -132,6 +132,19 @@ describe('candidate pool store', () => {
     await store.clear();
     expect(await store.load('mal', 1_100)).toBeNull();
   });
+
+  it('serves the last pool when the provider is down, however old it is', async () => {
+    const area = new MemorySessionArea();
+    const store = createCandidatePoolStore(area);
+    await store.save('mal:action,sci-fi:2010-2026', [anime(1)], 1_000);
+
+    expect(
+      await store.load('mal:action,sci-fi:2010-2026', 1_000 + CANDIDATE_POOL_TTL_MS),
+    ).toBeNull();
+    expect(await store.loadStale('mal:action,sci-fi:2010-2026')).toHaveLength(1);
+    expect(await store.loadStale('mal')).toHaveLength(1);
+    expect(await store.loadStale('anilist')).toBeNull();
+  });
 });
 
 describe('dashboard signature', () => {

@@ -342,8 +342,8 @@ export function DashboardPage({
         <DashboardLoadingState copy={copy} />
       ) : displayStatus === 'error' ? (
         <ErrorState
-          title={copy.recommendationsUnavailable}
-          message={snapshot.errorMessage ?? copy.recommendationsError}
+          title={snapshot.errorMessage ?? copy.recommendationsUnavailable}
+          message={copy.recommendationsError}
           action={
             <Button size="sm" variant="secondary" onClick={loadRecommendations}>
               {copy.retry}
