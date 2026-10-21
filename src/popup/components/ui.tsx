@@ -2,6 +2,7 @@ import { useEffect, useId, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import type { ButtonHTMLAttributes, HTMLAttributes, ReactNode } from 'react';
 import type { AppCopy } from '../../locales';
+import { createPageLock } from './modal-page-lock';
 
 export type IconName =
   | 'arrow-down'
@@ -298,6 +299,15 @@ interface ModalProps {
   readonly className?: string;
 }
 
+// One lock for every dialog, because the grid picker opens on top of the taste card dialog and the
+// page may only be released once the last one closes.
+const pageLock = createPageLock(() => ({
+  body: document.body,
+  html: document.documentElement,
+  root: document.getElementById('root'),
+  events: document,
+}));
+
 export function Modal({ open, title, onClose, children, closeLabel, className = '' }: ModalProps) {
   const titleId = useId();
   const dialogRef = useRef<HTMLElement>(null);
@@ -309,7 +319,9 @@ export function Modal({ open, title, onClose, children, closeLabel, className = 
     if (!open) return undefined;
     previouslyFocused.current =
       document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    // Captured here, because React detaches the ref before the cleanup runs on unmount.
     const dialog = dialogRef.current;
+    pageLock.engage(dialog);
     const focusable = dialog?.querySelector<HTMLElement>(
       'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])',
     );
@@ -339,6 +351,9 @@ export function Modal({ open, title, onClose, children, closeLabel, className = 
     document.addEventListener('keydown', onKeyDown);
     return () => {
       document.removeEventListener('keydown', onKeyDown);
+      // Released before the focus goes back, because the element that had it sits in the part of the
+      // page the lock just made inert.
+      pageLock.release(dialog);
       previouslyFocused.current?.focus();
       previouslyFocused.current = null;
     };
