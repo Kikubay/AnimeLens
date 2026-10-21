@@ -513,6 +513,10 @@
     "searchSortNewest": "Newest",
     "searchSortTitle": "Title A-Z",
     "searchSortAscending": "Sort ascending",
-    "searchSortDescending": "Sort descending"
+    "searchSortDescending": "Sort descending",
+    "crashTitle": "Something went wrong",
+    "crashMessage": "AnimeLens stopped after an unexpected error. Reload to start over — your library and settings are untouched.",
+    "crashReload": "Reload AnimeLens",
+    "crashDetailsLabel": "Error details"
   }
 }

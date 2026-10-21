@@ -74,11 +74,12 @@ import {
   DEFAULT_USER_PREFERENCES,
   persistableTasteCardPicksLayout,
   normalizeSettingsText,
+  type RecommendationMode,
   type ThemePreference,
   type UserPreferences,
 } from '../settings/settings-types';
 import { applyThemePreference } from '../settings/theme';
-import { categoryLabel, type AppCopy } from '../locales';
+import { categoryLabel, type AppCopy, type Language } from '../locales';
 import { MAL_GENRE_NAMES, MAL_THEME_NAMES } from '../api/mal-taxonomy';
 import type { AnimeCardData } from './components/anime';
 import { AnimeGrid, FeaturedAnime } from './components/anime';
@@ -87,6 +88,7 @@ import { isSearchActive } from './search-state';
 import { TasteCardModal } from './components/taste-card-modal';
 import { TopPicksModal } from './components/top-picks-modal';
 import { GridPickerModal } from './components/grid-picker-modal';
+import { RadioGroup } from './components/radio-group';
 import {
   Badge,
   Button,
@@ -2001,35 +2003,17 @@ export function SettingsPage({
             <strong>{copy.language}</strong>
             <p>{copy.languageDescription}</p>
           </div>
-          <div className="segmented-control" role="radiogroup" aria-label={copy.language}>
-            <button
-              type="button"
-              role="radio"
-              aria-checked={preferences.language === 'fr'}
-              className={preferences.language === 'fr' ? 'is-selected' : ''}
-              onClick={() => save({ language: 'fr' }, copy.savedPreference)}
-            >
-              {copy.french}
-            </button>
-            <button
-              type="button"
-              role="radio"
-              aria-checked={preferences.language === 'en'}
-              className={preferences.language === 'en' ? 'is-selected' : ''}
-              onClick={() => save({ language: 'en' }, copy.savedPreference)}
-            >
-              {copy.english}
-            </button>
-            <button
-              type="button"
-              role="radio"
-              aria-checked={preferences.language === 'es'}
-              className={preferences.language === 'es' ? 'is-selected' : ''}
-              onClick={() => save({ language: 'es' }, copy.savedPreference)}
-            >
-              {copy.spanish}
-            </button>
-          </div>
+          <RadioGroup<Language>
+            className="segmented-control"
+            ariaLabel={copy.language}
+            value={preferences.language}
+            onChange={(language) => save({ language }, copy.savedPreference)}
+            options={[
+              { value: 'fr', label: copy.french },
+              { value: 'en', label: copy.english },
+              { value: 'es', label: copy.spanish },
+            ]}
+          />
         </div>
       </SettingsSection>
       <SettingsSection title={copy.providers} eyebrow={copy.providersEyebrow}>
@@ -2208,26 +2192,16 @@ export function SettingsPage({
             <strong>{copy.discoveryStyle}</strong>
             <p>{copy.discoveryStyleDescription}</p>
           </div>
-          <div className="segmented-control" role="radiogroup" aria-label={copy.discoveryStyle}>
-            <button
-              type="button"
-              role="radio"
-              aria-checked={preferences.recommendationMode === 'personalized'}
-              className={preferences.recommendationMode === 'personalized' ? 'is-selected' : ''}
-              onClick={() => save({ recommendationMode: 'personalized' }, copy.savedPreference)}
-            >
-              {copy.personalized}
-            </button>
-            <button
-              type="button"
-              role="radio"
-              aria-checked={preferences.recommendationMode === 'exploratory'}
-              className={preferences.recommendationMode === 'exploratory' ? 'is-selected' : ''}
-              onClick={() => save({ recommendationMode: 'exploratory' }, copy.savedPreference)}
-            >
-              {copy.exploratory}
-            </button>
-          </div>
+          <RadioGroup<RecommendationMode>
+            className="segmented-control"
+            ariaLabel={copy.discoveryStyle}
+            value={preferences.recommendationMode}
+            onChange={(recommendationMode) => save({ recommendationMode }, copy.savedPreference)}
+            options={[
+              { value: 'personalized', label: copy.personalized },
+              { value: 'exploratory', label: copy.exploratory },
+            ]}
+          />
         </div>
         <BlacklistEditor
           preferences={preferences}
@@ -2454,20 +2428,13 @@ function ThemeSelector({
     { value: 'dark', label: copy.themeDark },
   ];
   return (
-    <div className="theme-options" role="radiogroup" aria-label={copy.appearance}>
-      {options.map((option) => (
-        <button
-          key={option.value}
-          type="button"
-          role="radio"
-          aria-checked={value === option.value}
-          className={value === option.value ? 'is-selected' : ''}
-          onClick={() => onChange(option.value)}
-        >
-          {option.label}
-        </button>
-      ))}
-    </div>
+    <RadioGroup<ThemePreference>
+      className="theme-options"
+      ariaLabel={copy.appearance}
+      value={value}
+      onChange={onChange}
+      options={options}
+    />
   );
 }
 
@@ -2519,27 +2486,16 @@ function BlacklistEditor({
           <p>{copy.exclusionDescription}</p>
         </div>
       </div>
-      <div className="blacklist-kind" role="radiogroup" aria-label={copy.exclusionType}>
-        <button
-          type="button"
-          role="radio"
-          aria-checked={kind === 'genre'}
-          className={kind === 'genre' ? 'is-selected' : ''}
-          onClick={() => setKind('genre')}
-        >
-          {copy.genres}
-        </button>
-        <button
-          type="button"
-          role="radio"
-          aria-checked={kind === 'theme'}
-          className={kind === 'theme' ? 'is-selected' : ''}
-          onClick={() => setKind('theme')}
-        >
-          {' '}
-          {copy.themes}
-        </button>
-      </div>
+      <RadioGroup<'genre' | 'theme'>
+        className="blacklist-kind"
+        ariaLabel={copy.exclusionType}
+        value={kind}
+        onChange={(next) => setKind(next)}
+        options={[
+          { value: 'genre', label: copy.genres },
+          { value: 'theme', label: copy.themes },
+        ]}
+      />
       <div className="blacklist-search-row">
         <input
           className="blacklist-search"

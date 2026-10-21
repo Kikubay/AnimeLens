@@ -502,6 +502,10 @@ export interface AppCopy {
   readonly searchSortTitle: string;
   readonly searchSortAscending: string;
   readonly searchSortDescending: string;
+  readonly crashTitle: string;
+  readonly crashMessage: string;
+  readonly crashReload: string;
+  readonly crashDetailsLabel: string;
   readonly authErrorMessage: (code: AuthErrorCode | null, fallback: string) => string;
 }
 

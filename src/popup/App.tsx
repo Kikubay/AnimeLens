@@ -12,7 +12,13 @@ import { applyThemePreference } from '../settings/theme';
 import { DEFAULT_USER_PREFERENCES, type UserPreferences } from '../settings/settings-types';
 import { isUsagePending, type UsageEvent } from '../profile/usage-streak';
 import { useUsageSession } from './usage-session';
-import { getCopy, normalizeLanguage, type AppCopy, type Language } from '../locales';
+import {
+  getCopy,
+  normalizeLanguage,
+  setActiveLanguage,
+  type AppCopy,
+  type Language,
+} from '../locales';
 import { requestSettingsSnapshot, updateSettings } from '../settings/settings-messages';
 import {
   requestUpdateCheck,
@@ -172,6 +178,7 @@ export function App() {
   useEffect(() => {
     copyRef.current = copy;
     document.documentElement.lang = language;
+    setActiveLanguage(language);
   }, [copy, language]);
 
   const refreshActiveProviderName = () => {

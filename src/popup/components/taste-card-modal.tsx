@@ -24,6 +24,7 @@ import {
   type TasteCardPicksLayout,
 } from '../../settings/settings-types';
 import { Button, Icon, Modal, Skeleton } from './ui';
+import { RadioGroup } from './radio-group';
 import { maxFittingCoverScale } from '../taste-card-painter';
 import {
   copyPngBlobToClipboard,
@@ -270,24 +271,16 @@ export function TasteCardModal({
         {isRendering && previewUrl !== null && <span className="taste-card-busy" />}
       </div>
       <div className="taste-card-controls">
-        <div
+        <RadioGroup<TasteCardFormat>
           className="segmented-control taste-card-formats"
-          role="radiogroup"
-          aria-label={copy.tasteCardFormat}
-        >
-          {TASTE_CARD_FORMAT_ORDER.map((option) => (
-            <button
-              type="button"
-              role="radio"
-              aria-checked={format === option}
-              className={format === option ? 'is-selected' : ''}
-              key={option}
-              onClick={() => setFormat(option)}
-            >
-              {FORMAT_LABELS[option](copy)}
-            </button>
-          ))}
-        </div>
+          ariaLabel={copy.tasteCardFormat}
+          value={format}
+          onChange={setFormat}
+          options={TASTE_CARD_FORMAT_ORDER.map((option) => ({
+            value: option,
+            label: FORMAT_LABELS[option](copy),
+          }))}
+        />
         <fieldset className="taste-card-options">
           <legend>{copy.tasteCardOptionsTitle}</legend>
           <label className="setting-toggle-row taste-card-option">
@@ -310,27 +303,19 @@ export function TasteCardModal({
               }
             />
           </label>
-          <div
-            className="taste-card-layouts"
-            role="radiogroup"
-            aria-label={copy.tasteCardPicksLayout}
-          >
+          <div className="taste-card-layouts">
             <span className="taste-card-layouts-label">{copy.tasteCardPicksLayout}</span>
-            <div className="segmented-control">
-              {PICK_LAYOUTS.map((option) => (
-                <button
-                  type="button"
-                  role="radio"
-                  aria-checked={options.picksLayout === option}
-                  className={options.picksLayout === option ? 'is-selected' : ''}
-                  key={option}
-                  disabled={!options.showPicks}
-                  onClick={() => selectLayout(option)}
-                >
-                  {PICK_LAYOUT_LABELS[option](copy)}
-                </button>
-              ))}
-            </div>
+            <RadioGroup<TasteCardPicksLayout>
+              className="segmented-control"
+              ariaLabel={copy.tasteCardPicksLayout}
+              value={options.picksLayout}
+              onChange={selectLayout}
+              options={PICK_LAYOUTS.map((option) => ({
+                value: option,
+                label: PICK_LAYOUT_LABELS[option](copy),
+                disabled: !options.showPicks,
+              }))}
+            />
           </div>
           <label className="taste-card-slider">
             <span>
@@ -357,52 +342,45 @@ export function TasteCardModal({
             )}
           </label>
           {COSMETIC_SLOTS.map((slot) => (
-            <div
-              className="taste-card-styles"
-              role="radiogroup"
-              aria-label={SLOT_LABELS[slot](copy)}
-              key={slot}
-            >
+            <div className="taste-card-styles" key={slot}>
               <span className="taste-card-layouts-label">{SLOT_LABELS[slot](copy)}</span>
-              <div className="taste-card-style-row">
-                {cosmeticsForSlot(slot).map((cosmetic) => {
+              <RadioGroup<CosmeticId>
+                className="taste-card-style-row"
+                ariaLabel={SLOT_LABELS[slot](copy)}
+                value={options.cosmetics[slot]}
+                onChange={(cosmeticId) =>
+                  onCosmeticsChange({ ...options.cosmetics, [slot]: cosmeticId })
+                }
+                itemClassName="taste-card-style"
+                options={cosmeticsForSlot(slot).map((cosmetic) => {
                   const isUnlocked = unlocked.has(cosmetic.id);
-                  const isEquipped = options.cosmetics[slot] === cosmetic.id;
                   const progress = cosmeticRequirementProgress(cosmetic, unlockContext);
-                  return (
-                    <button
-                      type="button"
-                      role="radio"
-                      aria-checked={isEquipped}
-                      className={`taste-card-style${isEquipped ? ' is-selected' : ''}${
-                        isUnlocked ? '' : ' is-locked'
-                      }`}
-                      key={cosmetic.id}
-                      disabled={!isUnlocked || isEquipped}
-                      title={
-                        isUnlocked
-                          ? cosmetic.label(copy)
-                          : `${cosmetic.label(copy)} · ${cosmeticRequirementLabel(cosmetic, copy)}${
-                              progress === null
-                                ? ''
-                                : ` · ${copy.cosmeticProgress(progress.current, progress.target)}`
-                            }`
-                      }
-                      onClick={() =>
-                        onCosmeticsChange({ ...options.cosmetics, [slot]: cosmetic.id })
-                      }
-                    >
-                      <span
-                        className={`taste-card-style-swatch is-${cosmetic.id}`}
-                        aria-hidden="true"
-                      >
-                        {!isUnlocked && <Icon name="lock" size={11} />}
-                      </span>
-                      {cosmetic.label(copy)}
-                    </button>
-                  );
+                  return {
+                    value: cosmetic.id,
+                    label: cosmetic.label(copy),
+                    disabled: !isUnlocked,
+                    className: isUnlocked ? '' : 'is-locked',
+                    title: isUnlocked
+                      ? cosmetic.label(copy)
+                      : `${cosmetic.label(copy)} · ${cosmeticRequirementLabel(cosmetic, copy)}${
+                          progress === null
+                            ? ''
+                            : ` · ${copy.cosmeticProgress(progress.current, progress.target)}`
+                        }`,
+                    content: (
+                      <>
+                        <span
+                          className={`taste-card-style-swatch is-${cosmetic.id}`}
+                          aria-hidden="true"
+                        >
+                          {!isUnlocked && <Icon name="lock" size={11} />}
+                        </span>
+                        {cosmetic.label(copy)}
+                      </>
+                    ),
+                  };
                 })}
-              </div>
+              />
             </div>
           ))}
         </fieldset>

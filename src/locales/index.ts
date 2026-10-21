@@ -151,3 +151,14 @@ const cache: Partial<Record<Language, AppCopy>> = {};
 export function getCopy(language: Language): AppCopy {
   return (cache[language] ??= buildCopy(language));
 }
+
+let activeLanguage: Language = detectBrowserLanguage();
+
+// The crash screen lives outside the React tree, so it cannot read the language from a component.
+export function setActiveLanguage(language: Language): void {
+  activeLanguage = language;
+}
+
+export function activeCopy(): AppCopy {
+  return getCopy(activeLanguage);
+}

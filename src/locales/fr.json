@@ -513,6 +513,10 @@
     "searchSortNewest": "Plus récents",
     "searchSortTitle": "Titre A-Z",
     "searchSortAscending": "Trier par ordre croissant",
-    "searchSortDescending": "Trier par ordre décroissant"
+    "searchSortDescending": "Trier par ordre décroissant",
+    "crashTitle": "Un problème est survenu",
+    "crashMessage": "AnimeLens s’est arrêté après une erreur inattendue. Rechargez pour recommencer — votre bibliothèque et vos réglages sont intacts.",
+    "crashReload": "Recharger AnimeLens",
+    "crashDetailsLabel": "Détails de l’erreur"
   }
 }

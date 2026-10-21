@@ -2,6 +2,7 @@ import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { installDesktopBridge } from '../platform/desktop-bridge';
 import { App } from './App';
+import { ErrorBoundary } from './components/error-boundary';
 import './styles.css';
 
 // Must precede the first render, since this is where the desktop build picks up its `chrome.*` implementation.
@@ -15,6 +16,8 @@ if (rootElement === null) {
 
 createRoot(rootElement).render(
   <StrictMode>
-    <App />
+    <ErrorBoundary>
+      <App />
+    </ErrorBoundary>
   </StrictMode>,
 );

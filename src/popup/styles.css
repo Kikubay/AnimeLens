@@ -2637,6 +2637,27 @@ button:focus-visible {
   color: var(--danger);
   background: rgb(226 154 154 / 10%);
 }
+.crash-screen {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 26px 15px;
+}
+.crash-details {
+  color: var(--dim);
+  font-size: 9px;
+  line-height: 1.5;
+}
+.crash-details summary {
+  cursor: pointer;
+}
+.crash-details pre {
+  margin: 7px 0 0;
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+  color: var(--muted);
+  font-family: ui-monospace, monospace;
+}
 .settings-page > .auth-error {
   margin-top: 14px !important;
   padding: 9px 10px;
