@@ -503,6 +503,60 @@ describe('settings cache and data lifecycle', () => {
     expect(local.store.has('malClientId')).toBe(false);
   });
 
+  it('takes the active provider from an imported file rather than the one it cached', async () => {
+    await loadWorker();
+    // The first read is what fills the registry's cache, which is the value the import has to beat.
+    const before = await sendOk({ type: 'auth.get_providers' });
+    expect(before.providers).toMatchObject([
+      { id: 'mal', active: true },
+      { id: 'anilist', active: false },
+    ]);
+
+    const payload = {
+      version: DATA_EXPORT_VERSION,
+      app: DATA_EXPORT_APP,
+      exportedAt: '2026-01-01T00:00:00.000Z',
+      data: {
+        feedback: [],
+        preferences: {},
+        profileHistory: {},
+        activeProvider: 'anilist',
+        manualTop3Ranking: null,
+        manualTop3PoolSignature: null,
+      },
+    };
+
+    const response = await sendOk({ type: 'settings.import_data', payload });
+
+    expect(response.ok).toBe(true);
+    expect(local.store.get('activeProvider')).toBe('anilist');
+    const after = await sendOk({ type: 'auth.get_providers' });
+    expect(after.providers).toMatchObject([
+      { id: 'mal', active: false },
+      { id: 'anilist', active: true },
+    ]);
+  });
+
+  it('forgets the cached active provider when the local data is deleted', async () => {
+    await loadWorker();
+    await sendOk({ type: 'auth.set_active_provider', providerId: 'anilist' });
+    const before = await sendOk({ type: 'auth.get_providers' });
+    expect(before.providers).toMatchObject([
+      { id: 'mal', active: false },
+      { id: 'anilist', active: true },
+    ]);
+
+    const response = await sendOk({ type: 'settings.delete_local_data' });
+
+    expect(response.ok).toBe(true);
+    expect(local.store.has('activeProvider')).toBe(false);
+    const after = await sendOk({ type: 'auth.get_providers' });
+    expect(after.providers).toMatchObject([
+      { id: 'mal', active: true },
+      { id: 'anilist', active: false },
+    ]);
+  });
+
   it('leaves every key untouched when an import is rejected', async () => {
     await loadWorker();
     local.store.set('preferences', { theme: 'dark' });

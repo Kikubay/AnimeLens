@@ -751,6 +751,9 @@ async function handleSettingsMessage(message: SettingsMessage): Promise<Settings
       'activeProvider',
     ];
     await Promise.all(LOCAL_DATA_KEYS.map((key) => storage.remove(key)));
+    // The registry caches the active provider, so it has to forget what it remembers about a key
+    // that is no longer there.
+    providerRegistry.registry.invalidateCache();
     await profileHistoryStore.clear();
     await invalidateCandidatePool();
     syncSnapshot = { metadata: createIdleMetadata(), progress: null };
@@ -778,12 +781,22 @@ async function handleSettingsMessage(message: SettingsMessage): Promise<Settings
       return { ok: false, message: getCopy(await currentLanguage()).dataImportInvalid };
     }
     const values = storedValuesFromExport(parsed);
+    // The import writes storage directly, so the registry has to re-read it instead of serving the
+    // provider it remembered before the import.
+    providerRegistry.registry.invalidateCache();
     await Promise.all([
       storage.set('feedback', values.feedback),
       storage.set('preferences', values.preferences),
       storage.set(PROFILE_HISTORY_KEY, values.profileHistory),
     ]);
-    if (values.activeProvider !== null) await storage.set('activeProvider', values.activeProvider);
+    if (values.activeProvider !== null && isProviderId(values.activeProvider)) {
+      const previousProvider = await providerRegistry.registry.getActiveProvider();
+      await providerRegistry.registry.setActiveProvider(values.activeProvider);
+      if (previousProvider !== values.activeProvider) {
+        syncSnapshot = { metadata: createIdleMetadata(), progress: null };
+        void hydrateCachedSync().catch(reportBackgroundFailure);
+      }
+    }
     if (values.manualTop3Ranking !== null) {
       await storage.set(TOP_PICKS_RANKING_KEY, values.manualTop3Ranking);
       await storage.set(TOP_PICKS_SIGNATURE_KEY, values.manualTop3PoolSignature ?? '');
