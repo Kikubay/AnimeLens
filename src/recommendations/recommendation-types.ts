@@ -75,9 +75,10 @@ export interface RecommendationScore {
 export interface RecommendationDiscoveryPreferences {
   readonly recommendationMode: 'personalized' | 'exploratory';
   readonly includeHiddenGems: boolean;
-  readonly includeOlderAnime: boolean;
   readonly includeMovies: boolean;
   readonly includeShortSeries: boolean;
+  readonly startYear: number;
+  readonly endYear: number;
   readonly preferredGenres: readonly string[];
   readonly excludedGenres: readonly string[];
   readonly excludedThemes: readonly string[];

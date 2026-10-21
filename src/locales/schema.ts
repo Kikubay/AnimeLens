@@ -313,8 +313,10 @@ export interface AppCopy {
   readonly discovery: string;
   readonly hiddenGems: string;
   readonly hiddenGemsDescription: string;
-  readonly olderAnime: string;
-  readonly olderAnimeDescription: string;
+  readonly recommendationPeriod: string;
+  readonly recommendationPeriodDescription: string;
+  readonly startYear: string;
+  readonly endYear: string;
   readonly movies: string;
   readonly moviesDescription: string;
   readonly shortSeries: string;

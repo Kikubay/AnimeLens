@@ -1,6 +1,7 @@
 :root {
   color: #f4f2ed;
   background: #0e0e10;
+  color-scheme: dark;
   font-family: ui-sans-serif, system-ui, sans-serif;
   font-synthesis: none;
   text-rendering: optimizeLegibility;
@@ -54,6 +55,7 @@
 :root[data-theme='light'] {
   color: #1d1b20;
   background: #f5f3ef;
+  color-scheme: light;
   --bg: #f5f3ef;
   --surface: #ffffff;
   --surface-raised: #f0eee9;
@@ -2421,6 +2423,63 @@ button:focus-visible {
   color: var(--muted);
   font-size: var(--font-xs);
   line-height: 1.45;
+}
+.recommendation-period {
+  flex-wrap: wrap;
+}
+.recommendation-period-fields {
+  display: flex;
+  flex: 0 0 auto;
+  gap: 8px;
+}
+.year-field {
+  display: grid;
+  min-width: 104px;
+  gap: 4px;
+}
+.year-field-label {
+  color: var(--dim);
+  font-size: var(--font-2xs);
+  letter-spacing: 0.08em;
+  line-height: 1.2;
+  text-transform: uppercase;
+}
+.year-select {
+  position: relative;
+  display: block;
+}
+.year-select::after {
+  position: absolute;
+  top: 50%;
+  right: 10px;
+  width: 6px;
+  height: 6px;
+  margin-top: -4px;
+  border-right: 1.5px solid var(--muted);
+  border-bottom: 1.5px solid var(--muted);
+  content: '';
+  pointer-events: none;
+  transform: rotate(45deg);
+}
+.year-select select {
+  width: 100%;
+  min-height: 32px;
+  padding: 0 26px 0 10px;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  color: var(--text);
+  background: var(--surface-raised);
+  font-family: inherit;
+  font-size: var(--font-sm);
+  cursor: pointer;
+  appearance: none;
+}
+.year-select select:hover {
+  border-color: var(--line-strong);
+}
+.year-select select:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
 }
 .segmented-control {
   display: flex;

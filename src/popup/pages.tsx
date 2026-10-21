@@ -2,6 +2,13 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { isDesktopHost } from '../platform/desktop-bridge';
 import type { AuthSnapshot } from '../auth/auth-types';
 import type { UserProfile } from '../domain/user-profile';
+import {
+  currentCalendarYear,
+  recommendationPeriodWithEndYear,
+  recommendationPeriodWithStartYear,
+  recommendationYearOptions,
+  type RecommendationPeriod,
+} from '../domain/recommendation-period';
 import { addAnimeToMalList } from '../api/mal-list-messages';
 import { ANIME_SEARCH_MIN_LENGTH } from '../api/anime-search-messages';
 import { requestStreamingLinks } from '../api/streaming-links-messages';
@@ -2204,12 +2211,6 @@ export function SettingsPage({
           onChange={(checked) => save({ includeHiddenGems: checked }, copy.savedPreference)}
         />
         <SettingToggle
-          title={copy.olderAnime}
-          description={copy.olderAnimeDescription}
-          checked={preferences.includeOlderAnime}
-          onChange={(checked) => save({ includeOlderAnime: checked }, copy.savedPreference)}
-        />
-        <SettingToggle
           title={copy.movies}
           description={copy.moviesDescription}
           checked={preferences.includeMovies}
@@ -2237,6 +2238,19 @@ export function SettingsPage({
             ]}
           />
         </div>
+        <RecommendationPeriodSetting
+          preferences={preferences}
+          onChange={(period) =>
+            save(
+              {
+                recommendationStartYear: period.startYear,
+                recommendationEndYear: period.endYear,
+              },
+              copy.savedPreference,
+            )
+          }
+          copy={copy}
+        />
         <BlacklistEditor
           preferences={preferences}
           onChange={(patch, message) => save(patch, message)}
@@ -2444,6 +2458,76 @@ function SettingToggle({
         onChange={(event) => onChange(event.target.checked)}
       />
     </label>
+  );
+}
+
+function RecommendationPeriodSetting({
+  preferences,
+  onChange,
+  copy,
+}: {
+  readonly preferences: UserPreferences;
+  readonly onChange: (period: RecommendationPeriod) => void;
+  readonly copy: AppCopy;
+}) {
+  const currentYear = currentCalendarYear();
+  const years = useMemo(() => recommendationYearOptions(currentYear), [currentYear]);
+  const period: RecommendationPeriod = {
+    startYear: preferences.recommendationStartYear,
+    endYear: preferences.recommendationEndYear,
+  };
+
+  return (
+    <div className="mode-setting recommendation-period">
+      <div>
+        <strong>{copy.recommendationPeriod}</strong>
+        <p>{copy.recommendationPeriodDescription}</p>
+      </div>
+      <div className="recommendation-period-fields">
+        <label className="year-field">
+          <span className="year-field-label">{copy.startYear}</span>
+          <span className="year-select">
+            <select
+              value={period.startYear}
+              onChange={(event) =>
+                onChange(
+                  recommendationPeriodWithStartYear(
+                    period,
+                    Number(event.target.value),
+                    currentYear,
+                  ),
+                )
+              }
+            >
+              {years.map((year) => (
+                <option key={year} value={year}>
+                  {year}
+                </option>
+              ))}
+            </select>
+          </span>
+        </label>
+        <label className="year-field">
+          <span className="year-field-label">{copy.endYear}</span>
+          <span className="year-select">
+            <select
+              value={period.endYear}
+              onChange={(event) =>
+                onChange(
+                  recommendationPeriodWithEndYear(period, Number(event.target.value), currentYear),
+                )
+              }
+            >
+              {years.map((year) => (
+                <option key={year} value={year}>
+                  {year}
+                </option>
+              ))}
+            </select>
+          </span>
+        </label>
+      </div>
+    </div>
   );
 }
 

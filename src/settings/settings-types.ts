@@ -12,6 +12,11 @@ import {
   type UsageStreak,
 } from '../profile/usage-streak';
 import { normalizeLanguage, type Language } from '../locales';
+import {
+  currentCalendarYear,
+  normalizeRecommendationPeriod,
+  RECOMMENDATION_YEAR_DEFAULT_START,
+} from '../domain/recommendation-period';
 
 export type RecommendationMode = 'personalized' | 'exploratory';
 
@@ -49,9 +54,10 @@ export interface UserPreferences {
   readonly contentRating: ContentRatingPreference;
   readonly recommendationMode: RecommendationMode;
   readonly includeHiddenGems: boolean;
-  readonly includeOlderAnime: boolean;
   readonly includeMovies: boolean;
   readonly includeShortSeries: boolean;
+  readonly recommendationStartYear: number;
+  readonly recommendationEndYear: number;
   readonly dailyRecommendationsEnabled: boolean;
   readonly preferredGenres: readonly string[];
   readonly excludedGenres: readonly string[];
@@ -129,9 +135,10 @@ export const DEFAULT_USER_PREFERENCES: UserPreferences = {
   contentRating: 'safe',
   recommendationMode: 'personalized',
   includeHiddenGems: true,
-  includeOlderAnime: true,
   includeMovies: true,
   includeShortSeries: true,
+  recommendationStartYear: RECOMMENDATION_YEAR_DEFAULT_START,
+  recommendationEndYear: currentCalendarYear(),
   dailyRecommendationsEnabled: false,
   preferredGenres: [],
   excludedGenres: [],
@@ -150,9 +157,10 @@ export function toRecommendationDiscoveryPreferences(
   return {
     recommendationMode: preferences.recommendationMode,
     includeHiddenGems: preferences.includeHiddenGems,
-    includeOlderAnime: preferences.includeOlderAnime,
     includeMovies: preferences.includeMovies,
     includeShortSeries: preferences.includeShortSeries,
+    startYear: preferences.recommendationStartYear,
+    endYear: preferences.recommendationEndYear,
     preferredGenres: preferences.preferredGenres,
     excludedGenres: preferences.excludedGenres,
     excludedThemes: preferences.excludedThemes,
@@ -170,6 +178,11 @@ export function normalizeSettingsText(value: unknown): string {
 
 export function normalizeUserPreferences(value: unknown): UserPreferences {
   if (!isRecord(value)) return DEFAULT_USER_PREFERENCES;
+  const period = normalizeRecommendationPeriod(
+    value.recommendationStartYear,
+    value.recommendationEndYear,
+    currentCalendarYear(),
+  );
   return {
     ...DEFAULT_USER_PREFERENCES,
     theme: isTheme(value.theme) ? value.theme : DEFAULT_USER_PREFERENCES.theme,
@@ -184,10 +197,6 @@ export function normalizeUserPreferences(value: unknown): UserPreferences {
       typeof value.includeHiddenGems === 'boolean'
         ? value.includeHiddenGems
         : DEFAULT_USER_PREFERENCES.includeHiddenGems,
-    includeOlderAnime:
-      typeof value.includeOlderAnime === 'boolean'
-        ? value.includeOlderAnime
-        : DEFAULT_USER_PREFERENCES.includeOlderAnime,
     includeMovies:
       typeof value.includeMovies === 'boolean'
         ? value.includeMovies
@@ -196,6 +205,8 @@ export function normalizeUserPreferences(value: unknown): UserPreferences {
       typeof value.includeShortSeries === 'boolean'
         ? value.includeShortSeries
         : DEFAULT_USER_PREFERENCES.includeShortSeries,
+    recommendationStartYear: period.startYear,
+    recommendationEndYear: period.endYear,
     dailyRecommendationsEnabled:
       typeof value.dailyRecommendationsEnabled === 'boolean'
         ? value.dailyRecommendationsEnabled

@@ -263,9 +263,10 @@ describe('recommendation pipeline', () => {
       {
         discovery: {
           includeMovies: false,
-          includeOlderAnime: false,
           includeShortSeries: false,
           includeHiddenGems: false,
+          startYear: 2010,
+          endYear: 2026,
         },
       },
     );
@@ -1118,7 +1119,12 @@ describe('recommendation pipeline', () => {
     ];
     const result = generateRecommendations(
       { watched, candidates },
-      { limit: candidates.length, generatedAt: '2026-01-01T00:00:00.000Z' },
+      {
+        limit: candidates.length,
+        // The list deliberately spans 1985 onwards, so the period has to open before it.
+        discovery: { startYear: 1950 },
+        generatedAt: '2026-01-01T00:00:00.000Z',
+      },
     );
 
     const byCategory = new Map<string, number>();

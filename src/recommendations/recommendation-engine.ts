@@ -6,6 +6,10 @@ import type {
   RecommendationReasonKind,
 } from '../domain/recommendation';
 import type { UserTasteProfile } from '../domain/user-profile';
+import {
+  currentCalendarYear,
+  normalizeRecommendationPeriod,
+} from '../domain/recommendation-period';
 import { getCopy, type Language } from '../locales';
 import type {
   FeedbackFeatureSnapshot,
@@ -300,7 +304,7 @@ export function generateRecommendations(
     ...(options.rejectedAnimeIds ?? []),
     ...(options.excludedAnimeIds ?? []),
   ]);
-  const discovery = normalizeDiscoveryPreferences(options.discovery);
+  const discovery = normalizeDiscoveryPreferences(options.discovery, options.nowYear);
   const likedAffinity = buildLikedAffinity(input.watched);
   const rejectedGenres = new Set(
     [
@@ -317,7 +321,11 @@ export function generateRecommendations(
     .filter((anime) => !anime.genres.some((genre) => rejectedGenres.has(normalizeName(genre.name))))
     .filter((anime) => !anime.themes.some((theme) => rejectedThemes.has(normalizeName(theme.name))))
     .filter((anime) => discovery.includeMovies || anime.type !== 'movie')
-    .filter((anime) => discovery.includeOlderAnime || anime.year === null || anime.year >= 2010)
+    .filter(
+      (anime) =>
+        anime.year === null ||
+        (anime.year >= discovery.startYear && anime.year <= discovery.endYear),
+    )
     .filter((anime) =>
       discovery.contentRating === 'explicit'
         ? true
@@ -646,12 +654,16 @@ function mergeWeights(overrides?: Partial<RecommendationWeights>): Recommendatio
   return { ...DEFAULT_RECOMMENDATION_WEIGHTS, ...overrides };
 }
 
-function normalizeDiscoveryPreferences(preferences: RecommendationGenerationOptions['discovery']): {
+function normalizeDiscoveryPreferences(
+  preferences: RecommendationGenerationOptions['discovery'],
+  nowYear: number = currentCalendarYear(),
+): {
   readonly recommendationMode: 'personalized' | 'exploratory';
   readonly includeHiddenGems: boolean;
-  readonly includeOlderAnime: boolean;
   readonly includeMovies: boolean;
   readonly includeShortSeries: boolean;
+  readonly startYear: number;
+  readonly endYear: number;
   readonly preferredGenres: ReadonlySet<string>;
   readonly preferredFormats: readonly AnimeType[];
   readonly preferredSeasons: readonly AnimeSeason[];
@@ -661,12 +673,18 @@ function normalizeDiscoveryPreferences(preferences: RecommendationGenerationOpti
   readonly excludedGenres: readonly string[];
   readonly excludedThemes: readonly string[];
 } {
+  const period = normalizeRecommendationPeriod(
+    preferences?.startYear,
+    preferences?.endYear,
+    nowYear,
+  );
   return {
     recommendationMode: preferences?.recommendationMode ?? 'personalized',
     includeHiddenGems: preferences?.includeHiddenGems ?? true,
-    includeOlderAnime: preferences?.includeOlderAnime ?? true,
     includeMovies: preferences?.includeMovies ?? true,
     includeShortSeries: preferences?.includeShortSeries ?? true,
+    startYear: period.startYear,
+    endYear: period.endYear,
     preferredGenres: new Set((preferences?.preferredGenres ?? []).map(normalizeName)),
     preferredFormats: preferences?.preferredFormats ?? [],
     preferredSeasons: preferences?.preferredSeasons ?? [],
