@@ -1,6 +1,7 @@
 import type { Anime, AnimeListEntry, AnimeStatus } from '../../../domain/anime';
 import type { StreamingLink } from '../../../domain/streaming';
 import type { UserProfile } from '../../../domain/user-profile';
+import type { RecommendationPeriod } from '../../../domain/recommendation-period';
 import type { HttpClient } from '../../http-client';
 import { ApiError } from '../../api-errors';
 import { parseRetryAfterSeconds } from '../../retry-after';
@@ -115,7 +116,9 @@ export class AniListProvider implements AnimeProvider {
     suggestionLimit: 50,
     rankingLimit: 100,
     rankingOffset: 250,
-    tasteLimit: 50,
+    tasteLimit: 100,
+    rankingSlices: 3,
+    rankingStride: 250,
   };
 
   constructor(
@@ -172,39 +175,60 @@ export class AniListProvider implements AnimeProvider {
     return data.Page.media.filter(isAniListMedia).map(normalizeAnime);
   }
 
-  async getAnimeRanking(limit: number = 50, offset: number = 0): Promise<Anime[]> {
+  async getAnimeRanking(
+    limit: number = 50,
+    offset: number = 0,
+    period?: RecommendationPeriod,
+  ): Promise<Anime[]> {
     const safeLimit = Math.max(1, Math.min(Math.floor(limit), 50));
     const safeOffset = Math.max(0, Math.floor(offset));
     const page = Math.floor(safeOffset / safeLimit) + 1;
     const data = await this.graphql.request<unknown>(
       RANKING_ANIME_QUERY,
-      { page, perPage: safeLimit },
+      {
+        page,
+        perPage: safeLimit,
+        ...periodWindow(period),
+      },
       this.accessToken,
     );
     if (!isAniListPageResponse(data)) throw invalidResponse('anime ranking');
     return data.Page.media.filter(isAniListMedia).map(normalizeAnime);
   }
 
-  async getAnimeByTags(tags: readonly string[], limit: number = 50): Promise<readonly Anime[]> {
+  async getAnimeByTags(
+    tags: readonly string[],
+    limit: number = 50,
+    period?: RecommendationPeriod,
+  ): Promise<readonly Anime[]> {
     const cleaned = tags.map((tag) => tag.trim()).filter((tag) => tag.length > 0);
     if (cleaned.length === 0) return [];
-    const safeLimit = Math.max(1, Math.min(Math.floor(limit), ANILIST_PAGE_SIZE));
+    const safeLimit = Math.max(1, Math.min(Math.floor(limit), ANILIST_PAGE_SIZE * 4));
+    const perPage = Math.max(1, Math.min(safeLimit, ANILIST_PAGE_SIZE));
     const genres = cleaned.map((tag) => findAniListGenre(tag));
     const genreIn = genres.filter((genre): genre is string => genre !== null);
     const tagIn = cleaned.filter((_tag, index) => genres[index] === null);
-    const data = await this.graphql.request<unknown>(
-      SEARCH_ANIME_BY_TAG_QUERY,
-      {
-        genreIn: genreIn.length > 0 ? genreIn : null,
-        tagIn: tagIn.length > 0 ? tagIn : null,
-        formatIn: null,
-        page: 1,
-        perPage: safeLimit,
-      },
-      this.accessToken,
-    );
-    if (!isAniListPageResponse(data)) throw invalidResponse('anime tags');
-    return data.Page.media.filter(isAniListMedia).map(normalizeAnime);
+    const pages = Math.ceil(safeLimit / perPage);
+    const collected: Anime[] = [];
+    for (let page = 1; page <= pages && collected.length < safeLimit; page += 1) {
+      const data = await this.graphql.request<unknown>(
+        SEARCH_ANIME_BY_TAG_QUERY,
+        {
+          genreIn: genreIn.length > 0 ? genreIn : null,
+          tagIn: tagIn.length > 0 ? tagIn : null,
+          formatIn: null,
+          page,
+          perPage,
+          ...periodWindow(period),
+        },
+        this.accessToken,
+      );
+      if (!isAniListPageResponse(data)) throw invalidResponse('anime tags');
+      const media = data.Page.media.filter(isAniListMedia).map(normalizeAnime);
+      collected.push(...media);
+      if (!readAniListHasNextPage(data)) break;
+    }
+    return collected.slice(0, safeLimit);
   }
 
   async getStreamingLinks(id: number): Promise<readonly StreamingLink[]> {
@@ -278,4 +302,17 @@ function invalidResponse(resource: string): ApiError {
   return new ApiError(`The AniList ${resource} response is incomplete or invalid.`, {
     code: 'invalid_response',
   });
+}
+
+function periodWindow(period: RecommendationPeriod | undefined): {
+  readonly startDateGreater: number | null;
+  readonly startDateLesser: number | null;
+} {
+  if (period === undefined) {
+    return { startDateGreater: null, startDateLesser: null };
+  }
+  return {
+    startDateGreater: period.startYear * 10_000 + 101,
+    startDateLesser: period.endYear * 10_000 + 1_231,
+  };
 }

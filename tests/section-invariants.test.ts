@@ -128,3 +128,78 @@ describe('section minimums', () => {
     expect(result.some((item) => item.category === 'hidden-gem')).toBe(false);
   });
 });
+
+describe('section balance', () => {
+  const genres = [
+    'Action',
+    'Adventure',
+    'Comedy',
+    'Drama',
+    'Fantasy',
+    'Sci-Fi',
+    'Mystery',
+    'Romance',
+    'Sports',
+    'Slice of Life',
+  ];
+
+  const watched = Array.from({ length: 165 }, (_, index) =>
+    entry(index + 1, 7 + (index % 4), {
+      genres: [{ id: index % genres.length, name: genres[index % genres.length] ?? 'Action' }],
+      themes: [{ id: index % 6, name: `Theme ${index % 6}` }],
+      studios: [{ id: index % 6, name: `Studio ${index % 6}` }],
+    }),
+  );
+
+  const candidates = Array.from({ length: 220 }, (_, index) => {
+    const onTaste = index % 10 < 7;
+    const genre = onTaste
+      ? (genres[index % genres.length] ?? 'Action')
+      : (genres[(index + 3) % genres.length] ?? 'Action');
+    return anime(5000 + index, {
+      genres: [{ id: index, name: genre }],
+      themes: onTaste ? [{ id: index % 6, name: `Theme ${index % 6}` }] : [],
+      studios: [{ id: index % 12, name: onTaste ? `Studio ${index % 6}` : `Studio ${index % 12}` }],
+      score: 5.5 + (index % 8) * 0.45,
+      memberCount: 2_000 + (index % 90) * 6_000,
+      year: 2012 + (index % 12),
+    });
+  });
+
+  const result = generateRecommendations(
+    { watched, candidates },
+    { limit: 96, generatedAt: '2026-01-01T00:00:00.000Z' },
+  );
+
+  const sectionOf = (category: string): number =>
+    result.filter((item) =>
+      category === 'explore'
+        ? item.category === 'explore' || item.category === 'genre-discovery'
+        : item.category === category,
+    ).length;
+
+  it('fills every section instead of letting one band hoard the pool', () => {
+    expect(sectionOf('highly-compatible')).toBe(24);
+    expect(sectionOf('because-you-liked')).toBe(24);
+    expect(sectionOf('hidden-gem')).toBe(24);
+    expect(sectionOf('explore')).toBe(24);
+  });
+
+  it('never shows the same anime in two sections', () => {
+    const ids = result.map((item) => item.anime.id);
+
+    expect(new Set(ids).size).toBe(ids.length);
+  });
+
+  it('keeps the recommendation period a hard filter', () => {
+    const outside = generateRecommendations(
+      {
+        watched,
+        candidates: candidates.map((anime) => ({ ...anime, year: 2004 })),
+      },
+      { limit: 96, generatedAt: '2026-01-01T00:00:00.000Z' },
+    );
+
+    expect(outside).toEqual([]);
+  });
+});

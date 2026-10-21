@@ -117,19 +117,19 @@ query ($search: String, $formatIn: [MediaFormat], $page: Int, $perPage: Int) {
 
 export const SEARCH_ANIME_BY_TAG_QUERY = `
 ${ANIME_MEDIA_FRAGMENT}
-query ($genreIn: [String], $tagIn: [String], $formatIn: [MediaFormat], $page: Int, $perPage: Int) {
+query ($genreIn: [String], $tagIn: [String], $formatIn: [MediaFormat], $page: Int, $perPage: Int, $startDateGreater: FuzzyDateInt, $startDateLesser: FuzzyDateInt) {
   Page(page: $page, perPage: $perPage) {
     pageInfo { hasNextPage currentPage }
-    media(type: ANIME, sort: POPULARITY_DESC, genre_in: $genreIn, tag_in: $tagIn, format_in: $formatIn) { ...AnimeMedia }
+    media(type: ANIME, sort: POPULARITY_DESC, genre_in: $genreIn, tag_in: $tagIn, format_in: $formatIn, startDate_greater: $startDateGreater, startDate_lesser: $startDateLesser) { ...AnimeMedia }
   }
 }
 `;
 
 export const RANKING_ANIME_QUERY = `
 ${ANIME_MEDIA_FRAGMENT}
-query ($page: Int, $perPage: Int) {
+query ($page: Int, $perPage: Int, $startDateGreater: FuzzyDateInt, $startDateLesser: FuzzyDateInt) {
   Page(page: $page, perPage: $perPage) {
-    media(type: ANIME, sort: SCORE_DESC) { ...AnimeMedia }
+    media(type: ANIME, sort: SCORE_DESC, startDate_greater: $startDateGreater, startDate_lesser: $startDateLesser) { ...AnimeMedia }
   }
 }
 `;

@@ -1,6 +1,7 @@
 import type { Anime, AnimeListEntry, AnimeStatus, AnimeType } from '../domain/anime';
 import type { StreamingLink } from '../domain/streaming';
 import type { UserProfile } from '../domain/user-profile';
+import type { RecommendationPeriod } from '../domain/recommendation-period';
 
 export interface AnimeListFetchProgress {
   readonly page: number;
@@ -18,6 +19,10 @@ export interface CandidatePoolConfig {
   readonly rankingOffset: number;
   /** Omit to skip the taste-derived slice entirely. */
   readonly tasteLimit?: number;
+  /** How many ranking slices to walk. */
+  readonly rankingSlices?: number;
+  /** How far apart two ranking slices sit in the provider's own ranking. */
+  readonly rankingStride?: number;
 }
 
 export interface AnimeSearchRequest {
@@ -41,13 +46,25 @@ export interface AnimeProvider {
 
   getAnimeSuggestions?(limit?: number): Promise<Anime[]>;
 
-  getAnimeRanking?(limit?: number, offset?: number): Promise<Anime[]>;
+  /**
+   * The period is the user's recommendation window. A provider that can filter on it must, so the
+   * pool holds titles the window still allows instead of titles the engine has to throw away.
+   */
+  getAnimeRanking?(
+    limit?: number,
+    offset?: number,
+    period?: RecommendationPeriod,
+  ): Promise<Anime[]>;
 
   /**
    * Catalogue-native tag filter, the only way to reach candidates the global ranking slice never will. A provider
    * without one must omit this: emulating it by paging the same global list would defeat the point.
    */
-  getAnimeByTags?(tags: readonly string[], limit?: number): Promise<readonly Anime[]>;
+  getAnimeByTags?(
+    tags: readonly string[],
+    limit?: number,
+    period?: RecommendationPeriod,
+  ): Promise<readonly Anime[]>;
 
   readonly candidatePoolConfig?: CandidatePoolConfig;
   searchAnime(query: string, request?: AnimeSearchRequest): Promise<AnimeSearchPage>;

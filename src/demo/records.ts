@@ -95,7 +95,11 @@ export function toMalRecord(fixture: DemoAnimeFixture): Anime {
     themes.push({ id: themeId(mapped), name: mapped });
   }
   const mean =
-    fixture.meanScore ?? (fixture.averageScore === null ? null : fixture.averageScore / 10);
+    fixture.meanScore === null
+      ? fixture.averageScore === null
+        ? null
+        : fixture.averageScore / 10
+      : fixture.meanScore / 10;
 
   return {
     id: fixture.malId,

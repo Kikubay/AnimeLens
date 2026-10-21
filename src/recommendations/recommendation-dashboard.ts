@@ -6,15 +6,15 @@ import {
   normalizeUserPreferences,
   toRecommendationDiscoveryPreferences,
 } from '../settings/settings-types';
-import { generateRecommendations } from './recommendation-engine';
+import { generateRecommendations, MAX_SECTION_TITLES } from './recommendation-engine';
 import type {
   DashboardRecommendationSnapshot,
   RecommendationSection,
   RecommendationSectionId,
 } from './recommendation-messages';
 
-const MAX_DASHBOARD_RECOMMENDATIONS = 100;
-const MAX_SECTION_RECOMMENDATIONS = 24;
+const MAX_DASHBOARD_RECOMMENDATIONS = MAX_SECTION_TITLES * 4;
+const MAX_SECTION_RECOMMENDATIONS = MAX_SECTION_TITLES;
 
 const HIDDEN_GEM_SECTION_ID: RecommendationSectionId = 'hidden-gem';
 

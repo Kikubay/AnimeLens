@@ -119,10 +119,15 @@ export interface RecommendationInput {
 export interface ScoredCandidate {
   readonly anime: Anime;
   readonly score: RecommendationScore;
-  readonly category: RecommendationCategory;
   /**
    * Whether a liked entry at or above the attribution threshold backs this candidate. Carried past
    * diversification so a section that promises provenance cannot be filled with a title that has none.
    */
   readonly provenanceKnown: boolean;
+  /** How strongly the liked entry backs this candidate, between 0 and 1. */
+  readonly provenanceStrength: number;
+}
+
+export interface SectionedCandidate extends ScoredCandidate {
+  readonly category: RecommendationCategory;
 }

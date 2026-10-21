@@ -199,7 +199,12 @@ describe('AniListProvider', () => {
     const provider = new AniListProvider(http, 'token');
     const ranking = await provider.getAnimeRanking(50, 100);
     expect(ranking).toHaveLength(1);
-    expect(http.requests[0]?.variables).toEqual({ page: 3, perPage: 50 });
+    expect(http.requests[0]?.variables).toEqual({
+      page: 3,
+      perPage: 50,
+      startDateGreater: null,
+      startDateLesser: null,
+    });
   });
 
   it('fills the suggestion slot from trending media, since AniList has no suggestions endpoint', async () => {
@@ -289,6 +294,24 @@ describe('AniListProvider', () => {
       formatIn: null,
       page: 1,
       perPage: 30,
+      startDateGreater: null,
+      startDateLesser: null,
+    });
+  });
+
+  it('asks for candidates inside the recommendation period, so the window filters server-side', async () => {
+    const http = new RecordingHttpClient((query) =>
+      isSearchQuery(query)
+        ? { data: { Page: { media: [MEDIA], pageInfo: { hasNextPage: false, currentPage: 1 } } } }
+        : VIEWER_PAYLOAD,
+    );
+    const provider = new AniListProvider(http, 'token');
+
+    await provider.getAnimeByTags(['Sci-Fi'], 30, { startYear: 2010, endYear: 2026 });
+
+    expect(http.requests[0]?.variables).toMatchObject({
+      startDateGreater: 20100101,
+      startDateLesser: 20261231,
     });
   });
 

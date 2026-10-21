@@ -29,6 +29,11 @@ import { isSyncMessage } from '../sync/sync-messages';
 import type { SyncMetadata, SyncProgress } from '../domain/sync';
 import { buildUserPreferenceProfile } from '../recommendations/recommendation-engine';
 import {
+  currentCalendarYear,
+  normalizeRecommendationPeriod,
+  type RecommendationPeriod,
+} from '../domain/recommendation-period';
+import {
   buildDashboardRecommendationSnapshot,
   createEmptyDashboardRecommendationSnapshot,
   withCurrentSync,
@@ -129,8 +134,11 @@ const DEFAULT_CANDIDATE_POOL_CONFIG: CandidatePoolConfig = {
   suggestionLimit: 50,
   rankingLimit: 100,
   rankingOffset: 2000,
+  rankingSlices: 3,
+  rankingStride: 2000,
 };
-const DEFAULT_TASTE_POOL_LIMIT = 50;
+const DEFAULT_TASTE_POOL_LIMIT = 100;
+const DEFAULT_RANKING_SLICES = 3;
 const DAILY_RECOMMENDATION_ALARM = 'animelens-daily-recommendation';
 let updateCheckInFlight: Promise<UpdateSnapshot> | null = null;
 
@@ -874,7 +882,10 @@ async function handleAnimeSearchMessage(message: AnimeSearchMessage): Promise<An
   }
 }
 
-async function fetchCandidatePool(clusters: TasteClusters): Promise<readonly Anime[]> {
+async function fetchCandidatePool(
+  clusters: TasteClusters,
+  period: RecommendationPeriod,
+): Promise<readonly Anime[]> {
   const pool = await (
     await activeAuthService()
   ).withAccessToken(async (accessToken) => {
@@ -893,27 +904,37 @@ async function fetchCandidatePool(clusters: TasteClusters): Promise<readonly Ani
 
     const config = provider.candidatePoolConfig ?? DEFAULT_CANDIDATE_POOL_CONFIG;
     const tasteLimit = config.tasteLimit ?? DEFAULT_TASTE_POOL_LIMIT;
-    const [suggested, ranked, deepRanked, tasteDerived] = await Promise.all([
-      degrade<Anime>(() => provider.getAnimeSuggestions?.(config.suggestionLimit)),
-      degrade<Anime>(() => provider.getAnimeRanking?.(config.rankingLimit, config.rankingOffset)),
+    const rankingSlices = Math.max(1, config.rankingSlices ?? DEFAULT_RANKING_SLICES);
+    const rankingStride = config.rankingStride ?? config.rankingLimit * 4;
+    const rankingRequests = Array.from({ length: rankingSlices }, (_unused, index) =>
       degrade<Anime>(() =>
         provider.getAnimeRanking?.(
           config.rankingLimit,
-          config.rankingOffset + config.rankingLimit * 4,
+          config.rankingOffset + rankingStride * index,
+          period,
         ),
       ),
-      degrade<Anime>(() => fetchTasteDerived(provider, clusters, tasteLimit)),
+    );
+    const [suggested, tasteDerived, ...rankedSlices] = await Promise.all([
+      degrade<Anime>(() => provider.getAnimeSuggestions?.(config.suggestionLimit)),
+      degrade<Anime>(() => fetchTasteDerived(provider, clusters, tasteLimit, period)),
+      ...rankingRequests,
     ]);
 
     // A source returning nothing is normal; a source that threw is a provider outage. Treating the
     // second like the first turns an outage into a cached, nearly-empty dashboard with no error shown.
-    if (suggested.failed && ranked.failed && deepRanked.failed && tasteDerived.failed) {
+    if (suggested.failed && tasteDerived.failed && rankedSlices.every((slice) => slice.failed)) {
       throw new Error('Every candidate source failed for the active provider.');
     }
 
     const merged: Anime[] = [];
     const seen = new Set<number>();
-    for (const batch of [suggested.items, ranked.items, deepRanked.items, tasteDerived.items]) {
+    const batches = [
+      suggested.items,
+      ...rankedSlices.map((slice) => slice.items),
+      tasteDerived.items,
+    ];
+    for (const batch of batches) {
       for (const anime of batch) {
         if (seen.has(anime.id)) continue;
         seen.add(anime.id);
@@ -929,11 +950,12 @@ async function fetchTasteDerived(
   provider: AnimeProvider,
   clusters: TasteClusters,
   limit: number,
+  period: RecommendationPeriod,
 ): Promise<readonly Anime[]> {
   if (provider.getAnimeByTags === undefined || clusters.clusters.length === 0) return [];
   const batches = await Promise.all(
     clusters.clusters.map(
-      async (cluster) => (await provider.getAnimeByTags?.(cluster, limit)) ?? [],
+      async (cluster) => (await provider.getAnimeByTags?.(cluster, limit, period)) ?? [],
     ),
   );
   return batches.flat();
@@ -942,8 +964,9 @@ async function fetchTasteDerived(
 async function loadCandidatePool(
   providerId: ProviderId,
   clusters: TasteClusters,
+  period: RecommendationPeriod,
 ): Promise<readonly Anime[]> {
-  const poolKey = clusters.seed.length === 0 ? providerId : `${providerId}:${clusters.seed}`;
+  const poolKey = candidatePoolKey(providerId, clusters, period);
   const cached = await candidatePoolStore.load(poolKey, Date.now());
   if (cached !== null) return cached;
 
@@ -951,7 +974,7 @@ async function loadCandidatePool(
     return candidatePoolInFlight.request;
   }
 
-  const request = (async () => fetchCandidatePool(clusters))();
+  const request = (async () => fetchCandidatePool(clusters, period))();
   candidatePoolInFlight = { poolKey, request };
 
   try {
@@ -966,6 +989,15 @@ async function loadCandidatePool(
   } finally {
     if (candidatePoolInFlight?.request === request) candidatePoolInFlight = null;
   }
+}
+
+function candidatePoolKey(
+  providerId: ProviderId,
+  clusters: TasteClusters,
+  period: RecommendationPeriod,
+): string {
+  const seed = clusters.seed.length === 0 ? providerId : `${providerId}:${clusters.seed}`;
+  return `${seed}:${period.startYear}-${period.endYear}`;
 }
 
 async function handleRecommendationMessage(
@@ -984,9 +1016,14 @@ async function handleRecommendationMessage(
   const providerId = await providerRegistry.registry.getActiveProvider();
   const watched = stored.entries.filter((entry) => entry.status !== 'plan_to_watch');
   const clusters = buildTasteClusters(buildUserPreferenceProfile(watched, feedback));
+  const period = normalizeRecommendationPeriod(
+    preferences.recommendationStartYear,
+    preferences.recommendationEndYear,
+    currentCalendarYear(),
+  );
   let pool: readonly Anime[];
   try {
-    pool = await loadCandidatePool(providerId, clusters);
+    pool = await loadCandidatePool(providerId, clusters, period);
   } catch (error) {
     reportBackgroundFailure(error);
     // Surfacing this as an error keeps the dashboard off a cached empty pool instead of rendering a

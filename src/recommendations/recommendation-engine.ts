@@ -30,6 +30,7 @@ import {
   type RecommendationScore,
   type RecommendationWeights,
   type ScoredCandidate,
+  type SectionedCandidate,
 } from './recommendation-types';
 import {
   fitRatingModel,
@@ -68,6 +69,9 @@ const GENRE_DISPERSION_PENALTY = 0.25;
 const STUDIO_DISPERSION_PENALTY = 0.1;
 const COLD_START_EXPLORE_BONUS = 0.02;
 const COLD_START_EXPLORE_TITLES = 4;
+const SECTION_BASE_TITLES = 6;
+const SECTION_TITLES_PER_LIBRARY_ENTRY = 0.12;
+export const MAX_SECTION_TITLES = 24;
 
 export function extractFeatures(anime: Anime): FeatureVector {
   return {
@@ -346,12 +350,13 @@ export function generateRecommendations(
                 strength: provenance.strength,
               },
       });
-      return {
+      const scored: ScoredCandidate = {
         anime,
         score,
-        category: categorize(anime, score, provenance),
         provenanceKnown: provenance !== null,
+        provenanceStrength: provenance?.strength ?? 0,
       };
+      return { ...scored, category: categorize(anime, score, provenance) };
     })
     .filter((candidate) => candidate.score.normalized >= discovery.minimumCompatibilityScore)
     .sort(compareCandidates);
@@ -366,7 +371,7 @@ export function generateRecommendations(
 }
 
 function toRecommendations(
-  candidates: readonly ScoredCandidate[],
+  candidates: readonly SectionedCandidate[],
   generatedAt: string,
 ): Recommendation[] {
   return candidates.map((candidate) => ({
@@ -390,7 +395,11 @@ const SECTION_MEMBERSHIP: readonly {
 ];
 
 function minimumSectionTitles(analyzedCount: number, supply: number): number {
-  const desired = clamp(Math.round(5 + (analyzedCount - 10) * 0.08), 5, 16);
+  const desired = clamp(
+    Math.round(SECTION_BASE_TITLES + (analyzedCount - 10) * SECTION_TITLES_PER_LIBRARY_ENTRY),
+    SECTION_BASE_TITLES,
+    MAX_SECTION_TITLES,
+  );
   return Math.min(desired, Math.floor(supply / SECTION_MEMBERSHIP.length));
 }
 
@@ -401,47 +410,70 @@ function sectionKeyOf(category: RecommendationCategory): string {
 }
 
 function ensureSectionMinimums(
-  candidates: readonly ScoredCandidate[],
+  candidates: readonly SectionedCandidate[],
   analyzedCount: number,
-): readonly ScoredCandidate[] {
+): readonly SectionedCandidate[] {
   const minimum = minimumSectionTitles(analyzedCount, candidates.length);
   const result = candidates.map((item) => ({ ...item }));
   const sectionCount = (key: string): number =>
     result.filter((item) => sectionKeyOf(item.category) === key).length;
-  const movableInto = (
+  const bestMatch = (
     donorKey: string,
     targetCategory: RecommendationCategory,
   ): number | undefined => {
-    const byProximity =
-      targetCategory === 'highly-compatible'
-        ? (left: ScoredCandidate, right: ScoredCandidate) =>
-            right.score.normalized - left.score.normalized
-        : (left: ScoredCandidate, right: ScoredCandidate) =>
-            left.score.normalized - right.score.normalized;
     return result
       .map((item, index) => ({ item, index }))
       .filter((entry) => sectionKeyOf(entry.item.category) === donorKey)
       .filter((entry) => admitsToSection(targetCategory, entry.item))
-      .sort((left, right) => byProximity(left.item, right.item))[0]?.index;
+      .sort(
+        (left, right) =>
+          sectionPreference(targetCategory, right.item) -
+            sectionPreference(targetCategory, left.item) ||
+          left.item.anime.id - right.item.anime.id,
+      )[0]?.index;
+  };
+  const relocate = (index: number, targetCategory: RecommendationCategory): void => {
+    result[index] = { ...result[index], category: targetCategory };
   };
 
   for (const target of SECTION_MEMBERSHIP) {
     const targetCategory = target.categories[0];
     if (targetCategory === undefined) continue;
     while (sectionCount(target.key) < minimum) {
-      let donorIndex: number | undefined;
+      let relocated = false;
       for (const donor of SECTION_MEMBERSHIP.filter(
         (section) => section.key !== target.key && sectionCount(section.key) > minimum,
       ).sort((left, right) => sectionCount(right.key) - sectionCount(left.key))) {
-        donorIndex = movableInto(donor.key, targetCategory);
-        if (donorIndex !== undefined) break;
+        const index = bestMatch(donor.key, targetCategory);
+        if (index === undefined) continue;
+        relocate(index, targetCategory);
+        relocated = true;
+        break;
       }
       // A section with nothing that legitimately belongs in it stays empty rather than being filled
       // with a mislabelled title, so the claim the UI prints under it is never false.
-      if (donorIndex === undefined) break;
-      result[donorIndex] = { ...result[donorIndex], category: targetCategory };
+      if (!relocated) break;
     }
   }
+
+  for (const source of SECTION_MEMBERSHIP) {
+    while (sectionCount(source.key) > MAX_SECTION_TITLES) {
+      let relocated = false;
+      for (const target of SECTION_MEMBERSHIP.filter(
+        (section) => section.key !== source.key && sectionCount(section.key) < MAX_SECTION_TITLES,
+      )) {
+        const targetCategory = target.categories[0];
+        if (targetCategory === undefined) continue;
+        const index = bestMatch(source.key, targetCategory);
+        if (index === undefined) continue;
+        relocate(index, targetCategory);
+        relocated = true;
+        break;
+      }
+      if (!relocated) break;
+    }
+  }
+
   return result;
 }
 
@@ -458,7 +490,19 @@ function admitsToSection(category: RecommendationCategory, candidate: ScoredCand
   return true;
 }
 
-function ensureDiscoveryVariety(candidates: readonly ScoredCandidate[]): ScoredCandidate[] {
+// What makes a title a good representative of the section it is being moved into, which is not the
+// same question as which title scores best.
+function sectionPreference(
+  category: RecommendationCategory,
+  candidate: SectionedCandidate,
+): number {
+  if (category === 'because-you-liked') return candidate.provenanceStrength;
+  if (category === 'hidden-gem') return isObscure(candidate.anime) ? 1 : 0;
+  if (category === 'explore') return -candidate.score.normalized;
+  return candidate.score.normalized;
+}
+
+function ensureDiscoveryVariety(candidates: readonly SectionedCandidate[]): SectionedCandidate[] {
   if (candidates.length < 12) return [...candidates];
 
   const result = [...candidates];
@@ -480,12 +524,12 @@ function ensureDiscoveryVariety(candidates: readonly ScoredCandidate[]): ScoredC
 }
 
 function diversify(
-  candidates: readonly ScoredCandidate[],
+  candidates: readonly SectionedCandidate[],
   limit: number,
-): readonly ScoredCandidate[] {
+): readonly SectionedCandidate[] {
   const safeLimit = Math.max(0, Math.floor(limit));
   const remaining = [...candidates];
-  const selected: ScoredCandidate[] = [];
+  const selected: SectionedCandidate[] = [];
   const categoryCounts = new Map<RecommendationCategory, number>();
   const genreCounts = new Map<string, number>();
   const studioCounts = new Map<string, number>();
@@ -980,12 +1024,12 @@ function deduplicateCandidates(candidates: readonly Anime[]): Anime[] {
   return result;
 }
 
-function compareCandidates(left: ScoredCandidate, right: ScoredCandidate): number {
+function compareCandidates(left: SectionedCandidate, right: SectionedCandidate): number {
   return right.score.normalized - left.score.normalized || left.anime.id - right.anime.id;
 }
 
 function diversityUtility(
-  candidate: ScoredCandidate,
+  candidate: SectionedCandidate,
   categoryCounts: ReadonlyMap<RecommendationCategory, number>,
   genreCounts: ReadonlyMap<string, number>,
   studioCounts: ReadonlyMap<string, number>,

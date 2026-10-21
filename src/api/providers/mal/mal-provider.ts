@@ -1,6 +1,7 @@
 import type { Anime, AnimeListEntry, AnimeStatus, AnimeType } from '../../../domain/anime';
 import type { StreamingLink } from '../../../domain/streaming';
 import type { UserProfile } from '../../../domain/user-profile';
+import type { RecommendationPeriod } from '../../../domain/recommendation-period';
 import { ApiError } from '../../api-errors';
 import type {
   AnimeListFetchOptions,
@@ -10,7 +11,11 @@ import type {
   CandidatePoolConfig,
 } from '../../anime-provider';
 import { EMPTY_SEARCH_PAGE } from '../../anime-provider';
-import { animeMatchesTags, filterAnimeByFormats } from '../../anime-search-query';
+import {
+  animeMatchesTags,
+  filterAnimeByFormats,
+  normalizeAnimeTag,
+} from '../../anime-search-query';
 import type { HttpClient } from '../../http-client';
 import {
   MAL_API_BASE_URL,
@@ -36,12 +41,19 @@ const MAL_TAG_SEARCH_MAX_PAGES = 4;
 
 const MAL_TAG_SEARCH_FORMAT_MAX_PAGES = 10;
 
+const MAL_POOL_SCAN_PAGES = 3;
+
 export class MalAnimeProvider implements AnimeProvider {
   readonly candidatePoolConfig: CandidatePoolConfig = {
     suggestionLimit: 50,
     rankingLimit: 100,
     rankingOffset: 2000,
+    tasteLimit: 100,
+    rankingSlices: 3,
+    rankingStride: 2000,
   };
+
+  private popularityScan: Promise<readonly Anime[]> | null = null;
 
   constructor(
     private readonly httpClient: HttpClient,
@@ -99,6 +111,7 @@ export class MalAnimeProvider implements AnimeProvider {
   async getAnimeRanking(
     limit: number = MAL_LIMITS.animeRanking,
     offset: number = 0,
+    period?: RecommendationPeriod,
   ): Promise<Anime[]> {
     const safeLimit = Math.max(1, Math.min(Math.floor(limit), MAL_LIMITS.animeRanking));
     const response = await this.request<MalAnimeListResponse>('/anime/ranking', {
@@ -110,7 +123,46 @@ export class MalAnimeProvider implements AnimeProvider {
     if (!isMalListResponse(response) || !response.data.every(isMalAnimeNodeDto)) {
       throw invalidResponse('anime ranking');
     }
-    return response.data.map((item) => normalizeAnime(item.node));
+    const ranked = response.data.map((item) => normalizeAnime(item.node));
+    return withinPeriod(ranked, period);
+  }
+
+  async getAnimeByTags(
+    tags: readonly string[],
+    limit: number = 50,
+    period?: RecommendationPeriod,
+  ): Promise<readonly Anime[]> {
+    const cleaned = tags.map((tag) => tag.trim()).filter((tag) => tag.length > 0);
+    if (cleaned.length === 0) return [];
+    const safeLimit = Math.max(1, Math.floor(limit));
+    const catalogue = await this.loadPopularityCatalogue();
+    const inPeriod = withinPeriod(catalogue, period);
+    const matched = inPeriod.filter((anime) => matchesAnyTag(anime, cleaned));
+    return matched.slice(0, safeLimit);
+  }
+
+  private loadPopularityCatalogue(): Promise<readonly Anime[]> {
+    this.popularityScan ??= this.fetchPopularityCatalogue();
+    return this.popularityScan;
+  }
+
+  private async fetchPopularityCatalogue(): Promise<readonly Anime[]> {
+    const collected: Anime[] = [];
+    for (let page = 0; page < MAL_POOL_SCAN_PAGES; page += 1) {
+      const offset = page * MAL_LIMITS.animeTagRanking;
+      const response = await this.request<MalAnimeListResponse>('/anime/ranking', {
+        ranking_type: 'bypopularity',
+        fields: MAL_FIELDS,
+        limit: String(MAL_LIMITS.animeTagRanking),
+        offset: String(offset),
+      });
+      if (!isMalListResponse(response) || !response.data.every(isMalAnimeNodeDto)) {
+        throw invalidResponse('anime ranking');
+      }
+      collected.push(...response.data.map((item) => normalizeAnime(item.node)));
+      if (response.data.length < MAL_LIMITS.animeTagRanking) break;
+    }
+    return collected;
   }
 
   async getAnime(id: number): Promise<Anime> {
@@ -243,6 +295,21 @@ function invalidResponse(resource: string): ApiError {
   return new ApiError(`The MAL ${resource} response is incomplete or invalid.`, {
     code: 'invalid_response',
   });
+}
+
+function withinPeriod(anime: readonly Anime[], period: RecommendationPeriod | undefined): Anime[] {
+  if (period === undefined) return [...anime];
+  return anime.filter((item) => {
+    if (item.year === null) return true;
+    return item.year >= period.startYear && item.year <= period.endYear;
+  });
+}
+
+function matchesAnyTag(anime: Anime, tags: readonly string[]): boolean {
+  const names = new Set(
+    [...anime.genres, ...anime.themes].map((entry) => normalizeAnimeTag(entry.name)),
+  );
+  return tags.some((tag) => names.has(normalizeAnimeTag(tag)));
 }
 
 function isMalListResponse(value: unknown): value is MalAnimeListResponse {

@@ -149,6 +149,64 @@ describe('MalAnimeProvider', () => {
     expect(Number(limit)).toBeLessThanOrEqual(100);
   });
 
+  it('drops the ranking titles the recommendation period excludes', async () => {
+    const client = new StubHttpClient([
+      {
+        data: [
+          { node: { ...animeDto(1, 'Recent'), start_date: '2019-04-01' } },
+          { node: { ...animeDto(2, 'Older'), start_date: '2004-01-01' } },
+        ],
+      },
+    ]);
+    const provider = new MalAnimeProvider(client, 'test-token', 'https://mal.test/v2');
+
+    const ranking = await provider.getAnimeRanking(25, 0, { startYear: 2010, endYear: 2026 });
+
+    expect(ranking.map((anime) => anime.id)).toEqual([1]);
+  });
+
+  it('finds taste-matched candidates in the popularity catalogue, inside the period', async () => {
+    const client = new StubHttpClient([
+      {
+        data: [
+          { node: { ...animeDto(1, 'Action hit'), genres: [{ id: 1, name: 'Action' }] } },
+          {
+            node: {
+              ...animeDto(2, 'Action but too old'),
+              genres: [{ id: 1, name: 'Action' }],
+              start_date: '2004-01-01',
+            },
+          },
+          { node: { ...animeDto(3, 'Unrelated'), genres: [{ id: 2, name: 'Horror' }] } },
+        ],
+      },
+    ]);
+    const provider = new MalAnimeProvider(client, 'test-token', 'https://mal.test/v2');
+
+    const matches = await provider.getAnimeByTags(['Action'], 10, {
+      startYear: 2010,
+      endYear: 2026,
+    });
+
+    expect(matches.map((anime) => anime.id)).toEqual([1]);
+    const url = new URL(client.calls[0].url);
+    expect(url.pathname).toBe('/v2/anime/ranking');
+    expect(url.searchParams.get('ranking_type')).toBe('bypopularity');
+  });
+
+  it('scans the popularity catalogue once for every taste cluster', async () => {
+    const client = new StubHttpClient([
+      { data: [{ node: animeDto(1, 'First') }] },
+      { data: [{ node: animeDto(2, 'Second') }] },
+    ]);
+    const provider = new MalAnimeProvider(client, 'test-token', 'https://mal.test/v2');
+
+    await provider.getAnimeByTags(['Action'], 10);
+    await provider.getAnimeByTags(['Drama'], 10);
+
+    expect(client.calls).toHaveLength(1);
+  });
+
   it('adds an anime to the MAL list with the requested status', async () => {
     const client = new StubHttpClient([]);
     const provider = new MalAnimeProvider(client, 'test-token', 'https://mal.test/v2');
