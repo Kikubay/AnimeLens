@@ -104,10 +104,13 @@ import {
 import { ANILIST_PIN_REDIRECT_URL } from '../api/providers/anilist/anilist-queries';
 import {
   ANILIST_HOME_URL,
+  ANILIST_PIN_TAB_KEY,
   ANILIST_PIN_TOKEN_KEY,
-  ANILIST_PIN_URL_MATCH,
   extractAnilistPinToken,
+  readAnilistPinTabRecord,
   readAnilistPinTokenRecord,
+  type AnilistPinFlowState,
+  type AnilistPinTabRecord,
   type AnilistPinTokenRecord,
 } from '../auth/anilist-pin';
 import {
@@ -205,39 +208,90 @@ chrome.alarms?.onAlarm.addListener((alarm) => {
   }
 });
 
-async function rememberAnilistPinToken(token: string, tabId?: number): Promise<void> {
-  const record: AnilistPinTokenRecord = tabId === undefined ? { token } : { token, tabId };
+async function rememberAnilistPinTab(tabId: number | undefined): Promise<void> {
+  if (typeof tabId !== 'number' || !Number.isInteger(tabId)) return;
+  await chrome.storage.session.set({ [ANILIST_PIN_TAB_KEY]: { tabId, closed: false } });
+}
+
+async function readAnilistPinTab(): Promise<AnilistPinTabRecord | null> {
+  const stored = await chrome.storage.session.get(ANILIST_PIN_TAB_KEY);
+  return readAnilistPinTabRecord(stored[ANILIST_PIN_TAB_KEY]);
+}
+
+async function markAnilistPinTabClosed(tabId: number): Promise<void> {
+  const expected = await readAnilistPinTab();
+  if (expected === null || expected.tabId !== tabId || expected.closed) return;
+  await chrome.storage.session.set({ [ANILIST_PIN_TAB_KEY]: { tabId, closed: true } });
+}
+
+async function rememberAnilistPinToken(token: string, tabId: number): Promise<void> {
+  const record: AnilistPinTokenRecord = { token, tabId };
   await chrome.storage.session.set({ [ANILIST_PIN_TOKEN_KEY]: record });
 }
 
 async function forgetAnilistPinToken(): Promise<void> {
   const stored = await chrome.storage.session.get(ANILIST_PIN_TOKEN_KEY);
   const record = readAnilistPinTokenRecord(stored[ANILIST_PIN_TOKEN_KEY]);
-  await chrome.storage.session.remove(ANILIST_PIN_TOKEN_KEY);
-  if (record?.tabId === undefined) return;
+  await Promise.all([
+    chrome.storage.session.remove(ANILIST_PIN_TOKEN_KEY),
+    chrome.storage.session.remove(ANILIST_PIN_TAB_KEY),
+  ]);
+  if (record === null) return;
   await chrome.tabs?.update?.(record.tabId, { url: ANILIST_HOME_URL }).catch(() => {});
 }
 
 async function readStoredAnilistPinToken(): Promise<string | null> {
   const stored = await chrome.storage.session.get(ANILIST_PIN_TOKEN_KEY);
   const record = readAnilistPinTokenRecord(stored[ANILIST_PIN_TOKEN_KEY]);
-  if (record !== null) return record.token;
-
-  const tabs = await chrome.tabs.query({ url: ANILIST_PIN_URL_MATCH });
-  for (const tab of tabs) {
-    const found = extractAnilistPinToken(tab.url);
-    if (found !== null) {
-      await rememberAnilistPinToken(found, tab.id);
-      return found;
-    }
-  }
-  return null;
+  if (record === null) return null;
+  const expected = await readAnilistPinTab();
+  if (expected === null || expected.tabId !== record.tabId) return null;
+  return record.token;
 }
+
+async function readAnilistPinFlowState(): Promise<AnilistPinFlowState> {
+  const expected = await readAnilistPinTab();
+  if (expected === null) return 'idle';
+  return expected.closed ? 'closed' : 'awaiting';
+}
+
+async function expectedAnilistAuthorizeUrl(): Promise<string | null> {
+  try {
+    return await providerRegistry.getAniListPinAuthorizeUrl();
+  } catch {
+    return null;
+  }
+}
+
+async function captureAnilistPinToken(tabId: number, token: string): Promise<void> {
+  const expected = await readAnilistPinTab();
+  if (expected === null || expected.closed || expected.tabId !== tabId) return;
+  await rememberAnilistPinToken(token, tabId);
+}
+
+async function trackAnilistAuthorizeTab(
+  tabId: number | undefined,
+  url: string | undefined,
+): Promise<void> {
+  if (typeof tabId !== 'number' || !Number.isInteger(tabId)) return;
+  if (typeof url !== 'string') return;
+  const expected = await expectedAnilistAuthorizeUrl();
+  if (expected === null || url !== expected) return;
+  await rememberAnilistPinTab(tabId);
+}
+
+chrome.tabs?.onCreated?.addListener((tab) => {
+  void trackAnilistAuthorizeTab(tab.id, tab.pendingUrl ?? tab.url).catch(reportBackgroundFailure);
+});
+
+chrome.tabs?.onRemoved?.addListener((tabId) => {
+  void markAnilistPinTabClosed(tabId).catch(reportBackgroundFailure);
+});
 
 chrome.tabs?.onUpdated?.addListener((tabId, changeInfo) => {
   const token = extractAnilistPinToken(changeInfo.url);
   if (token === null) return;
-  void rememberAnilistPinToken(token, tabId).catch(reportBackgroundFailure);
+  void captureAnilistPinToken(tabId, token).catch(reportBackgroundFailure);
 });
 
 chrome.runtime.onStartup?.addListener(() => {
@@ -265,7 +319,11 @@ type AuthResponse =
   | { readonly ok: true; readonly snapshot: AuthSnapshot }
   | { readonly ok: true; readonly diagnostic: TokenExchangeDiagnostic | null }
   | { readonly ok: true; readonly providers: ProviderStatus[] }
-  | { readonly ok: true; readonly pinAvailable: boolean }
+  | {
+      readonly ok: true;
+      readonly pinAvailable: boolean;
+      readonly pinFlow: AnilistPinFlowState;
+    }
   | { readonly ok: false; readonly message: string };
 
 type WorkerResponse =
@@ -505,7 +563,11 @@ async function handleAuthMessage(message: AuthMessage): Promise<AuthResponse> {
   if (message.type === 'auth.get_pin_token') {
     // Availability only: the token itself never crosses into the popup, which is the one place a
     // compromised bundle could read it. `complete_pin_connect` reads it back from here.
-    return { ok: true, pinAvailable: (await readStoredAnilistPinToken()) !== null };
+    return {
+      ok: true,
+      pinAvailable: (await readStoredAnilistPinToken()) !== null,
+      pinFlow: await readAnilistPinFlowState(),
+    };
   }
   if (message.type === 'auth.complete_pin_connect') {
     if (message.providerId !== 'anilist') {
@@ -516,13 +578,15 @@ async function handleAuthMessage(message: AuthMessage): Promise<AuthResponse> {
     const supplied = message.token?.trim() ?? '';
     const accessToken = supplied.length > 0 ? supplied : await readStoredAnilistPinToken();
     if (accessToken === null) {
+      const copy = await currentCopy();
+      const flow = await readAnilistPinFlowState();
       return {
         ok: true,
         snapshot: {
           status: 'error',
           profile: null,
           errorCode: 'invalid_callback',
-          errorMessage: (await currentCopy()).pinFlowNoTokenDetected,
+          errorMessage: flow === 'closed' ? copy.pinFlowTabClosed : copy.pinFlowNoTokenDetected,
         },
       };
     }
@@ -558,7 +622,9 @@ async function handleAuthMessage(message: AuthMessage): Promise<AuthResponse> {
   if (message.type === 'auth.connect' && message.providerId === 'anilist') {
     try {
       const authorizeUrl = await providerRegistry.getAniListPinAuthorizeUrl();
-      await chrome.tabs.create({ url: authorizeUrl });
+      const tab = await chrome.tabs.create({ url: authorizeUrl });
+      // Only this tab can deliver a token, so the worker remembers it before the user authorizes.
+      await rememberAnilistPinTab(tab.id);
       return {
         ok: true,
         snapshot: {

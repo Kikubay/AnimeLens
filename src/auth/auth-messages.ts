@@ -1,7 +1,13 @@
 import type { AuthSnapshot, ProviderId } from './auth-types';
+import type { AnilistPinFlowState } from './anilist-pin';
 import type { ProviderStatusView } from '../settings/settings-types';
 
 export type AuthMessageType = 'auth.get_snapshot' | 'auth.connect' | 'auth.disconnect';
+
+export interface AnilistPinStatus {
+  readonly available: boolean;
+  readonly state: AnilistPinFlowState;
+}
 
 interface AuthMessageResponse {
   readonly ok: boolean;
@@ -102,10 +108,18 @@ export async function completeAniListPinSignIn(token?: string): Promise<AuthSnap
 }
 
 /** Whether a pin tab is waiting, which is the normal state outside an in-flight AniList sign-in. */
-export async function requestAnilistPinAvailability(): Promise<boolean> {
+export async function requestAnilistPinStatus(): Promise<AnilistPinStatus> {
   const response = (await chrome.runtime.sendMessage({ type: 'auth.get_pin_token' })) as
-    { readonly ok: boolean; readonly pinAvailable?: unknown } | undefined;
-  return response !== undefined && response.ok && response.pinAvailable === true;
+    | {
+        readonly ok: boolean;
+        readonly pinAvailable?: unknown;
+        readonly pinFlow?: unknown;
+      }
+    | undefined;
+  if (response === undefined || !response.ok) return { available: false, state: 'idle' };
+  const state =
+    response.pinFlow === 'awaiting' || response.pinFlow === 'closed' ? response.pinFlow : 'idle';
+  return { available: response.pinAvailable === true, state };
 }
 
 async function requestAuthMessage(message: {

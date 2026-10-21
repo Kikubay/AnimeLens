@@ -5,6 +5,7 @@ import { CANDIDATE_POOL_STORAGE_KEY } from '../src/recommendations/candidate-poo
 import { DASHBOARD_SNAPSHOT_STORAGE_KEY } from '../src/recommendations/recommendation-snapshot-store';
 import { DATA_EXPORT_APP, DATA_EXPORT_VERSION } from '../src/settings/data-transfer';
 import { DEFAULT_USER_PREFERENCES } from '../src/settings/settings-types';
+import { ANILIST_PIN_URL_PREFIX } from '../src/auth/anilist-pin';
 
 interface StorageArea {
   readonly store: Map<string, unknown>;
@@ -51,6 +52,13 @@ const messageListeners: ((
 const alarms: { name: string }[] = [];
 const downloads: unknown[] = [];
 const notifications: string[] = [];
+const createdTabs: { id: number; url: string }[] = [];
+const tabQueries: unknown[] = [];
+const tabListeners: {
+  created: ((tab: { id?: number; url?: string; pendingUrl?: string }) => void)[];
+  updated: ((tabId: number, changeInfo: { url?: string }) => void)[];
+  removed: ((tabId: number) => void)[];
+} = { created: [], updated: [], removed: [] };
 
 const chromeStub = {
   storage: {
@@ -72,9 +80,30 @@ const chromeStub = {
     clearAll: async () => true,
   },
   tabs: {
-    onUpdated: { addListener: () => undefined },
-    query: async () => [],
-    create: async () => ({ id: 1 }),
+    onCreated: {
+      addListener: (listener: (typeof tabListeners.created)[number]) => {
+        tabListeners.created.push(listener);
+      },
+    },
+    onUpdated: {
+      addListener: (listener: (typeof tabListeners.updated)[number]) => {
+        tabListeners.updated.push(listener);
+      },
+    },
+    onRemoved: {
+      addListener: (listener: (typeof tabListeners.removed)[number]) => {
+        tabListeners.removed.push(listener);
+      },
+    },
+    query: async (query: unknown) => {
+      tabQueries.push(query);
+      return [];
+    },
+    create: async ({ url }: { url: string }) => {
+      const tab = { id: createdTabs.length + 1, url };
+      createdTabs.push(tab);
+      return tab;
+    },
     update: async () => undefined,
   },
   runtime: {
@@ -133,6 +162,11 @@ beforeEach(() => {
   alarms.length = 0;
   downloads.length = 0;
   notifications.length = 0;
+  createdTabs.length = 0;
+  tabQueries.length = 0;
+  tabListeners.created.length = 0;
+  tabListeners.updated.length = 0;
+  tabListeners.removed.length = 0;
   vi.spyOn(console, 'warn').mockImplementation(() => undefined);
   vi.spyOn(console, 'info').mockImplementation(() => undefined);
 });
@@ -239,6 +273,77 @@ describe('auth messages', () => {
     });
 
     expect(response.ok).toBe(false);
+  });
+});
+
+describe('the AniList pin flow', () => {
+  const PIN_URL = `${ANILIST_PIN_URL_PREFIX}token-from-the-pin-page`;
+
+  const flush = (): Promise<void> =>
+    new Promise((resolve) => {
+      setTimeout(resolve, 0);
+    });
+
+  const driveTab = (tabId: number, url: string): void => {
+    for (const listener of tabListeners.updated) listener(tabId, { url });
+  };
+
+  const startFlow = async (): Promise<number> => {
+    await local.set({ anilistClientId: 'client-id' });
+    await sendOk({ type: 'auth.connect', providerId: 'anilist' });
+    const tab = createdTabs[0];
+    expect(tab, 'the worker opened no tab').toBeDefined();
+    return tab?.id ?? 0;
+  };
+
+  it('takes the token from the tab it opened', async () => {
+    await loadWorker();
+    const tabId = await startFlow();
+
+    driveTab(tabId, PIN_URL);
+    await flush();
+
+    const status = await sendOk({ type: 'auth.get_pin_token' });
+    expect(status.pinAvailable).toBe(true);
+  });
+
+  it('ignores a pin page in a tab it never opened', async () => {
+    await loadWorker();
+    await startFlow();
+
+    driveTab(4242, PIN_URL);
+    await flush();
+
+    const status = await sendOk({ type: 'auth.get_pin_token' });
+    expect(status.pinAvailable).toBe(false);
+
+    const completion = await sendOk({
+      type: 'auth.complete_pin_connect',
+      providerId: 'anilist',
+    });
+    expect(completion.snapshot).toMatchObject({ status: 'error' });
+  });
+
+  it('never looks through the open tabs for a token', async () => {
+    await loadWorker();
+    const tabId = await startFlow();
+
+    driveTab(tabId, PIN_URL);
+    await flush();
+
+    expect(tabQueries).toEqual([]);
+  });
+
+  it('reports a closed sign-in tab so the popup can ask for a retry', async () => {
+    await loadWorker();
+    const tabId = await startFlow();
+
+    for (const listener of tabListeners.removed) listener(tabId);
+    await flush();
+
+    const status = await sendOk({ type: 'auth.get_pin_token' });
+    expect(status.pinFlow).toBe('closed');
+    expect(status.pinAvailable).toBe(false);
   });
 });
 

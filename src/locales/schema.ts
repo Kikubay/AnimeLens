@@ -407,6 +407,7 @@ export interface AppCopy {
   readonly backgroundActionFailed: string;
   readonly pinFlowAniListOnly: string;
   readonly pinFlowNoTokenDetected: string;
+  readonly pinFlowTabClosed: string;
   readonly unknownProvider: string;
   readonly unknownSettingsAction: string;
   readonly syncProgressFetching: string;

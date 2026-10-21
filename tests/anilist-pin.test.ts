@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import {
-  ANILIST_PIN_URL_MATCH,
   ANILIST_PIN_URL_PREFIX,
   extractAnilistPinToken,
+  readAnilistPinTabRecord,
   readAnilistPinTokenRecord,
 } from '../src/auth/anilist-pin';
 
@@ -50,8 +50,8 @@ describe('readAnilistPinTokenRecord', () => {
     });
   });
 
-  it('accepts a record without a tab', () => {
-    expect(readAnilistPinTokenRecord({ token: 'abc' })).toEqual({ token: 'abc' });
+  it('rejects a record without a tab, because a token is only read from the tab the extension opened', () => {
+    expect(readAnilistPinTokenRecord({ token: 'abc' })).toBeNull();
   });
 
   it('rejects a non-string or empty token', () => {
@@ -61,16 +61,40 @@ describe('readAnilistPinTokenRecord', () => {
     expect(readAnilistPinTokenRecord('abc')).toBeNull();
   });
 
-  // Rejected outright rather than half-read, since the record feeds `tabs.update` and the caller's tab scan re-derives the token safely anyway.
   it('rejects the whole record when the tab id is not a number', () => {
     expect(readAnilistPinTokenRecord({ token: 'abc', tabId: '7' })).toBeNull();
     expect(readAnilistPinTokenRecord({ token: 'abc', tabId: null })).toBeNull();
   });
 });
 
+describe('readAnilistPinTabRecord', () => {
+  it('accepts a record naming an open tab', () => {
+    expect(readAnilistPinTabRecord({ tabId: 3, closed: false })).toEqual({
+      tabId: 3,
+      closed: false,
+    });
+  });
+
+  it('accepts a record naming a closed tab', () => {
+    expect(readAnilistPinTabRecord({ tabId: 3, closed: true })).toEqual({
+      tabId: 3,
+      closed: true,
+    });
+  });
+
+  it('treats a missing flag as an open tab', () => {
+    expect(readAnilistPinTabRecord({ tabId: 3 })).toEqual({ tabId: 3, closed: false });
+  });
+
+  it('rejects a record without a usable tab id', () => {
+    expect(readAnilistPinTabRecord({})).toBeNull();
+    expect(readAnilistPinTabRecord({ tabId: '3' })).toBeNull();
+    expect(readAnilistPinTabRecord(null)).toBeNull();
+  });
+});
+
 describe('pin url constants', () => {
-  it('keeps the match pattern aligned with the prefix it filters on', () => {
-    expect(ANILIST_PIN_URL_MATCH).toBe('https://anilist.co/api/v2/oauth/pin*');
+  it('keeps the prefix anchored to the pin page', () => {
     expect(ANILIST_PIN_URL_PREFIX.startsWith('https://anilist.co/api/v2/oauth/pin')).toBe(true);
   });
 });

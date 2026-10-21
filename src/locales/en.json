@@ -419,6 +419,7 @@
     "backgroundActionFailed": "Something went wrong.",
     "pinFlowAniListOnly": "The AniList authorization-code flow is only available for AniList.",
     "pinFlowNoTokenDetected": "No AniList token was found. Finish the sign-in page, or paste the token manually.",
+    "pinFlowTabClosed": "The AniList sign-in tab was closed before it could finish. Start the sign-in again.",
     "unknownProvider": "Unknown provider.",
     "unknownSettingsAction": "Unknown settings action.",
     "syncProgressFetching": "Analyzing your list…",

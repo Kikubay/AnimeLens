@@ -72,9 +72,10 @@ import {
   completeAniListPinSignIn,
   connectProvider,
   disconnectProvider,
-  requestAnilistPinAvailability,
+  requestAnilistPinStatus,
   setActiveProvider,
 } from '../auth/auth-messages';
+import type { AnilistPinFlowState } from '../auth/anilist-pin';
 import type { ProviderId } from '../auth/auth-types';
 import type { ProviderStatusView } from '../settings/settings-types';
 import {
@@ -1626,6 +1627,7 @@ export function SettingsPage({
   const [providerActionInFlight, setProviderActionInFlight] = useState<ProviderId | null>(null);
   // Only whether a token is waiting, never the token itself: it stays in the worker.
   const [pinTokenAvailable, setPinTokenAvailable] = useState(false);
+  const [pinFlowState, setPinFlowState] = useState<AnilistPinFlowState>('idle');
 
   const canAutoDetectPinToken = !isDesktopHost();
 
@@ -1690,16 +1692,21 @@ export function SettingsPage({
   useEffect(() => {
     if (anilistSignedIn || !canAutoDetectPinToken) {
       setPinTokenAvailable(false);
+      setPinFlowState('idle');
       return;
     }
     let disposed = false;
     const detectPinTab = () => {
-      void requestAnilistPinAvailability()
-        .then((available) => {
-          if (!disposed) setPinTokenAvailable(available);
+      void requestAnilistPinStatus()
+        .then((status) => {
+          if (disposed) return;
+          setPinTokenAvailable(status.available);
+          setPinFlowState(status.state);
         })
         .catch(() => {
-          if (!disposed) setPinTokenAvailable(false);
+          if (disposed) return;
+          setPinTokenAvailable(false);
+          setPinFlowState('idle');
         });
     };
     detectPinTab();
@@ -2093,10 +2100,18 @@ export function SettingsPage({
           />
         ))}
 
-        {(canAutoDetectPinToken ? pinTokenAvailable : pinFlowActive || pinTokenAvailable) &&
+        {(canAutoDetectPinToken
+          ? pinTokenAvailable || pinFlowState === 'closed'
+          : pinFlowActive || pinTokenAvailable) &&
           !anilistSignedIn && (
             <div className="pin-signin-panel">
-              <p>{pinTokenAvailable ? copy.pinDetected : copy.pinPastePrompt}</p>
+              <p>
+                {pinTokenAvailable
+                  ? copy.pinDetected
+                  : pinFlowState === 'closed'
+                    ? copy.pinFlowTabClosed
+                    : copy.pinPastePrompt}
+              </p>
               {!canAutoDetectPinToken && (
                 <input
                   className="mal-client-id-input"
