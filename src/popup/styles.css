@@ -39,6 +39,13 @@
   --skeleton-shine: #25252b;
   --line-strong: #4a4852;
 
+  --font-2xs: 9px;
+  --font-xs: 10px;
+  --font-sm: 11px;
+  --font-md: 12px;
+  --font-lg: 13px;
+  --font-xl: 14px;
+
   --popup-content-width: 700px;
   --page-exit-duration: 120ms;
   --page-enter-duration: 200ms;
@@ -148,11 +155,11 @@ button:focus-visible {
   gap: 3px;
 }
 .update-banner strong {
-  font-size: 9px;
+  font-size: var(--font-sm);
 }
 .update-banner span {
   color: var(--muted);
-  font-size: 8px;
+  font-size: var(--font-xs);
 }
 .update-banner-action {
   flex: 0 0 auto;
@@ -162,7 +169,7 @@ button:focus-visible {
   color: var(--text);
   background: var(--accent-strong);
   cursor: pointer;
-  font-size: 8px;
+  font-size: var(--font-xs);
 }
 .update-banner-action:hover {
   filter: brightness(1.08);
@@ -184,7 +191,7 @@ button:focus-visible {
   background: none;
   color: var(--muted);
   font-family: inherit;
-  font-size: 8px;
+  font-size: var(--font-xs);
   text-decoration: underline;
   cursor: pointer;
 }
@@ -216,7 +223,7 @@ button:focus-visible {
   letter-spacing: -0.04em;
 }
 .brand-badge {
-  font-size: 10px;
+  font-size: var(--font-sm);
   font-weight: 700;
   line-height: 1;
   letter-spacing: 0.02em;
@@ -243,7 +250,7 @@ button:focus-visible {
   gap: 5px;
   color: var(--success);
   font-family: ui-monospace, monospace;
-  font-size: 9px;
+  font-size: var(--font-sm);
   letter-spacing: 0.08em;
   text-transform: uppercase;
 }
@@ -269,7 +276,7 @@ button:focus-visible {
   margin: 0;
   color: var(--dim);
   font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
-  font-size: 9px;
+  font-size: var(--font-xs);
   letter-spacing: 0.12em;
   line-height: 1.4;
   text-transform: uppercase;
@@ -286,7 +293,7 @@ button:focus-visible {
 .page-title > p:last-child {
   margin: 0;
   color: var(--muted);
-  font-size: 12px;
+  font-size: var(--font-xl);
   line-height: 1.55;
 }
 .auth-strip {
@@ -304,7 +311,7 @@ button:focus-visible {
 .auth-strip-status,
 .auth-strip-copy {
   color: var(--muted);
-  font-size: 9px;
+  font-size: var(--font-sm);
 }
 .auth-strip-status {
   display: inline-flex;
@@ -328,14 +335,14 @@ button:focus-visible {
 .auth-error {
   margin: 9px 0 0 !important;
   color: var(--danger) !important;
-  font-size: 9px !important;
+  font-size: var(--font-sm) !important;
   line-height: 1.4 !important;
 }
 
 .auth-hint {
   margin: 5px 0 0 !important;
   color: var(--muted) !important;
-  font-size: 9px !important;
+  font-size: var(--font-sm) !important;
   line-height: 1.4 !important;
 }
 .sync-panel {
@@ -373,12 +380,12 @@ button:focus-visible {
 }
 .sync-panel-copy strong {
   color: var(--text);
-  font-size: 9px;
+  font-size: var(--font-sm);
   font-weight: 600;
 }
 .sync-panel-copy span:last-child {
   color: var(--muted);
-  font-size: 8px;
+  font-size: var(--font-xs);
 }
 .sync-panel-actions {
   display: flex;
@@ -388,7 +395,7 @@ button:focus-visible {
 }
 .sync-error-text {
   color: var(--danger);
-  font-size: 8px;
+  font-size: var(--font-xs);
 }
 .status-dot {
   width: 6px;
@@ -431,7 +438,7 @@ button:focus-visible {
   border: 0;
   color: var(--text);
   background: none;
-  font-size: 10px;
+  font-size: var(--font-md);
   outline: none;
   appearance: none;
 }
@@ -462,7 +469,7 @@ button:focus-visible {
 .anime-search-hint {
   margin: 6px 0 0;
   color: var(--dim);
-  font-size: 8px;
+  font-size: var(--font-xs);
   line-height: 1.4;
 }
 .anime-search-suggestions {
@@ -491,7 +498,7 @@ button:focus-visible {
   border-radius: 5px;
   color: var(--muted);
   cursor: pointer;
-  font-size: 9px;
+  font-size: var(--font-sm);
 }
 .anime-search-suggestion:hover,
 .anime-search-suggestion[aria-selected='true'] {
@@ -504,7 +511,7 @@ button:focus-visible {
 .anime-search-suggestion-kind {
   flex: 0 0 auto;
   color: var(--dim);
-  font-size: 8px;
+  font-size: var(--font-xs);
   letter-spacing: 0.04em;
   text-transform: uppercase;
 }
@@ -546,8 +553,8 @@ button:focus-visible {
   position: relative;
   display: block;
   flex: 0 0 auto;
-  width: 34px;
-  height: 46px;
+  width: 40px;
+  height: 54px;
   overflow: hidden;
   border-radius: 6px;
   background: linear-gradient(
@@ -568,7 +575,7 @@ button:focus-visible {
   overflow: hidden;
   padding: 3px;
   color: var(--text);
-  font-size: 7px;
+  font-size: var(--font-2xs);
   line-height: 1.25;
   text-align: center;
   -webkit-box-orient: vertical;
@@ -583,7 +590,7 @@ button:focus-visible {
 .anime-search-result-title {
   overflow: hidden;
   color: var(--text);
-  font-size: 11px;
+  font-size: var(--font-lg);
   font-weight: 600;
   letter-spacing: -0.02em;
   text-overflow: ellipsis;
@@ -592,7 +599,7 @@ button:focus-visible {
 .anime-search-result-meta {
   overflow: hidden;
   color: var(--muted);
-  font-size: 8px;
+  font-size: var(--font-xs);
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -648,7 +655,7 @@ button:focus-visible {
   background: transparent;
   color: var(--muted);
   font-family: inherit;
-  font-size: 8px;
+  font-size: var(--font-xs);
   letter-spacing: 0.04em;
   cursor: pointer;
   transition:
@@ -671,7 +678,7 @@ button:focus-visible {
   gap: 4px;
 }
 .anime-search-sort-trigger {
-  font-size: 8px;
+  font-size: var(--font-xs);
 }
 .anime-search-sort-direction {
   display: inline-flex;
@@ -821,14 +828,14 @@ button:focus-visible {
   left: 14px;
   color: rgb(255 255 255 / 65%);
   font-family: ui-monospace, monospace;
-  font-size: 9px;
+  font-size: var(--font-sm);
 }
 .featured-poster-mark {
   top: auto;
   bottom: 14px;
   left: auto;
   right: 14px;
-  font-size: 8px;
+  font-size: var(--font-xs);
 }
 .poster-noise {
   position: absolute;
@@ -848,7 +855,7 @@ button:focus-visible {
   color: var(--muted);
   background: var(--chip-bg);
   font-family: ui-monospace, monospace;
-  font-size: 8px;
+  font-size: var(--font-xs);
   letter-spacing: 0.06em;
   line-height: 1;
   text-transform: uppercase;
@@ -908,7 +915,7 @@ button:focus-visible {
 }
 .featured-topline-note {
   color: var(--dim);
-  font-size: 9px;
+  font-size: var(--font-sm);
 }
 .featured-copy h2 {
   margin: 14px 0 4px;
@@ -920,7 +927,7 @@ button:focus-visible {
 .featured-subtitle {
   margin: 0;
   color: var(--muted);
-  font-size: 9px;
+  font-size: var(--font-sm);
 }
 .featured-subtitle span {
   color: var(--dim);
@@ -930,7 +937,7 @@ button:focus-visible {
   margin: 16px 0 15px;
   overflow: hidden;
   color: var(--text-secondary);
-  font-size: 10px;
+  font-size: var(--font-md);
   line-height: 1.55;
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 3;
@@ -980,11 +987,11 @@ button:focus-visible {
 .score-ring small {
   margin-top: 4px;
   color: var(--muted);
-  font-size: 8px;
+  font-size: var(--font-xs);
 }
 .score-caption {
   color: var(--muted);
-  font-size: 9px;
+  font-size: var(--font-sm);
 }
 .is-compact {
   gap: 0;
@@ -997,7 +1004,7 @@ button:focus-visible {
   inset: 2px;
 }
 .is-compact .score-ring span {
-  font-size: 11px;
+  font-size: var(--font-md);
 }
 .is-compact .score-ring small {
   display: none;
@@ -1030,17 +1037,17 @@ button:focus-visible {
 .button-sm {
   min-height: 31px;
   padding: 0 10px;
-  font-size: 10px;
+  font-size: var(--font-sm);
 }
 .button-md {
   min-height: 38px;
   padding: 0 14px;
-  font-size: 11px;
+  font-size: var(--font-md);
 }
 .button-lg {
   min-height: 44px;
   padding: 0 18px;
-  font-size: 12px;
+  font-size: var(--font-lg);
 }
 .button-primary {
   color: var(--on-accent);
@@ -1107,13 +1114,13 @@ button:focus-visible {
   border-radius: 10px;
   color: var(--dim);
   background: rgb(255 255 255 / 2%);
-  font-size: 9px;
+  font-size: var(--font-sm);
   text-align: center;
 }
 .section-count {
   color: var(--dim);
   font-family: ui-monospace, monospace;
-  font-size: 8px;
+  font-size: var(--font-xs);
 }
 .offline-banner {
   display: flex;
@@ -1125,7 +1132,7 @@ button:focus-visible {
   border-radius: 8px;
   color: var(--warning);
   background: rgb(226 179 124 / 7%);
-  font-size: 9px;
+  font-size: var(--font-sm);
   line-height: 1.4;
 }
 .offline-banner .status-dot {
@@ -1153,7 +1160,7 @@ button:focus-visible {
   color: var(--dim);
   background: none;
   cursor: pointer;
-  font-size: 10px;
+  font-size: var(--font-md);
 }
 .tab::after {
   position: absolute;
@@ -1265,7 +1272,7 @@ button:focus-visible {
   margin: 0 0 5px;
   color: var(--dim);
   font-family: ui-monospace, monospace;
-  font-size: 7px;
+  font-size: var(--font-2xs);
   letter-spacing: 0.05em;
   line-height: 1.2;
 }
@@ -1273,7 +1280,7 @@ button:focus-visible {
   margin: 0;
   overflow: hidden;
   color: var(--text);
-  font-size: 12px;
+  font-size: var(--font-lg);
   letter-spacing: -0.04em;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -1283,14 +1290,14 @@ button:focus-visible {
   gap: 5px;
   margin-top: 8px;
   color: var(--dim);
-  font-size: 8px;
+  font-size: var(--font-xs);
 }
 .rating {
   display: inline-flex;
   align-items: center;
   gap: 3px;
   color: var(--warning);
-  font-size: 9px;
+  font-size: var(--font-sm);
 }
 .rating svg {
   fill: currentColor;
@@ -1303,7 +1310,7 @@ button:focus-visible {
   margin: 8px 0 0;
   overflow: hidden;
   color: var(--muted);
-  font-size: 9px;
+  font-size: var(--font-sm);
   line-height: 1.4;
 }
 .anime-reason svg {
@@ -1337,7 +1344,7 @@ button:focus-visible {
   color: var(--muted);
   background: var(--surface);
   cursor: pointer;
-  font-size: 9px;
+  font-size: var(--font-sm);
 }
 .dropdown-trigger:hover {
   color: var(--text);
@@ -1366,7 +1373,7 @@ button:focus-visible {
   color: var(--muted);
   background: transparent;
   cursor: pointer;
-  font-size: 9px;
+  font-size: var(--font-sm);
   text-align: left;
 }
 .dropdown-option:hover,
@@ -1391,7 +1398,7 @@ button:focus-visible {
   color: var(--text);
   background: var(--overlay);
   content: attr(data-tooltip);
-  font-size: 8px;
+  font-size: var(--font-xs);
   opacity: 0;
   pointer-events: none;
   transform: translateY(3px);
@@ -1430,7 +1437,7 @@ button:focus-visible {
   color: var(--dim);
   background: transparent;
   cursor: pointer;
-  font-size: 9px;
+  font-size: var(--font-sm);
   transition: color 150ms ease;
 }
 .bottom-nav button:hover,
@@ -1453,7 +1460,7 @@ button:focus-visible {
   color: var(--text);
   background: var(--overlay);
   box-shadow: 0 12px 30px rgb(0 0 0 / 35%);
-  font-size: 10px;
+  font-size: var(--font-md);
   animation: toast-in 220ms ease both;
   transition:
     opacity 260ms ease,
@@ -1500,7 +1507,7 @@ button:focus-visible {
   color: var(--muted);
   background: none;
   cursor: pointer;
-  font-size: 10px;
+  font-size: var(--font-sm);
 }
 .back-link:hover {
   color: var(--text);
@@ -1528,7 +1535,7 @@ button:focus-visible {
   margin: 0 0 7px;
   overflow: hidden;
   color: var(--dim);
-  font-size: 9px;
+  font-size: var(--font-sm);
   font-style: italic;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -1536,7 +1543,7 @@ button:focus-visible {
 .detail-lede {
   margin: 0;
   color: var(--muted);
-  font-size: 10px;
+  font-size: var(--font-md);
   line-height: 1.55;
 }
 .detail-inline {
@@ -1544,7 +1551,7 @@ button:focus-visible {
   gap: 6px;
   margin-top: 13px;
   color: var(--dim);
-  font-size: 9px;
+  font-size: var(--font-sm);
 }
 .detail-info-card {
   margin-top: 18px;
@@ -1563,14 +1570,14 @@ button:focus-visible {
   margin-bottom: 4px;
   color: var(--dim);
   font-family: ui-monospace, monospace;
-  font-size: 8px;
+  font-size: var(--font-xs);
   text-transform: uppercase;
 }
 .detail-info-item strong {
   display: block;
   overflow: hidden;
   color: var(--text);
-  font-size: 9px;
+  font-size: var(--font-sm);
   font-weight: 600;
   line-height: 1.35;
   text-overflow: ellipsis;
@@ -1603,7 +1610,7 @@ button:focus-visible {
   border-radius: 999px;
   color: var(--muted);
   background: var(--surface);
-  font-size: 9px;
+  font-size: var(--font-sm);
   text-decoration: none;
 }
 .streaming-link:hover {
@@ -1622,7 +1629,7 @@ button:focus-visible {
   align-items: flex-start;
   gap: 7px;
   color: var(--muted);
-  font-size: 10px;
+  font-size: var(--font-md);
   line-height: 1.45;
 }
 .detail-reason svg {
@@ -1641,7 +1648,7 @@ button:focus-visible {
   color: var(--muted);
   background: none;
   cursor: pointer;
-  font-size: 9px;
+  font-size: var(--font-sm);
   text-decoration: underline;
   text-underline-offset: 3px;
 }
@@ -1665,7 +1672,7 @@ button:focus-visible {
 .why-card > p {
   margin: 12px 0;
   color: var(--muted);
-  font-size: 10px;
+  font-size: var(--font-md);
   line-height: 1.55;
 }
 .reason-tags {
@@ -1687,7 +1694,7 @@ button:focus-visible {
 .detail-score-row p:last-child {
   margin: 0;
   color: var(--muted);
-  font-size: 9px;
+  font-size: var(--font-sm);
 }
 .detail-actions {
   display: flex;
@@ -1710,7 +1717,7 @@ button:focus-visible {
 .mal-list-error,
 .mal-list-hint {
   margin: 8px 0 0;
-  font-size: 9px;
+  font-size: var(--font-sm);
   line-height: 1.45;
   text-align: center;
 }
@@ -1737,7 +1744,7 @@ button:focus-visible {
   margin: 0 0 10px;
   color: var(--dim);
   font-family: ui-monospace, monospace;
-  font-size: 9px;
+  font-size: var(--font-sm);
 }
 .recap-stats {
   display: grid;
@@ -1761,13 +1768,13 @@ button:focus-visible {
   display: block;
   margin-top: 2px;
   color: var(--muted);
-  font-size: 8px;
+  font-size: var(--font-xs);
   line-height: 1.3;
 }
 .recap-average {
   margin: 11px 0 0;
   color: var(--success);
-  font-size: 10px;
+  font-size: var(--font-md);
   line-height: 1.3;
 }
 .taste-level-hero {
@@ -1785,7 +1792,7 @@ button:focus-visible {
 .taste-level-hero span {
   color: var(--muted);
   font-family: ui-monospace, monospace;
-  font-size: 10px;
+  font-size: var(--font-md);
 }
 .taste-level-next {
   display: flex;
@@ -1794,7 +1801,7 @@ button:focus-visible {
   gap: 8px;
   margin-top: 10px;
   color: var(--dim);
-  font-size: 9px;
+  font-size: var(--font-sm);
   line-height: 1.3;
 }
 .taste-level-sources {
@@ -1813,13 +1820,13 @@ button:focus-visible {
   justify-content: space-between;
   gap: 8px;
   color: var(--muted);
-  font-size: 10px;
+  font-size: var(--font-md);
   line-height: 1.3;
 }
 .taste-level-source strong {
   color: var(--cyan);
   font-family: ui-monospace, monospace;
-  font-size: 10px;
+  font-size: var(--font-md);
   font-weight: 600;
   line-height: 1.3;
 }
@@ -1855,7 +1862,7 @@ button:focus-visible {
 .profile-muted {
   margin: 0;
   color: var(--muted);
-  font-size: 9px;
+  font-size: var(--font-sm);
   line-height: 1.5;
 }
 .detected-list {
@@ -1873,19 +1880,19 @@ button:focus-visible {
 .detected-item strong {
   display: block;
   color: var(--text);
-  font-size: 10px;
+  font-size: var(--font-md);
 }
 .detected-item p {
   margin: 3px 0 0;
   color: var(--muted);
-  font-size: 8px;
+  font-size: var(--font-xs);
   line-height: 1.4;
 }
 .detected-score {
   margin-left: auto;
   color: var(--accent);
   font-family: ui-monospace, monospace;
-  font-size: 9px;
+  font-size: var(--font-sm);
 }
 .detected-item.is-locked .feedback-positive {
   color: var(--dim);
@@ -1919,7 +1926,7 @@ button:focus-visible {
 .collection-slot-label {
   margin: 0;
   color: var(--muted);
-  font-size: 8px;
+  font-size: var(--font-xs);
   letter-spacing: 0.08em;
   text-transform: uppercase;
 }
@@ -1938,7 +1945,7 @@ button:focus-visible {
   background: var(--surface-raised);
   cursor: pointer;
   font-family: inherit;
-  font-size: 9px;
+  font-size: var(--font-sm);
   text-align: left;
   transition:
     border-color 160ms ease,
@@ -1959,7 +1966,7 @@ button:focus-visible {
   align-items: center;
   gap: 4px;
   color: var(--dim);
-  font-size: 8px;
+  font-size: var(--font-xs);
 }
 .collection-item.is-equipped {
   border-color: var(--accent);
@@ -1984,7 +1991,7 @@ button:focus-visible {
   gap: 8px;
   margin-top: 8px;
   color: var(--dim);
-  font-size: 8px;
+  font-size: var(--font-xs);
 }
 .profile-hero .icon-button {
   margin-left: auto;
@@ -2000,12 +2007,12 @@ button:focus-visible {
   color: var(--accent);
   background: var(--accent-well);
   font-family: ui-monospace, monospace;
-  font-size: 11px;
+  font-size: var(--font-md);
 }
 .avatar-small {
   width: 32px;
   height: 32px;
-  font-size: 8px;
+  font-size: var(--font-xs);
 }
 .profile-hero h2 {
   margin: 4px 0;
@@ -2015,7 +2022,7 @@ button:focus-visible {
 .profile-hero p:last-child {
   margin: 0;
   color: var(--muted);
-  font-size: 9px;
+  font-size: var(--font-sm);
 }
 .taste-card {
   padding: 15px;
@@ -2042,7 +2049,7 @@ button:focus-visible {
   display: block;
   margin-top: 2px;
   color: var(--muted);
-  font-size: 8px;
+  font-size: var(--font-xs);
 }
 .taste-bars {
   display: grid;
@@ -2052,7 +2059,7 @@ button:focus-visible {
   justify-content: space-between;
   margin-bottom: 5px;
   color: var(--muted);
-  font-size: 9px;
+  font-size: var(--font-sm);
 }
 .bar-label span:last-child {
   color: var(--dim);
@@ -2097,12 +2104,12 @@ button:focus-visible {
   background: rgb(136 198 158 / 10%);
 }
 .feedback-row strong {
-  font-size: 10px;
+  font-size: var(--font-md);
 }
 .feedback-row p {
   margin: 3px 0 0;
   color: var(--muted);
-  font-size: 8px;
+  font-size: var(--font-xs);
 }
 .feedback-row button {
   margin-left: auto;
@@ -2111,7 +2118,7 @@ button:focus-visible {
   color: var(--dim);
   background: none;
   cursor: pointer;
-  font-size: 8px;
+  font-size: var(--font-xs);
 }
 .feedback-row button:hover {
   color: var(--danger-hover);
@@ -2178,14 +2185,14 @@ button:focus-visible {
 .settings-overview-main strong {
   overflow: hidden;
   color: var(--text);
-  font-size: 10px;
+  font-size: var(--font-md);
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 .settings-overview-main span:last-child,
 .settings-overview-mode span {
   color: var(--muted);
-  font-size: 8px;
+  font-size: var(--font-xs);
 }
 .settings-overview-mode {
   flex: 0 0 auto;
@@ -2195,7 +2202,7 @@ button:focus-visible {
 .settings-overview-mode strong {
   color: var(--accent);
   font-family: ui-monospace, monospace;
-  font-size: 8px;
+  font-size: var(--font-xs);
   letter-spacing: 0.04em;
   text-transform: uppercase;
 }
@@ -2228,12 +2235,12 @@ button:focus-visible {
 }
 .mal-config-panel strong {
   display: block;
-  font-size: 10px;
+  font-size: var(--font-md);
 }
 .mal-config-panel p {
   margin: 4px 0 0;
   color: var(--muted);
-  font-size: 8px;
+  font-size: var(--font-xs);
   line-height: 1.45;
 }
 .mal-client-id-input {
@@ -2244,7 +2251,7 @@ button:focus-visible {
   color: var(--text);
   background: var(--surface-raised);
   font-family: ui-monospace, monospace;
-  font-size: 9px;
+  font-size: var(--font-sm);
 }
 .mal-client-id-input:focus {
   border-color: var(--accent);
@@ -2256,7 +2263,7 @@ button:focus-visible {
 }
 .mal-redirect-row span {
   color: var(--dim);
-  font-size: 8px;
+  font-size: var(--font-xs);
 }
 .mal-redirect-row code {
   display: block;
@@ -2266,7 +2273,7 @@ button:focus-visible {
   border-radius: 6px;
   color: var(--cyan);
   background: rgb(0 0 0 / 12%);
-  font-size: 8px;
+  font-size: var(--font-xs);
   white-space: nowrap;
 }
 .setting-row {
@@ -2303,11 +2310,11 @@ button:focus-visible {
 .pin-signin-panel p {
   margin: 0;
   color: var(--muted);
-  font-size: 8px;
+  font-size: var(--font-xs);
   line-height: 1.5;
 }
 .pin-signin-panel .mal-client-id-input {
-  font-size: 9px;
+  font-size: var(--font-sm);
 }
 .pin-signin-panel .provider-actions {
   justify-content: flex-start;
@@ -2324,12 +2331,12 @@ button:focus-visible {
 }
 .setting-row strong {
   display: block;
-  font-size: 10px;
+  font-size: var(--font-md);
 }
 .setting-row p {
   margin: 4px 0 0;
   color: var(--muted);
-  font-size: 8px;
+  font-size: var(--font-xs);
   line-height: 1.45;
 }
 .visually-hidden {
@@ -2407,12 +2414,12 @@ button:focus-visible {
 .mode-setting strong {
   display: block;
   color: var(--text);
-  font-size: 10px;
+  font-size: var(--font-md);
 }
 .mode-setting p {
   margin: 4px 0 0;
   color: var(--muted);
-  font-size: 8px;
+  font-size: var(--font-xs);
   line-height: 1.45;
 }
 .segmented-control {
@@ -2430,7 +2437,7 @@ button:focus-visible {
   color: var(--muted);
   background: transparent;
   cursor: pointer;
-  font-size: 8px;
+  font-size: var(--font-xs);
   transition:
     color 160ms ease,
     background 160ms ease;
@@ -2462,7 +2469,7 @@ button:focus-visible {
 .settings-note {
   margin: 9px 13px 0;
   color: var(--dim);
-  font-size: 8px;
+  font-size: var(--font-xs);
   line-height: 1.5;
 }
 .blacklist-editor {
@@ -2473,13 +2480,13 @@ button:focus-visible {
 .blacklist-heading strong {
   display: block;
   color: var(--text);
-  font-size: 10px;
+  font-size: var(--font-md);
 }
 .blacklist-heading p,
 .blacklist-empty {
   margin: 4px 0 0;
   color: var(--muted);
-  font-size: 8px;
+  font-size: var(--font-xs);
   line-height: 1.45;
 }
 .blacklist-kind {
@@ -2498,7 +2505,7 @@ button:focus-visible {
   color: var(--muted);
   background: transparent;
   cursor: pointer;
-  font-size: 8px;
+  font-size: var(--font-xs);
 }
 .blacklist-kind button:hover,
 .blacklist-kind button.is-selected {
@@ -2516,7 +2523,7 @@ button:focus-visible {
   border-radius: 7px;
   color: var(--text);
   background: var(--surface-raised);
-  font-size: 9px;
+  font-size: var(--font-sm);
 }
 .blacklist-search::placeholder {
   color: var(--dim);
@@ -2547,7 +2554,7 @@ button:focus-visible {
   color: var(--muted);
   background: transparent;
   cursor: pointer;
-  font-size: 9px;
+  font-size: var(--font-sm);
   text-align: left;
 }
 .blacklist-suggestions button:hover,
@@ -2570,7 +2577,7 @@ button:focus-visible {
   color: var(--danger);
   background: rgb(226 154 154 / 7%);
   cursor: pointer;
-  font-size: 8px;
+  font-size: var(--font-xs);
 }
 .blacklist-tag:hover {
   border-color: rgb(226 154 154 / 60%);
@@ -2587,12 +2594,12 @@ button:focus-visible {
   gap: 9px;
 }
 .account-row strong {
-  font-size: 10px;
+  font-size: var(--font-md);
 }
 .account-row p {
   margin: 3px 0 0;
   color: var(--muted);
-  font-size: 8px;
+  font-size: var(--font-xs);
 }
 .account-row .badge {
   margin-left: auto;
@@ -2607,7 +2614,7 @@ button:focus-visible {
 .helper-copy {
   margin: 0 0 12px;
   color: var(--muted);
-  font-size: 9px;
+  font-size: var(--font-sm);
 }
 .state-panel {
   display: flex;
@@ -2629,7 +2636,7 @@ button:focus-visible {
   max-width: 240px;
   margin: 0 0 13px;
   color: var(--muted);
-  font-size: 9px;
+  font-size: var(--font-sm);
   line-height: 1.5;
 }
 .error-state {
@@ -2647,7 +2654,7 @@ button:focus-visible {
 }
 .crash-details {
   color: var(--dim);
-  font-size: 9px;
+  font-size: var(--font-sm);
   line-height: 1.5;
 }
 .crash-details summary {
@@ -2700,7 +2707,7 @@ button:focus-visible {
 .modal-copy {
   margin: 22px 0;
   color: var(--muted);
-  font-size: 11px;
+  font-size: var(--font-lg);
   line-height: 1.6;
 }
 .dislike-reason-options {
@@ -2718,7 +2725,7 @@ button:focus-visible {
   color: var(--muted);
   background: var(--surface-raised);
   cursor: pointer;
-  font-size: 10px;
+  font-size: var(--font-md);
   line-height: 1.4;
 }
 .dislike-reason-option:hover,
@@ -3007,7 +3014,7 @@ button:focus-visible {
   border-radius: 8px;
   color: var(--warning);
   background: rgb(226 179 124 / 10%);
-  font-size: 9px;
+  font-size: var(--font-sm);
   line-height: 1.5;
 }
 
@@ -3038,19 +3045,19 @@ button:focus-visible {
   display: grid;
   place-items: center;
   flex: 0 0 auto;
-  width: 18px;
-  height: 18px;
+  width: 21px;
+  height: 21px;
   border-radius: 50%;
   color: var(--accent);
   background: rgb(184 165 255 / 14%);
-  font-size: 9px;
+  font-size: var(--font-sm);
   font-weight: 700;
 }
 .top-picks-slot-title {
   flex: 1 1 auto;
   min-width: 0;
   overflow: hidden;
-  font-size: 10px;
+  font-size: var(--font-md);
   font-weight: 600;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -3058,13 +3065,13 @@ button:focus-visible {
 .top-picks-slot-score {
   flex: 0 0 auto;
   color: var(--cyan);
-  font-size: 10px;
+  font-size: var(--font-md);
   font-weight: 700;
 }
 .top-picks-slot-empty {
   flex: 1 1 auto;
   color: var(--muted);
-  font-size: 9px;
+  font-size: var(--font-sm);
   font-weight: 600;
 }
 .top-picks-candidates {
@@ -3128,7 +3135,7 @@ button:focus-visible {
   flex: 1 1 auto;
   min-width: 0;
   overflow: hidden;
-  font-size: 10px;
+  font-size: var(--font-md);
   font-weight: 500;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -3138,7 +3145,7 @@ button:focus-visible {
 
   min-width: 20px;
   color: var(--cyan);
-  font-size: 10px;
+  font-size: var(--font-md);
   font-weight: 700;
   text-align: left;
 }
@@ -3149,7 +3156,7 @@ button:focus-visible {
 .top-picks-hint {
   margin: 10px 0 0;
   color: var(--dim);
-  font-size: 8px;
+  font-size: var(--font-xs);
   line-height: 1.5;
 }
 .top-picks-empty {
@@ -3201,19 +3208,19 @@ button:focus-visible {
   display: grid;
   place-items: center;
   flex: 0 0 auto;
-  width: 14px;
-  height: 14px;
+  width: 17px;
+  height: 17px;
   border-radius: 50%;
   color: var(--accent);
   background: rgb(184 165 255 / 16%);
-  font-size: 8px;
+  font-size: var(--font-xs);
   font-weight: 700;
 }
 .grid-slot-title {
   flex: 1 1 auto;
   min-width: 0;
   overflow: hidden;
-  font-size: 8px;
+  font-size: var(--font-xs);
   font-weight: 600;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -3221,7 +3228,7 @@ button:focus-visible {
 .grid-slot-empty {
   flex: 1 1 auto;
   color: var(--dim);
-  font-size: 8px;
+  font-size: var(--font-xs);
 }
 .grid-hint {
   display: flex;
@@ -3230,7 +3237,7 @@ button:focus-visible {
   gap: 8px;
   margin: 0 0 8px;
   color: var(--muted);
-  font-size: 8px;
+  font-size: var(--font-xs);
 }
 .grid-hint-clear {
   flex: 0 0 auto;
@@ -3240,7 +3247,7 @@ button:focus-visible {
   color: var(--muted);
   background: transparent;
   cursor: pointer;
-  font-size: 8px;
+  font-size: var(--font-xs);
 }
 .grid-hint-clear:hover {
   color: var(--text);
@@ -3261,7 +3268,7 @@ button:focus-visible {
   border-radius: 8px;
   color: var(--muted);
   background: rgb(184 165 255 / 8%);
-  font-size: 9px;
+  font-size: var(--font-sm);
   line-height: 1.5;
 }
 .taste-card-options {
@@ -3275,7 +3282,7 @@ button:focus-visible {
 .taste-card-options legend {
   padding: 0 5px;
   color: var(--muted);
-  font-size: 8px;
+  font-size: var(--font-xs);
   font-weight: 700;
   letter-spacing: 0.08em;
   text-transform: uppercase;
@@ -3290,7 +3297,7 @@ button:focus-visible {
 .taste-card-option > span {
   min-width: 0;
   color: var(--text);
-  font-size: 9px;
+  font-size: var(--font-sm);
 }
 .taste-card-slider {
   display: grid;
@@ -3304,7 +3311,7 @@ button:focus-visible {
 }
 .taste-card-layouts-label {
   color: var(--text);
-  font-size: 9px;
+  font-size: var(--font-sm);
 }
 .taste-card-layouts .segmented-control button:disabled {
   cursor: not-allowed;
@@ -3330,7 +3337,7 @@ button:focus-visible {
   background: transparent;
   cursor: pointer;
   font-family: inherit;
-  font-size: 8px;
+  font-size: var(--font-xs);
 }
 .taste-card-style:hover:not(:disabled) {
   color: var(--text);
@@ -3391,7 +3398,7 @@ button:focus-visible {
   justify-content: space-between;
   gap: 8px;
   color: var(--text);
-  font-size: 9px;
+  font-size: var(--font-sm);
 }
 .taste-card-slider strong {
   color: var(--accent);
