@@ -16,6 +16,8 @@ import type {
 const MAX_DASHBOARD_RECOMMENDATIONS = 100;
 const MAX_SECTION_RECOMMENDATIONS = 24;
 
+const HIDDEN_GEM_SECTION_ID: RecommendationSectionId = 'hidden-gem';
+
 const SECTION_DEFINITIONS: readonly {
   readonly id: RecommendationSectionId;
   readonly categories: readonly RecommendationCategory[];
@@ -82,7 +84,7 @@ export async function buildDashboardRecommendationSnapshot(
       language: preferences.language,
     },
   );
-  const sections = createSections(recommendations);
+  const sections = createSections(recommendations, preferences.includeHiddenGems);
   const daily = recommendations[0] ?? null;
   const hasNoData = entries.length === 0;
   const status =
@@ -105,11 +107,12 @@ export async function buildDashboardRecommendationSnapshot(
 
 export function createEmptyDashboardRecommendationSnapshot(
   sync: SyncMetadata | null = null,
+  includeHiddenGems: boolean = true,
 ): DashboardRecommendationSnapshot {
   return {
     status: sync?.status === 'offline' ? 'offline' : 'empty',
     daily: null,
-    sections: createSections([]),
+    sections: createSections([], includeHiddenGems),
     analyzedCount: 0,
     generatedAt: null,
     sync,
@@ -130,12 +133,26 @@ export function withCurrentSync(
   return { ...snapshot, status, sync };
 }
 
-function createSections(recommendations: readonly Recommendation[]): RecommendationSection[] {
-  return SECTION_DEFINITIONS.map((definition) => ({
+function createSections(
+  recommendations: readonly Recommendation[],
+  includeHiddenGems: boolean,
+): RecommendationSection[] {
+  const definitions = includeHiddenGems
+    ? SECTION_DEFINITIONS
+    : SECTION_DEFINITIONS.filter((definition) => definition.id !== HIDDEN_GEM_SECTION_ID);
+  return definitions.map((definition) => ({
     id: definition.id,
     title: definition.title,
     recommendations: recommendations
-      .filter((item) => definition.categories.includes(item.category))
+      .filter((item) => sectionCategories(definition, includeHiddenGems).includes(item.category))
       .slice(0, MAX_SECTION_RECOMMENDATIONS),
   }));
+}
+
+function sectionCategories(
+  definition: (typeof SECTION_DEFINITIONS)[number],
+  includeHiddenGems: boolean,
+): readonly RecommendationCategory[] {
+  if (includeHiddenGems || definition.id !== 'explore') return definition.categories;
+  return [...definition.categories, 'hidden-gem'];
 }

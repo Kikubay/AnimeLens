@@ -987,7 +987,7 @@ async function handleRecommendationMessage(
   if (stored === undefined) {
     return {
       ok: true,
-      snapshot: createEmptyDashboardRecommendationSnapshot(),
+      snapshot: createEmptyDashboardRecommendationSnapshot(null, preferences.includeHiddenGems),
     };
   }
 

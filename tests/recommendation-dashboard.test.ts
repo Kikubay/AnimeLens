@@ -7,7 +7,12 @@ import {
 } from '../src/recommendations/recommendation-dashboard';
 import type { SyncMetadata } from '../src/domain/sync';
 
-function anime(id: number, genres: readonly string[], memberCount = 50_000): Anime {
+function anime(
+  id: number,
+  genres: readonly string[],
+  memberCount = 50_000,
+  communityScore = 8,
+): Anime {
   return {
     id: id,
     title: { default: `Anime ${id}`, english: null, japanese: null, synonyms: [] },
@@ -16,7 +21,7 @@ function anime(id: number, genres: readonly string[], memberCount = 50_000): Ani
       medium: `https://cdn.test/${id}-medium.jpg`,
       large: `https://cdn.test/${id}-large.jpg`,
     },
-    score: 8,
+    score: communityScore,
     userScore: null,
     genres: genres.map((name, index) => ({ id: index + 1, name })),
     themes: [{ id: 100 + id, name: 'Adventure' }],
@@ -342,4 +347,67 @@ describe('dashboard recommendation snapshot', () => {
       expect(new Set(ids).size, 'no title may appear in two sections').toBe(ids.length);
     },
   );
+});
+
+describe('hidden gems section', () => {
+  const watched = [
+    entry(1, 'completed', 9, ['Fantasy', 'Adventure']),
+    entry(2, 'completed', 8, ['Drama']),
+  ];
+  const candidates = [
+    anime(101, ['Mystery', 'Supernatural'], 500_000),
+    anime(102, ['Sci-Fi', 'Space'], 500_000),
+    anime(103, ['Sports', 'School'], 500_000, 7),
+    anime(104, ['Horror'], 500_000),
+  ];
+
+  async function dashboard(includeHiddenGems: boolean) {
+    return buildDashboardRecommendationSnapshot(
+      watched,
+      sync,
+      { includeHiddenGems },
+      [],
+      '2026-01-02T00:00:00.000Z',
+      async () => candidates,
+    );
+  }
+
+  it('shows the section while the setting is on', async () => {
+    const snapshot = await dashboard(true);
+
+    const hiddenGems = snapshot.sections.find((section) => section.id === 'hidden-gem');
+    expect(hiddenGems).toBeDefined();
+    expect(hiddenGems?.recommendations.length ?? 0).toBeGreaterThan(0);
+  });
+
+  it('removes the section while the setting is off', async () => {
+    const snapshot = await dashboard(false);
+
+    expect(snapshot.sections.find((section) => section.id === 'hidden-gem')).toBeUndefined();
+    expect(snapshot.sections.map((section) => section.id)).toEqual([
+      'highly-compatible',
+      'because-you-liked',
+      'explore',
+    ]);
+  });
+
+  it('keeps the titles the removed section held on the dashboard', async () => {
+    const withSection = await dashboard(true);
+    const hiddenGemIds = (
+      withSection.sections.find((section) => section.id === 'hidden-gem')?.recommendations ?? []
+    ).map((item) => item.anime.id);
+    const withoutSection = await dashboard(false);
+    const remainingIds = withoutSection.sections.flatMap((section) =>
+      section.recommendations.map((item) => item.anime.id),
+    );
+
+    expect(hiddenGemIds.length).toBeGreaterThan(0);
+    for (const id of hiddenGemIds) expect(remainingIds).toContain(id);
+  });
+
+  it('leaves the empty snapshot without the section while the setting is off', () => {
+    const snapshot = createEmptyDashboardRecommendationSnapshot(null, false);
+
+    expect(snapshot.sections.find((section) => section.id === 'hidden-gem')).toBeUndefined();
+  });
 });
