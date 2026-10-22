@@ -59,6 +59,7 @@
 - [Solución de problemas](#solución-de-problemas)
 - [Problemas y sugerencias](#problemas-y-sugerencias)
 - [Privacidad y seguridad](#privacidad-y-seguridad)
+- [Filosofía de desarrollo](#-filosofía-de-desarrollo-y-uso-de-ia)
 - [Licencia](#licencia)
 - [Apoyo](#apoyo)
 
@@ -439,6 +440,19 @@ o addons.mozilla.org se actualiza sola.
 - Esto también se aplica a la imagen de Docker autoalojada: ejecuta la aplicación de escritorio en un contenedor y no añade ningún servidor, así que las solicitudes siguen saliendo del contenedor directamente hacia los proveedores.
 
 La versión que prevalece, con el desglose completo de permisos y cómo eliminarlo todo, está en [PRIVACY.md](PRIVACY.md).
+
+---
+
+## Filosofía de desarrollo y uso de IA
+
+Pongamos las cosas claras: **el 99 % de este código está escrito a mano.**
+
+Creo que la IA es una mala arquitecta pero una excelente persona de la limpieza. En este proyecto:
+- **Humano:** arquitectura, modelado del dominio, flujos de seguridad de OAuth, resolución de problemas y lógica principal.
+- **Asistido por IA:** formato de los mensajes de commit según Conventional Commits, detección de código muerto durante las refactorizaciones y redacción de comentarios JSDoc para casos límite tediosos.
+
+Cambiar de contexto es caro. Uso la IA para encargarme del 1 % del trabajo tedioso y así dedicar mi capacidad cognitiva a las decisiones que de verdad importan.
+Si estás revisando este código, juzga la arquitectura y la lógica, no que mis mensajes de commit estén pulidos por un script.
 
 ---
 

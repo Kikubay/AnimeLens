@@ -59,6 +59,7 @@
 - [Troubleshooting](#troubleshooting)
 - [Issues and feedback](#issues--feedback)
 - [Privacy and security](#privacy-and-security)
+- [Development Philosophy](#-development-philosophy--ai-usage)
 - [License](#license)
 - [Support](#support)
 
@@ -442,6 +443,19 @@ updates itself.
 
 The authoritative version of this, including the full permission-by-permission breakdown and how
 to delete everything, is [PRIVACY.md](PRIVACY.md).
+
+---
+
+## Development Philosophy & AI Usage
+
+Let’s set the record straight: **99% of this code is human-written.**
+
+I believe AI is a terrible architect but an excellent janitor. In this project:
+- **Human:** Architecture, domain modeling, OAuth security flows, problem-solving, and core logic.
+- **AI-assisted:** Formatting Conventional Commits, spotting dead code during refactoring, and drafting JSDoc comments for tedious edge cases.
+
+Context-switching is expensive. I use AI to handle the 1% of grunt work so I can spend my cognitive bandwidth on the decisions that actually matter.
+If you're reviewing this code, please judge the architecture and logic, not the fact that my commit messages were polished by a script.
 
 ---
 

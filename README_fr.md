@@ -59,6 +59,7 @@
 - [Dépannage](#dépannage)
 - [Problèmes et suggestions](#problèmes-et-suggestions)
 - [Confidentialité et sécurité](#confidentialité-et-sécurité)
+- [Philosophie de développement](#-philosophie-de-développement-et-usage-de-lia)
 - [Licence](#licence)
 - [Soutenir le projet](#soutenir-le-projet)
 
@@ -417,6 +418,19 @@ Les navigateurs ne mettent pas à jour automatiquement les extensions installée
 - Cela vaut aussi pour l'image Docker auto-hébergée : elle exécute l'application de bureau dans un conteneur et n'ajoute aucun serveur, les requêtes quittent donc toujours le conteneur pour les fournisseurs directement.
 
 La version faisant foi de ce document, avec le détail complet des permissions et la marche à suivre pour tout supprimer, se trouve dans [PRIVACY.md](PRIVACY.md).
+
+---
+
+## Philosophie de développement et usage de l'IA
+
+Mettons les choses au clair: **99 % de ce code est écrit à la main.**
+
+Je pense que l'IA est une mauvaise architecte mais une excellente agente d'entretien. Dans ce projet :
+- **Humain :** Architecture, modélisation du domaine, flux de sécurité OAuth, résolution de problèmes et logique métier.
+- **Assisté par IA :** Mise en forme des messages de commit selon Conventional Commits, repérage du code mort lors des refactorings, et rédaction de commentaires JSDoc pour les cas limites fastidieux.
+
+Changer de contexte coûte cher. J'utilise l'IA pour absorber les 1 % de travail ingrat afin de consacrer ma charge cognitive aux décisions qui comptent vraiment.
+Si vous relisez ce code, jugez l'architecture et la logique, pas le fait que mes messages de commit aient été embellis par un script.
 
 ---
 
