@@ -59,7 +59,7 @@
 - [Solución de problemas](#solución-de-problemas)
 - [Problemas y sugerencias](#problemas-y-sugerencias)
 - [Privacidad y seguridad](#privacidad-y-seguridad)
-- [Filosofía de desarrollo](#-filosofía-de-desarrollo-y-uso-de-ia)
+- [Filosofía de desarrollo](#filosofía-de-desarrollo-y-uso-de-ia)
 - [Licencia](#licencia)
 - [Apoyo](#apoyo)
 

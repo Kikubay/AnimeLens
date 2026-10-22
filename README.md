@@ -59,7 +59,7 @@
 - [Troubleshooting](#troubleshooting)
 - [Issues and feedback](#issues--feedback)
 - [Privacy and security](#privacy-and-security)
-- [Development Philosophy](#-development-philosophy--ai-usage)
+- [Development Philosophy](#development-philosophy--ai-usage)
 - [License](#license)
 - [Support](#support)
 

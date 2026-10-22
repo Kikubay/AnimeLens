@@ -59,7 +59,7 @@
 - [Dépannage](#dépannage)
 - [Problèmes et suggestions](#problèmes-et-suggestions)
 - [Confidentialité et sécurité](#confidentialité-et-sécurité)
-- [Philosophie de développement](#-philosophie-de-développement-et-usage-de-lia)
+- [Philosophie de développement](#philosophie-de-développement-et-usage-de-lia)
 - [Licence](#licence)
 - [Soutenir le projet](#soutenir-le-projet)
 
