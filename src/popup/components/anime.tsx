@@ -75,7 +75,6 @@ function Poster({
           <span className="poster-noise" />
         </>
       )}
-      <span className="poster-index">{String(anime.id).padStart(2, '0')}</span>
       {!featured && anime.compatibility !== undefined && (
         <CompatibilityScore value={anime.compatibility} compact copy={copy} />
       )}

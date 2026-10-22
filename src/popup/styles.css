@@ -755,10 +755,6 @@ button:focus-visible {
 .anime-cover::after {
   content: '';
 }
-.poster > .poster-index,
-.featured-poster > .poster-index {
-  z-index: 4;
-}
 .poster::before,
 .featured-poster::before {
   position: absolute;
@@ -771,14 +767,6 @@ button:focus-visible {
       transparent 32%
     ),
     linear-gradient(155deg, transparent 28%, rgb(0 0 0 / 35%) 100%);
-  content: '';
-}
-.poster::after,
-.featured-poster::after {
-  position: absolute;
-  inset: 10px;
-  border: 1px solid rgb(255 255 255 / 20%);
-  border-radius: 5px;
   content: '';
 }
 .poster-orbit {
@@ -819,15 +807,6 @@ button:focus-visible {
   right: 16px;
   bottom: 22px;
   font-size: 21px;
-}
-.poster-index {
-  position: absolute;
-  z-index: 1;
-  top: 14px;
-  left: 14px;
-  color: rgb(255 255 255 / 65%);
-  font-family: ui-monospace, monospace;
-  font-size: var(--font-sm);
 }
 .poster-noise {
   position: absolute;
