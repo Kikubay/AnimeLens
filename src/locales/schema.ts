@@ -210,6 +210,11 @@ export interface AppCopy {
   readonly tasteCardFormatSquare: string;
   readonly tasteCardFormatTall: string;
   readonly tasteCardDownload: string;
+  readonly tasteCardExportFormat: string;
+  readonly tasteCardExportPng: string;
+  readonly tasteCardExportGif: string;
+  readonly tasteCardDownloadGif: string;
+  readonly tasteCardGifHint: string;
   readonly tasteCardCopy: string;
   readonly tasteCardGenerating: string;
   readonly tasteCardDownloaded: string;

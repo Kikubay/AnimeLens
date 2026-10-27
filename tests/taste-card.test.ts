@@ -27,6 +27,12 @@ import { getCopy } from '../src/locales';
 import type { TasteCardModel } from '../src/profile/taste-card-types';
 import type { FrameId, PaletteId } from '../src/profile/cosmetics';
 
+const TAU = Math.PI * 2;
+
+function normAngle(angle: number): number {
+  return ((angle % TAU) + TAU) % TAU;
+}
+
 function summary(overrides: Partial<UserProfileSummary> = {}): UserProfileSummary {
   return { ...emptyProfileSummary(), ...overrides };
 }
@@ -189,8 +195,10 @@ describe('taste card painter', () => {
     const drawn: { x: number; y: number; width: number; height: number }[] = [];
     const fills: { shadowBlur: number; shadowColor: string }[] = [];
     const strokes: string[] = [];
+    const dashOffsets: number[] = [];
+    const conicStarts: number[] = [];
     const scales: { x: number; y: number }[] = [];
-    const arcs: { x: number; y: number; radius: number }[] = [];
+    const arcs: { x: number; y: number; radius: number; start: number; end: number }[] = [];
     const baseStops: string[] = [];
     const gradient = {
       addColorStop: (_offset: number, color: string) => {
@@ -210,6 +218,7 @@ describe('taste card painter', () => {
       shadowColor: '',
       imageSmoothingEnabled: false,
       imageSmoothingQuality: 'low',
+      lineDashOffset: 0,
       save: () => undefined,
       restore: () => undefined,
       clearRect: () => undefined,
@@ -221,8 +230,8 @@ describe('taste card painter', () => {
       closePath: () => undefined,
       moveTo: () => undefined,
       lineTo: () => undefined,
-      arc: (x: number, y: number, radius: number) => {
-        arcs.push({ x, y, radius });
+      arc: (x: number, y: number, radius: number, start: number, end: number) => {
+        arcs.push({ x, y, radius, start, end });
       },
       arcTo: () => undefined,
       roundRect: (x: number, y: number, width: number, height: number) => {
@@ -234,6 +243,7 @@ describe('taste card painter', () => {
       },
       stroke: () => {
         strokes.push(context.strokeStyle);
+        dashOffsets.push(context.lineDashOffset);
       },
       fillRect: (x: number, y: number, width: number, height: number) => {
         rects.push({ x, y, width, height });
@@ -243,13 +253,29 @@ describe('taste card painter', () => {
       },
       createLinearGradient: () => gradient,
       createRadialGradient: () => gradient,
-      createConicGradient: () => gradient,
+      createConicGradient: (startAngle: number) => {
+        conicStarts.push(startAngle);
+        return gradient;
+      },
       measureText: (text: string) => ({ width: text.length * 20 }),
       fillText: (text: string, x: number, y: number) => {
         texts.push({ text, x, y });
       },
+      setLineDash: () => undefined,
     };
-    return { context, texts, rects, drawn, fills, strokes, scales, arcs, baseStops };
+    return {
+      context,
+      texts,
+      rects,
+      drawn,
+      fills,
+      strokes,
+      dashOffsets,
+      conicStarts,
+      scales,
+      arcs,
+      baseStops,
+    };
   }
 
   const model: TasteCardModel = {
@@ -289,6 +315,7 @@ describe('taste card painter', () => {
     format: TasteCardFormat = 'portrait',
     images: Partial<TasteCardImages> = {},
     cosmetics?: Partial<TasteCardRenderOptions['cosmetics']>,
+    progress?: number,
   ): void {
     paintTasteCard(recorded.context as unknown as CanvasRenderingContext2D, {
       model: { ...model, ...overrides },
@@ -303,6 +330,7 @@ describe('taste card painter', () => {
               cosmetics: { ...DEFAULT_COSMETICS, ...cosmetics },
             },
           }),
+      ...(progress === undefined ? {} : { progress }),
     });
   }
 
@@ -1143,5 +1171,96 @@ describe('taste card painter', () => {
     const fallback = recordingContext();
     paint(fallback, {}, 'portrait', {}, DEFAULT_COSMETICS);
     expect(recorded.baseStops).toEqual(fallback.baseStops);
+  });
+
+  function snapshot(recorded: ReturnType<typeof recordingContext>): string {
+    return JSON.stringify(
+      {
+        texts: recorded.texts,
+        rects: recorded.rects,
+        drawn: recorded.drawn,
+        fills: recorded.fills,
+        strokes: recorded.strokes,
+        dashOffsets: recorded.dashOffsets,
+        scales: recorded.scales,
+        arcs: recorded.arcs.map((arc) => ({
+          x: arc.x,
+          y: arc.y,
+          radius: arc.radius,
+          start: Math.round(normAngle(arc.start) * 1e6) / 1e6,
+          end: Math.round(normAngle(arc.end) * 1e6) / 1e6,
+        })),
+        baseStops: recorded.baseStops,
+        conicStarts: recorded.conicStarts.map((angle) => Math.round(normAngle(angle) * 1e6) / 1e6),
+      },
+      (_key, value) =>
+        typeof value === 'number' && Number.isFinite(value)
+          ? Math.round(value * 1e6) / 1e6
+          : value,
+    );
+  }
+
+  it('paints the resting animation phase exactly like the static card', () => {
+    const rested = recordingContext();
+    const explicit = recordingContext();
+    paint(rested);
+    paint(explicit, {}, 'portrait', {}, undefined, 0);
+
+    expect(snapshot(explicit)).toEqual(snapshot(rested));
+  });
+
+  it('returns to the resting phase after a full loop', () => {
+    const rested = recordingContext();
+    const wrapped = recordingContext();
+    paint(rested);
+    paint(wrapped, {}, 'portrait', {}, undefined, 1);
+
+    expect(snapshot(wrapped)).toEqual(snapshot(rested));
+  });
+
+  it('moves every avatar frame between phases without clipping the layout', () => {
+    for (const cosmetic of COSMETIC_CATALOG.filter((item) => item.slot === 'frame')) {
+      const rested = recordingContext();
+      const mid = recordingContext();
+      paint(rested, {}, 'portrait', {}, { frame: cosmetic.id as FrameId }, 0);
+      paint(mid, {}, 'portrait', {}, { frame: cosmetic.id as FrameId }, 0.5);
+
+      if (cosmetic.id === 'frame-orbit') {
+        const dots = (recorded: ReturnType<typeof recordingContext>) =>
+          recorded.arcs
+            .filter((arc) => arc.radius === 4)
+            .map((arc) => `${Math.round(arc.x)}|${Math.round(arc.y)}`);
+        expect(dots(mid).length).toBe(dots(rested).length);
+        expect(dots(mid)).not.toEqual(dots(rested));
+      } else if (cosmetic.id === 'frame-prism') {
+        const conic = (recorded: ReturnType<typeof recordingContext>) =>
+          recorded.conicStarts.map((angle) => Math.round(normAngle(angle) * 100) / 100);
+        expect(conic(mid)).not.toEqual(conic(rested));
+      } else {
+        const dashes = (recorded: ReturnType<typeof recordingContext>) =>
+          recorded.dashOffsets.filter((offset) => offset > 0);
+        expect(dashes(rested)).toEqual([]);
+        expect(dashes(mid).length).toBeGreaterThan(0);
+      }
+    }
+  });
+
+  it('rotates the palette arc sweeps between phases', () => {
+    const rested = recordingContext();
+    const mid = recordingContext();
+    paint(rested, {}, 'portrait', {}, { palette: 'palette-ember' as PaletteId }, 0);
+    paint(mid, {}, 'portrait', {}, { palette: 'palette-ember' as PaletteId }, 0.5);
+
+    const sweepsAt = (recorded: ReturnType<typeof recordingContext>, radius: number) =>
+      recorded.arcs
+        .filter((arc) => Math.round(arc.radius) === radius)
+        .map((arc) => Math.round(normAngle(arc.start) * 100) / 100);
+
+    expect(sweepsAt(rested, 380).length).toBeGreaterThan(1);
+    expect(sweepsAt(mid, 380).length).toBe(sweepsAt(rested, 380).length);
+    expect(sweepsAt(rested, 380)).not.toEqual(sweepsAt(mid, 380));
+    expect(sweepsAt(rested, 284)).not.toEqual(sweepsAt(mid, 284));
+    expect(mid.strokes).toHaveLength(rested.strokes.length);
+    expect(mid.baseStops).toEqual(rested.baseStops);
   });
 });

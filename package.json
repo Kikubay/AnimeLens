@@ -43,6 +43,7 @@
     "docker:logs": "docker compose --file docker/docker-compose.yml logs --follow"
   },
   "dependencies": {
+    "gifenc": "^1.0.3",
     "react": "^19.0.0",
     "react-dom": "^19.0.0"
   },

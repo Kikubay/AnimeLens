@@ -2922,6 +2922,9 @@ button:focus-visible {
 .taste-card-formats {
   align-self: flex-start;
 }
+.taste-card-export-formats {
+  align-self: flex-start;
+}
 .taste-card-actions {
   display: flex;
   gap: 8px;
@@ -3183,7 +3186,8 @@ button:focus-visible {
   justify-content: center;
   margin-top: 6px;
 }
-.taste-card-grid-note {
+.taste-card-grid-note,
+.taste-card-gif-note {
   margin: 10px 0 0;
   padding: 8px 9px;
   border: 1px solid rgb(184 165 255 / 30%);

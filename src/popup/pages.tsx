@@ -84,6 +84,7 @@ import {
   normalizeSettingsText,
   type ContentRatingPreference,
   type RecommendationMode,
+  type TasteCardExportFormat,
   type ThemePreference,
   type UserPreferences,
 } from '../settings/settings-types';
@@ -1080,6 +1081,7 @@ function ProfileSummary({
         ...next,
         picksLayout: persistableTasteCardPicksLayout(next.picksLayout),
         cosmetics: preferences.tasteCard.cosmetics,
+        exportFormat: preferences.tasteCard.exportFormat,
       };
       onPreferencesChange({ ...preferences, tasteCard });
       void updateSettings({ ...preferences, tasteCard }).catch(() => undefined);
@@ -1091,6 +1093,16 @@ function ProfileSummary({
     (next: TasteCardCosmetics) => {
       if (onPreferencesChange === undefined) return;
       const tasteCard = { ...preferences.tasteCard, cosmetics: next };
+      onPreferencesChange({ ...preferences, tasteCard });
+      void updateSettings({ ...preferences, tasteCard }).catch(() => undefined);
+    },
+    [onPreferencesChange, preferences],
+  );
+
+  const saveExportFormat = useCallback(
+    (next: TasteCardExportFormat) => {
+      if (onPreferencesChange === undefined) return;
+      const tasteCard = { ...preferences.tasteCard, exportFormat: next };
       onPreferencesChange({ ...preferences, tasteCard });
       void updateSettings({ ...preferences, tasteCard }).catch(() => undefined);
     },
@@ -1316,6 +1328,8 @@ function ProfileSummary({
         unlockContext={unlockContext}
         unlocked={unlocked}
         onCosmeticsChange={saveCosmetics}
+        exportFormat={preferences.tasteCard.exportFormat}
+        onExportFormatChange={saveExportFormat}
         onClose={handleCardClose}
         onFeedback={onFeedback}
         onRequestGridPicker={openGridPicker}

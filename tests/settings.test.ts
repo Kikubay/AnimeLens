@@ -71,6 +71,7 @@ describe('settings preferences', () => {
       coverScale: 1,
       picksLayout: 'list',
       cosmetics: { frame: 'frame-classic', palette: 'palette-aurora' },
+      exportFormat: 'png',
     });
   });
 
@@ -97,6 +98,20 @@ describe('settings preferences', () => {
     }
   });
 
+  it('normalizes the taste card export format to PNG or GIF', () => {
+    expect(
+      normalizeUserPreferences({ tasteCard: { exportFormat: 'gif' } }).tasteCard.exportFormat,
+    ).toBe('gif');
+    expect(
+      normalizeUserPreferences({ tasteCard: { exportFormat: 'png' } }).tasteCard.exportFormat,
+    ).toBe('png');
+    for (const invalid of ['jpg', '', 42, null, undefined]) {
+      expect(
+        normalizeUserPreferences({ tasteCard: { exportFormat: invalid } }).tasteCard.exportFormat,
+      ).toBe('png');
+    }
+  });
+
   it('normalizes and clamps the taste card cover slider', () => {
     const { min, max } = TASTE_CARD_COVER_SCALE_RANGE;
     const normalized = normalizeUserPreferences({
@@ -109,6 +124,7 @@ describe('settings preferences', () => {
       coverScale: max,
       picksLayout: 'list',
       cosmetics: { frame: 'frame-classic', palette: 'palette-aurora' },
+      exportFormat: 'png',
     });
     expect(normalizeUserPreferences({ tasteCard: { coverScale: -5 } }).tasteCard.coverScale).toBe(
       min,
@@ -126,6 +142,7 @@ describe('settings preferences', () => {
         coverScale: 1,
         picksLayout: 'list',
         cosmetics: { frame: 'frame-classic', palette: 'palette-aurora' },
+        exportFormat: 'png',
       });
     }
   });
@@ -145,6 +162,7 @@ describe('settings preferences', () => {
       coverScale: 1.1,
       picksLayout: 'list',
       cosmetics: { frame: 'frame-classic', palette: 'palette-aurora' },
+      exportFormat: 'png',
     });
   });
 });

@@ -21,6 +21,7 @@ import {
 import {
   clampTasteCardCoverScale,
   TASTE_CARD_COVER_SCALE_RANGE as COVER_SCALE_RANGE,
+  type TasteCardExportFormat,
   type TasteCardPicksLayout,
 } from '../../settings/settings-types';
 import { Button, Icon, Modal, Skeleton } from './ui';
@@ -31,10 +32,12 @@ import {
   downloadPngBlob,
   fetchAssetAsDataUrl,
   fetchBrandAssetAsDataUrl,
+  renderTasteCardGif,
   renderTasteCardPng,
+  TASTE_CARD_GIF_PREVIEW_DEBOUNCE_MS,
 } from '../taste-card-image';
 
-const DOWNLOAD_FILENAME = 'AnimeLens_TasteCard.png';
+const DOWNLOAD_FILENAME = 'AnimeLens_TasteCard';
 
 // Past this scale the medium variant (~230px) would be visibly upscaled, so fetch the full-size image instead.
 const LARGE_ART_THRESHOLD = 1.6;
@@ -53,6 +56,8 @@ interface TasteCardModalProps {
   readonly unlockContext: CosmeticUnlockContext;
   readonly unlocked: ReadonlySet<CosmeticId>;
   readonly onCosmeticsChange: (cosmetics: TasteCardCosmetics) => void;
+  readonly exportFormat: TasteCardExportFormat;
+  readonly onExportFormatChange: (format: TasteCardExportFormat) => void;
   /** Hands straight over to the picker rather than showing an empty collage. */
   readonly onRequestGridPicker?: () => void;
 }
@@ -101,6 +106,8 @@ export function TasteCardModal({
   unlockContext,
   unlocked,
   onCosmeticsChange,
+  exportFormat,
+  onExportFormatChange,
   onRequestGridPicker,
 }: TasteCardModalProps) {
   const mountedRef = useRef(true);
@@ -153,7 +160,8 @@ export function TasteCardModal({
     const run = async () => {
       const assets = await assetsRef.current;
       if (disposed || !mountedRef.current) return;
-      const blob = await renderTasteCardPng({
+      const render = exportFormat === 'gif' ? renderTasteCardGif : renderTasteCardPng;
+      const blob = await render({
         model,
         format,
         copy,
@@ -168,22 +176,25 @@ export function TasteCardModal({
       setPreviewUrl(objectUrl);
     };
 
-    void run()
-      .catch((error: unknown) => {
-        if (disposed || !mountedRef.current) return;
-        setPreviewUrl(null);
-        setErrorMessage(describeFailure(error, copy));
-        console.error('[AnimeLens] taste card render failed', error);
-      })
-      .finally(() => {
-        if (!disposed && mountedRef.current) setRendering(false);
-      });
+    const timer = window.setTimeout(() => {
+      void run()
+        .catch((error: unknown) => {
+          if (disposed || !mountedRef.current) return;
+          setPreviewUrl(null);
+          setErrorMessage(describeFailure(error, copy));
+          console.error('[AnimeLens] taste card render failed', error);
+        })
+        .finally(() => {
+          if (!disposed && mountedRef.current) setRendering(false);
+        });
+    }, TASTE_CARD_GIF_PREVIEW_DEBOUNCE_MS);
 
     return () => {
       disposed = true;
+      window.clearTimeout(timer);
       if (objectUrl !== null) URL.revokeObjectURL(objectUrl);
     };
-  }, [open, model, format, copy, options]);
+  }, [open, model, format, copy, options, exportFormat]);
 
   const spec = TASTE_CARD_FORMATS[format];
 
@@ -195,7 +206,8 @@ export function TasteCardModal({
         let blob = pendingRef.current === null ? null : await pendingRef.current;
         if (blob === null) {
           const assets = await assetsRef.current;
-          blob = await renderTasteCardPng({
+          const render = exportFormat === 'gif' ? renderTasteCardGif : renderTasteCardPng;
+          blob = await render({
             model,
             format,
             copy,
@@ -206,17 +218,30 @@ export function TasteCardModal({
           });
         }
         if (action === 'download') {
-          downloadPngBlob(blob, DOWNLOAD_FILENAME);
+          const extension = exportFormat === 'gif' ? 'gif' : 'png';
+          downloadPngBlob(blob, `${DOWNLOAD_FILENAME}.${extension}`);
           onFeedback(copy.tasteCardDownloaded);
           return;
         }
-        const outcome = await copyPngBlobToClipboard(blob);
+        let copyBlob = blob.type === 'image/png' ? blob : null;
+        if (copyBlob === null) {
+          const assets = await assetsRef.current;
+          copyBlob = await renderTasteCardPng({
+            model,
+            format,
+            copy,
+            avatarDataUrl: assets.avatar,
+            brandDataUrl: assets.brand,
+            pickDataUrls: assets.picks,
+            options,
+          });
+        }
+        const outcome = await copyPngBlobToClipboard(copyBlob);
         if (outcome === 'copied') {
           onFeedback(copy.tasteCardCopied);
           return;
         }
-        // Clipboard images can be unavailable or denied, so fall back to a download rather than a dead end.
-        downloadPngBlob(blob, DOWNLOAD_FILENAME);
+        downloadPngBlob(copyBlob, `${DOWNLOAD_FILENAME}.png`);
         onFeedback(
           outcome === 'unsupported' ? copy.tasteCardCopyUnsupported : copy.tasteCardCopyFailed,
         );
@@ -229,7 +254,7 @@ export function TasteCardModal({
         if (mountedRef.current) setBusy(null);
       }
     },
-    [busy, copy, format, model, onFeedback, options],
+    [busy, copy, exportFormat, format, model, onFeedback, options],
   );
 
   const isReady = previewUrl !== null && !isRendering;
@@ -281,6 +306,17 @@ export function TasteCardModal({
             label: FORMAT_LABELS[option](copy),
           }))}
         />
+        <RadioGroup<TasteCardExportFormat>
+          className="segmented-control taste-card-export-formats"
+          ariaLabel={copy.tasteCardExportFormat}
+          value={exportFormat}
+          onChange={onExportFormatChange}
+          options={[
+            { value: 'png', label: copy.tasteCardExportPng },
+            { value: 'gif', label: copy.tasteCardExportGif },
+          ]}
+        />
+        {exportFormat === 'gif' && <p className="taste-card-gif-note">{copy.tasteCardGifHint}</p>}
         <fieldset className="taste-card-options">
           <legend>{copy.tasteCardOptionsTitle}</legend>
           <label className="setting-toggle-row taste-card-option">
@@ -390,7 +426,11 @@ export function TasteCardModal({
             onClick={() => void runExport('download')}
             disabled={!canExport || busy !== null}
           >
-            {busy === 'download' ? copy.tasteCardGenerating : copy.tasteCardDownload}
+            {busy === 'download'
+              ? copy.tasteCardGenerating
+              : exportFormat === 'gif'
+                ? copy.tasteCardDownloadGif
+                : copy.tasteCardDownload}
           </Button>
           <Button
             variant="secondary"

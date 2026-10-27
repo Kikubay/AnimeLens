@@ -46,6 +46,7 @@ export interface TasteCardPreferences {
   readonly picksLayout: PersistedTasteCardPicksLayout;
   /** Stored as chosen; an item the user no longer qualifies for is dropped when the card is rendered. */
   readonly cosmetics: TasteCardCosmetics;
+  readonly exportFormat: TasteCardExportFormat;
 }
 
 export interface UserPreferences {
@@ -89,6 +90,8 @@ export const TASTE_CARD_COVER_SCALE_RANGE: { readonly min: number; readonly max:
   min: 1,
   max: 5,
 };
+export type TasteCardExportFormat = 'png' | 'gif';
+
 export const DEFAULT_TASTE_CARD_COVER_SCALE = 1;
 
 const DEFAULT_TASTE_CARD_PREFERENCES: TasteCardPreferences = {
@@ -97,6 +100,7 @@ const DEFAULT_TASTE_CARD_PREFERENCES: TasteCardPreferences = {
   coverScale: DEFAULT_TASTE_CARD_COVER_SCALE,
   picksLayout: 'list',
   cosmetics: DEFAULT_COSMETICS,
+  exportFormat: 'png',
 };
 
 export function clampTasteCardCoverScale(value: unknown): number {
@@ -122,6 +126,7 @@ function normalizeTasteCardPreferences(value: unknown): TasteCardPreferences {
       ? value.picksLayout
       : DEFAULT_TASTE_CARD_PREFERENCES.picksLayout,
     cosmetics: normalizeCosmetics(value.cosmetics),
+    exportFormat: value.exportFormat === 'gif' ? 'gif' : 'png',
   };
 }
 

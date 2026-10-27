@@ -17,6 +17,8 @@ import {
 
 const FONT_STACK = 'system-ui, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif';
 
+const TAU = Math.PI * 2;
+
 const COLORS = {
   text: '#f4f2ed',
   muted: '#a09ea8',
@@ -175,6 +177,8 @@ interface CardPalette {
   readonly centerLift: readonly [string, string];
   readonly accent: string;
   readonly accentSoft: string;
+  readonly accentBright: string;
+  readonly arcSweep: readonly [string, string];
 }
 
 const PALETTES: Readonly<Record<PaletteId, CardPalette>> = {
@@ -189,6 +193,8 @@ const PALETTES: Readonly<Record<PaletteId, CardPalette>> = {
     centerLift: ['rgba(184, 165, 255, 0.20)', 'rgba(152, 124, 244, 0.07)'],
     accent: '#b8a5ff',
     accentSoft: 'rgba(152, 124, 244, 0.55)',
+    accentBright: '#d6c9ff',
+    arcSweep: ['rgba(184, 165, 255, 0.34)', 'rgba(134, 200, 197, 0.30)'],
   },
   'palette-tide': {
     base: ['#0f1c22', '#08111a', '#05090f'],
@@ -201,6 +207,8 @@ const PALETTES: Readonly<Record<PaletteId, CardPalette>> = {
     centerLift: ['rgba(134, 200, 197, 0.20)', 'rgba(86, 170, 200, 0.08)'],
     accent: '#86c8c5',
     accentSoft: 'rgba(86, 170, 200, 0.55)',
+    accentBright: '#bdeeeb',
+    arcSweep: ['rgba(134, 200, 197, 0.36)', 'rgba(112, 168, 224, 0.30)'],
   },
   'palette-ember': {
     base: ['#201419', '#11090c', '#0a0608'],
@@ -213,6 +221,8 @@ const PALETTES: Readonly<Record<PaletteId, CardPalette>> = {
     centerLift: ['rgba(226, 160, 110, 0.20)', 'rgba(184, 110, 84, 0.08)'],
     accent: '#e2a06e',
     accentSoft: 'rgba(214, 124, 92, 0.55)',
+    accentBright: '#f9d3aa',
+    arcSweep: ['rgba(226, 160, 110, 0.38)', 'rgba(214, 124, 92, 0.30)'],
   },
   'palette-mono': {
     base: ['#1b1b1f', '#0e0e11', '#080809'],
@@ -225,11 +235,23 @@ const PALETTES: Readonly<Record<PaletteId, CardPalette>> = {
     centerLift: ['rgba(220, 220, 232, 0.14)', 'rgba(180, 180, 192, 0.06)'],
     accent: '#d8d8e0',
     accentSoft: 'rgba(196, 196, 208, 0.55)',
+    accentBright: '#f0f0f6',
+    arcSweep: ['rgba(226, 226, 238, 0.32)', 'rgba(184, 184, 196, 0.28)'],
   },
 };
 
 function paletteFor(palette: PaletteId | undefined): CardPalette {
   return PALETTES[palette ?? 'palette-aurora'] ?? PALETTES['palette-aurora'];
+}
+
+function clampLoopProgress(value: number | undefined): number {
+  if (value === undefined || !Number.isFinite(value)) return 0;
+  const looped = value - Math.floor(value);
+  return looped >= 1 ? 0 : looped;
+}
+
+function harmonic(progress: number, amplitude: number, phase: number): number {
+  return amplitude * (Math.sin(TAU * progress + TAU * phase) - Math.sin(TAU * phase));
 }
 
 export interface TasteCardImages {
@@ -248,6 +270,7 @@ export interface PaintTasteCardInput {
   readonly copy: AppCopy;
   readonly options?: TasteCardRenderOptions;
   readonly scale?: number;
+  readonly progress?: number;
 }
 
 interface CardBlock {
@@ -462,8 +485,9 @@ export function paintTasteCard(
   context: CanvasRenderingContext2D,
   input: PaintTasteCardInput,
 ): void {
-  const { model, format, images, copy, scale = 1 } = input;
+  const { model, format, images, copy, scale = 1, progress: rawProgress } = input;
   const options = input.options ?? DEFAULT_TASTE_CARD_RENDER_OPTIONS;
+  const progress = clampLoopProgress(rawProgress);
   const palette = paletteFor(options.cosmetics?.palette);
   const { metrics, picks, genres, picksGeometry } = resolveLayout(model, format, options);
   const { width, height } = TASTE_CARD_FORMATS[format];
@@ -484,7 +508,7 @@ export function paintTasteCard(
     },
     {
       height: identityHeight(metrics),
-      paint: (top) => paintIdentity(context, model, metrics, images, width, top, copy, options),
+      paint: (top) => paintIdentity(context, model, metrics, images, width, top, copy, options, progress),
     },
     {
       height: statsHeight(metrics),
@@ -517,7 +541,7 @@ export function paintTasteCard(
 
   // Tracks the avatar so the card's brightest point sits behind it.
   const avatarCenterY = metrics.padTop + blocks[0].height + gap + metrics.avatar / 2;
-  paintBackground(context, width, height, avatarCenterY, palette);
+  paintBackground(context, width, height, avatarCenterY, palette, progress);
 
   if (picksGeometry.layout === 'grid') {
     // A wall of covers with only the brand mark: the artwork is the whole card.
@@ -542,6 +566,7 @@ function paintBackground(
   height: number,
   avatarCenterY: number,
   palette: CardPalette,
+  progress: number = 0,
 ): void {
   const base = context.createLinearGradient(0, 0, width, height);
   base.addColorStop(0, palette.base[0]);
@@ -550,18 +575,39 @@ function paintBackground(
   context.fillStyle = base;
   context.fillRect(0, 0, width, height);
 
-  paintGlow(context, width * 0.12, height * -0.08, 900, 620, [
-    [0, palette.glowPrimary],
-    [0.62, 'rgba(0, 0, 0, 0)'],
-  ]);
-  paintGlow(context, width * 1.04, height * 0.06, 760, 560, [
-    [0, palette.glowSecondary],
-    [0.6, 'rgba(0, 0, 0, 0)'],
-  ]);
-  paintGlow(context, width * 0.5, height * 1.18, 1100, 900, [
-    [0, palette.glowFloor],
-    [0.66, 'rgba(0, 0, 0, 0)'],
-  ]);
+  paintGlow(
+    context,
+    width * 0.12 + harmonic(progress, 46, 0.07),
+    height * -0.08 + harmonic(progress, -30, 0.19),
+    900,
+    620,
+    [
+      [0, palette.glowPrimary],
+      [0.62, 'rgba(0, 0, 0, 0)'],
+    ],
+  );
+  paintGlow(
+    context,
+    width * 1.04 + harmonic(progress, -38, 0.42),
+    height * 0.06 + harmonic(progress, 24, 0.31),
+    760,
+    560,
+    [
+      [0, palette.glowSecondary],
+      [0.6, 'rgba(0, 0, 0, 0)'],
+    ],
+  );
+  paintGlow(
+    context,
+    width * 0.5 + harmonic(progress, 20, 0.55),
+    height * 1.18 + harmonic(progress, -14, 0.63),
+    1100,
+    900,
+    [
+      [0, palette.glowFloor],
+      [0.66, 'rgba(0, 0, 0, 0)'],
+    ],
+  );
 
   context.save();
   context.strokeStyle = palette.grid;
@@ -588,10 +634,21 @@ function paintBackground(
   context.beginPath();
   context.arc(width - 130, -180, 284, 0, Math.PI * 2);
   context.stroke();
+  paintArcSweep(context, width - 130, -180, 380, 2, progress * TAU, 1.9, palette.arcSweep[0]);
+  paintArcSweep(
+    context,
+    width - 130,
+    -180,
+    284,
+    2,
+    TAU - progress * TAU + Math.PI,
+    1.4,
+    palette.arcSweep[1],
+  );
   context.restore();
 
-  // Centre lift follows the avatar so the brightest point sits behind it.
-  paintGlow(context, width * 0.5, avatarCenterY, width * 0.66, height * 0.34, [
+  const breathe = 1 + 0.05 * Math.sin(TAU * progress);
+  paintGlow(context, width * 0.5, avatarCenterY, width * 0.66 * breathe, height * 0.34 * breathe, [
     [0, palette.centerLift[0]],
     [0.55, palette.centerLift[1]],
     [1, 'rgba(0, 0, 0, 0)'],
@@ -621,6 +678,23 @@ function paintGlow(
   context.arc(0, 0, radiusX, 0, Math.PI * 2);
   context.fill();
   context.restore();
+}
+
+function paintArcSweep(
+  context: CanvasRenderingContext2D,
+  centerX: number,
+  centerY: number,
+  radius: number,
+  lineWidth: number,
+  startAngle: number,
+  span: number,
+  style: string,
+): void {
+  context.strokeStyle = style;
+  context.lineWidth = lineWidth;
+  context.beginPath();
+  context.arc(centerX, centerY, radius, startAngle, startAngle + span);
+  context.stroke();
 }
 
 function paintBrand(
@@ -694,6 +768,7 @@ function paintIdentity(
   top: number,
   copy: AppCopy,
   options: TasteCardRenderOptions,
+  progress: number = 0,
 ): void {
   const centerX = width / 2;
   const size = metrics.avatar;
@@ -749,7 +824,7 @@ function paintIdentity(
   }
 
   // Stroked over the portrait edge, not under it.
-  paintAvatarFrame(context, centerX, centerY, radius, options.cosmetics?.frame, palette);
+  paintAvatarFrame(context, centerX, centerY, radius, options.cosmetics?.frame, palette, progress);
 
   let y = top + size + metrics.gapIdentity;
   const eyebrowHeight = lineHeight(metrics.eyebrow, 1.35);
@@ -782,6 +857,7 @@ function paintAvatarFrame(
   radius: number,
   frame: FrameId | undefined,
   palette: CardPalette,
+  progress: number = 0,
 ): void {
   const accent = palette.accent;
   context.save();
@@ -791,18 +867,66 @@ function paintAvatarFrame(
   switch (frame ?? 'frame-classic') {
     case 'frame-classic':
       strokeRing(context, centerX, centerY, radius, 4, 8, 'rgba(184, 165, 255, 0.55)');
+      paintDashRing(
+        context,
+        centerX,
+        centerY,
+        radius,
+        4,
+        8,
+        [10, 18],
+        3,
+        progress,
+        palette.accentBright,
+      );
       break;
     case 'frame-hairline':
       strokeRing(context, centerX, centerY, radius, 7, 2, accent);
+      paintDashRing(
+        context,
+        centerX,
+        centerY,
+        radius,
+        7,
+        2,
+        [8, 26],
+        3,
+        progress,
+        palette.accentBright,
+      );
       break;
     case 'frame-double':
       strokeRing(context, centerX, centerY, radius, 6, 3, accent);
       strokeRing(context, centerX, centerY, radius, 14, 2, palette.accentSoft);
+      paintDashRing(
+        context,
+        centerX,
+        centerY,
+        radius,
+        6,
+        3,
+        [14, 12],
+        3,
+        progress,
+        palette.accentBright,
+      );
+      paintDashRing(
+        context,
+        centerX,
+        centerY,
+        radius,
+        14,
+        2,
+        [6, 10],
+        5,
+        progress,
+        palette.accentSoft,
+      );
       break;
     case 'frame-orbit':
       strokeRing(context, centerX, centerY, radius, 5, 3, accent);
       for (const degrees of [-90, 30, 150]) {
-        const angle = (degrees * Math.PI) / 180;
+        const angle = (degrees * Math.PI) / 180 + TAU * progress;
         fillDot(
           context,
           centerX + Math.cos(angle) * (radius + 12),
@@ -815,7 +939,7 @@ function paintAvatarFrame(
       break;
     case 'frame-prism':
       if (typeof context.createConicGradient === 'function') {
-        const sweep = context.createConicGradient(-Math.PI / 2, centerX, centerY);
+        const sweep = context.createConicGradient(-Math.PI / 2 + TAU * progress, centerX, centerY);
         sweep.addColorStop(0, accent);
         sweep.addColorStop(0.25, palette.accentSoft);
         sweep.addColorStop(0.5, accent);
@@ -828,9 +952,45 @@ function paintAvatarFrame(
         context.stroke();
       } else {
         strokeRing(context, centerX, centerY, radius, 7, 2, accent);
+        paintDashRing(
+          context,
+          centerX,
+          centerY,
+          radius,
+          7,
+          2,
+          [8, 26],
+          3,
+          progress,
+          palette.accentBright,
+        );
       }
       break;
   }
+  context.restore();
+}
+
+function paintDashRing(
+  context: CanvasRenderingContext2D,
+  centerX: number,
+  centerY: number,
+  avatarRadius: number,
+  offset: number,
+  width: number,
+  dash: readonly [number, number],
+  cyclesPerLoop: number,
+  progress: number,
+  style: string,
+): void {
+  if (offset + width / 2 > AVATAR_FRAME_LIMIT) return;
+  context.save();
+  context.setLineDash([dash[0], dash[1]]);
+  context.lineDashOffset = ((progress * cyclesPerLoop) % 1) * (dash[0] + dash[1]);
+  context.lineWidth = width;
+  context.strokeStyle = style;
+  context.beginPath();
+  context.arc(centerX, centerY, avatarRadius + offset, 0, TAU);
+  context.stroke();
   context.restore();
 }
 

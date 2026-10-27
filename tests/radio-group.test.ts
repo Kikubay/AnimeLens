@@ -125,6 +125,6 @@ describe('radio group usage', () => {
       'utf8',
     );
     expect(pages.split('<RadioGroup').length - 1).toBe(5);
-    expect(tasteCard.split('<RadioGroup').length - 1).toBe(3);
+    expect(tasteCard.split('<RadioGroup').length - 1).toBe(4);
   });
 });
