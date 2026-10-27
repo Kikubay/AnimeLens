@@ -13,8 +13,6 @@ import {
   type TasteCardPicksLayout,
 } from '../settings/settings-types';
 
-// Painted with canvas primitives rather than a DOM-to-SVG snapshot, which sidesteps XML well-formedness, blob-URL rasterization and canvas origin-cleanliness. The modal previews the very PNG that gets shared, so "what you see" can't drift from "what you share".
-
 const FONT_STACK = 'system-ui, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif';
 
 const TAU = Math.PI * 2;
@@ -102,7 +100,6 @@ const BASE_METRICS: CardMetrics = {
   gapPickLabel: 20,
 };
 
-// Tall has 90px more room than portrait, spent on larger type and covers.
 const TALL_OVERRIDES: Partial<CardMetrics> = {
   padTop: 68,
   padBottom: 56,
@@ -116,7 +113,6 @@ const TALL_OVERRIDES: Partial<CardMetrics> = {
   gapPicks: 14,
 };
 
-// Square is the same composition with a tighter vertical rhythm.
 const SQUARE_OVERRIDES: Partial<CardMetrics> = {
   padX: 64,
   padTop: 46,
@@ -159,13 +155,10 @@ const METRICS: Readonly<Record<TasteCardFormat, CardMetrics>> = {
 };
 
 const GRID_CELL = 60;
-// The cover-size search stops here rather than at "barely fits", so the slider's maximum still looks composed rather than cramped.
 export const MIN_COMFORTABLE_GAP = 6;
 const COVER_ROW_PADDING = 10;
-// Visible on a shared image, still far below the content.
 const GRID_COLOR = 'rgba(255, 255, 255, 0.055)';
 
-// A palette only recolours the card's surface and its accent; the text and track colours are shared so no unlock can cost the card legibility.
 interface CardPalette {
   readonly base: readonly [string, string, string];
   readonly glowPrimary: string;
@@ -250,16 +243,76 @@ function clampLoopProgress(value: number | undefined): number {
   return looped >= 1 ? 0 : looped;
 }
 
+const AVATAR_PULSE_CYCLES: Readonly<Record<PaletteId, number>> = {
+  'palette-aurora': 5,
+  'palette-tide': 3,
+  'palette-ember': 2,
+  'palette-mono': 3,
+};
+
+const EMBER_PARTICLE_COUNT = 26;
+const CHROMATIC_CYCLES: Readonly<Record<PaletteId, number>> = {
+  'palette-aurora': 2,
+  'palette-tide': 1,
+  'palette-ember': 1,
+  'palette-mono': 0,
+};
+
+interface TasteCardMotion {
+  readonly palette: PaletteId;
+  readonly frame: FrameId | undefined;
+  readonly progress: number;
+  readonly animated: boolean;
+}
+
+export function resolveMotion(
+  input: PaintTasteCardInput,
+  options: TasteCardRenderOptions,
+): TasteCardMotion {
+  const cosmetics = options.cosmetics ?? undefined;
+  return {
+    palette: cosmetics?.palette ?? 'palette-aurora',
+    frame: cosmetics?.frame,
+    progress: clampLoopProgress(input.progress),
+    animated: input.progress !== undefined,
+  };
+}
+
+function hash01(x: number, y: number): number {
+  const value = Math.sin(x * 127.1 + y * 311.7) * 43758.5453123;
+  return value - Math.floor(value);
+}
+
+function noise2(x: number, y: number): number {
+  const cellX = Math.floor(x);
+  const cellY = Math.floor(y);
+  const fractX = x - cellX;
+  const fractY = y - cellY;
+  const u = fractX * fractX * (3 - 2 * fractX);
+  const v = fractY * fractY * (3 - 2 * fractY);
+  const a = hash01(cellX, cellY);
+  const b = hash01(cellX + 1, cellY);
+  const c = hash01(cellX, cellY + 1);
+  const d = hash01(cellX + 1, cellY + 1);
+  return a + (b - a) * u + (c - a) * v + (a - b - c + d) * u * v;
+}
+
+function loopNoise(x: number, progress: number, seed: number): number {
+  const angle = TAU * progress;
+  return noise2(x + 3.1 * Math.cos(angle), seed + 3.1 * Math.sin(angle));
+}
+
+function fract(value: number): number {
+  return value - Math.floor(value);
+}
+
 function harmonic(progress: number, amplitude: number, phase: number): number {
   return amplitude * (Math.sin(TAU * progress + TAU * phase) - Math.sin(TAU * phase));
 }
 
 export interface TasteCardImages {
-  /** `null` renders the user's monogram. */
   readonly avatar: CanvasImageSource | null;
-  /** `null` renders a fallback glyph tile. */
   readonly brand: CanvasImageSource | null;
-  /** Positionally aligned with `model.topPicks`. */
   readonly picks: readonly (CanvasImageSource | null)[];
 }
 
@@ -281,7 +334,6 @@ interface CardBlock {
 export interface TasteCardLayout {
   readonly content: number;
   readonly available: number;
-  /** Space shared between consecutive blocks; 0 when the content overflows. */
   readonly gap: number;
   readonly blocks: readonly string[];
 }
@@ -295,16 +347,13 @@ interface ResolvedLayout {
 
 interface PicksGeometry {
   readonly layout: TasteCardPicksLayout;
-  /** List: cover edge and row pitch. Triangle: podium heights. Grid: cell edge. */
   readonly cover: number;
   readonly row: number;
   readonly top: number;
   readonly side: number;
-  /** Excludes the section label. */
   readonly body: number;
 }
 
-// The 3x3 layout is a full-card composition, not a block in the stack.
 const GRID_COLUMNS = 3;
 const GRID_ROWS = 3;
 const GRID_SLOT_COUNT = GRID_COLUMNS * GRID_ROWS;
@@ -318,11 +367,9 @@ interface GridLayout {
   readonly originY: number;
 }
 
-// Cells stay square, so on a tall card the vertical slack is unavoidable — it's split evenly above and below rather than dumped at the bottom, with the brand strip reserved so the mark can't land on the last row.
 function resolveGridLayout(metrics: CardMetrics, format: TasteCardFormat): GridLayout {
   const { width, height } = TASTE_CARD_FORMATS[format];
   const usableWidth = width - GRID_MARGIN * 2;
-  // The brand strip caps the grid height, but is excluded from the centring: counting it there would bias the grid upward by half the strip, which is the lopsided look this layout avoids.
   const cappedHeight = availableHeight(format, metrics) - GRID_BRAND_STRIP;
   const cell = Math.floor(
     Math.min(
@@ -339,7 +386,6 @@ function resolveGridLayout(metrics: CardMetrics, format: TasteCardFormat): GridL
   };
 }
 
-// Ratios are relative to the list cover size, chosen so the podium costs about the same vertical space at every slider position — it buys much bigger artwork by dropping the per-row title.
 const TRIANGLE_TOP_RATIO = 2.0;
 const TRIANGLE_SIDE_RATIO = 1.5;
 const TRIANGLE_GUTTER = 20;
@@ -349,7 +395,6 @@ function resolveLayout(
   format: TasteCardFormat,
   options: TasteCardRenderOptions,
 ): ResolvedLayout {
-  // Clamped to what fits, so a large slider value degrades the spacing instead of pushing the footer off the canvas.
   const effectiveMax = maxFittingCoverScale(model, format, options);
   return buildGeometry(model, format, options, clampCoverScale(options.coverScale, effectiveMax));
 }
@@ -363,7 +408,6 @@ function buildGeometry(
   const metrics = METRICS[format];
   const base = metrics.pickCover * scale;
 
-  // Measured, never assumed, so the fit test stays authoritative.
   const top = Math.round(base * TRIANGLE_TOP_RATIO);
   const side = Math.round(base * TRIANGLE_SIDE_RATIO);
   const listCover = Math.round(base);
@@ -375,12 +419,10 @@ function buildGeometry(
       : 'list';
   const triangleBody = count === 0 ? 0 : top + TRIANGLE_GUTTER + side;
   const listBody = count * listRow + Math.max(0, count - 1) * metrics.gapPicks;
-  // The grid sizes itself to the space it is given, so it cannot overflow.
   const gridBody = gridCellSize(metrics, format) * GRID_ROWS + GRID_GUTTER * (GRID_ROWS - 1);
 
   return {
     metrics,
-    // The grid replaces the stack outright, so section toggles do not apply.
     picks: options.showPicks && (layout === 'grid' || count > 0),
     genres: options.showGenres && layout !== 'grid',
     picksGeometry: {
@@ -405,7 +447,6 @@ function clampCoverScale(value: number, ceiling: number): number {
   return Math.min(upper, Math.max(min, value));
 }
 
-// Height is the only binding constraint and content height grows monotonically with the scale, so the binary search is exact. Doubles as the UI's slider maximum, which is why hiding a section visibly widens the range instead of silently clipping.
 export function maxFittingCoverScale(
   model: TasteCardModel,
   format: TasteCardFormat,
@@ -429,7 +470,6 @@ export function maxFittingCoverScale(
   };
   let low = min;
   let high = max;
-  // 20 iterations resolves the 0.01 precision the slider stores.
   for (let step = 0; step < 20; step += 1) {
     const middle = (low + high) / 2;
     if (fits(middle)) low = middle;
@@ -438,7 +478,6 @@ export function maxFittingCoverScale(
   return Math.floor(low * 100) / 100;
 }
 
-// Exported so the fit can be asserted in tests without a canvas: an overflow silently clips the footer, which is invisible until someone shares the card.
 export function measureTasteCardLayout(
   model: TasteCardModel,
   format: TasteCardFormat,
@@ -480,14 +519,13 @@ function availableHeight(format: TasteCardFormat, metrics: CardMetrics): number 
   return TASTE_CARD_FORMATS[format].height - metrics.padTop - metrics.padBottom;
 }
 
-// Painted at the format's nominal size and scaled by the context, with leftover vertical space shared evenly between blocks, like a `space-between` flex layout.
 export function paintTasteCard(
   context: CanvasRenderingContext2D,
   input: PaintTasteCardInput,
 ): void {
-  const { model, format, images, copy, scale = 1, progress: rawProgress } = input;
+  const { model, format, images, copy, scale = 1 } = input;
   const options = input.options ?? DEFAULT_TASTE_CARD_RENDER_OPTIONS;
-  const progress = clampLoopProgress(rawProgress);
+  const motion = resolveMotion(input, options);
   const palette = paletteFor(options.cosmetics?.palette);
   const { metrics, picks, genres, picksGeometry } = resolveLayout(model, format, options);
   const { width, height } = TASTE_CARD_FORMATS[format];
@@ -497,7 +535,6 @@ export function paintTasteCard(
   context.clearRect(0, 0, width, height);
   context.textBaseline = 'middle';
   context.textAlign = 'left';
-  // Raster assets are magnified at scale > 1, so ask for the best resampling available.
   context.imageSmoothingEnabled = true;
   context.imageSmoothingQuality = 'high';
 
@@ -508,7 +545,7 @@ export function paintTasteCard(
     },
     {
       height: identityHeight(metrics),
-      paint: (top) => paintIdentity(context, model, metrics, images, width, top, copy, options, progress),
+      paint: (top) => paintIdentity(context, model, metrics, images, width, top, copy, motion),
     },
     {
       height: statsHeight(metrics),
@@ -539,12 +576,10 @@ export function paintTasteCard(
     (height - metrics.padTop - metrics.padBottom - content) / (blocks.length - 1),
   );
 
-  // Tracks the avatar so the card's brightest point sits behind it.
   const avatarCenterY = metrics.padTop + blocks[0].height + gap + metrics.avatar / 2;
-  paintBackground(context, width, height, avatarCenterY, palette, progress);
+  paintBackground(context, width, height, avatarCenterY, palette, motion);
 
   if (picksGeometry.layout === 'grid') {
-    // A wall of covers with only the brand mark: the artwork is the whole card.
     paintPickGrid(context, images, format);
     paintGridBrand(context, metrics, width, height);
     context.restore();
@@ -559,15 +594,20 @@ export function paintTasteCard(
   context.restore();
 }
 
-// Bottom-up: gradient, glows, faint grid, then a vignette falling to near-black so the card reads as a lit surface.
 function paintBackground(
   context: CanvasRenderingContext2D,
   width: number,
   height: number,
   avatarCenterY: number,
   palette: CardPalette,
-  progress: number = 0,
+  motion: TasteCardMotion,
 ): void {
+  const progress = motion.progress;
+  if (motion.animated && motion.palette === 'palette-mono') {
+    paintMonoBackground(context, width, height, motion);
+    return;
+  }
+
   const base = context.createLinearGradient(0, 0, width, height);
   base.addColorStop(0, palette.base[0]);
   base.addColorStop(0.52, palette.base[1]);
@@ -575,42 +615,48 @@ function paintBackground(
   context.fillStyle = base;
   context.fillRect(0, 0, width, height);
 
-  paintGlow(
-    context,
-    width * 0.12 + harmonic(progress, 46, 0.07),
-    height * -0.08 + harmonic(progress, -30, 0.19),
-    900,
-    620,
-    [
-      [0, palette.glowPrimary],
-      [0.62, 'rgba(0, 0, 0, 0)'],
-    ],
-  );
-  paintGlow(
-    context,
-    width * 1.04 + harmonic(progress, -38, 0.42),
-    height * 0.06 + harmonic(progress, 24, 0.31),
-    760,
-    560,
-    [
-      [0, palette.glowSecondary],
-      [0.6, 'rgba(0, 0, 0, 0)'],
-    ],
-  );
-  paintGlow(
-    context,
-    width * 0.5 + harmonic(progress, 20, 0.55),
-    height * 1.18 + harmonic(progress, -14, 0.63),
-    1100,
-    900,
-    [
-      [0, palette.glowFloor],
-      [0.66, 'rgba(0, 0, 0, 0)'],
-    ],
-  );
+  paintThemeGlowLayer(context, width, height, palette, motion);
 
+  if (motion.animated && motion.palette === 'palette-aurora') {
+    paintAuroraRibbons(context, width, height, motion);
+  }
+  if (motion.animated && motion.palette === 'palette-tide') {
+    paintTideRipples(context, width, height, motion);
+  }
+
+  if (motion.animated && motion.palette === 'palette-ember') {
+    paintEmberGrid(context, width, height, motion);
+  } else {
+    paintGrid(context, width, height, palette.grid);
+  }
+
+  paintThemeArcs(context, width, palette, motion);
+
+  const breathe = 1 + 0.05 * Math.sin(TAU * progress);
+  paintGlow(context, width * 0.5, avatarCenterY, width * 0.66 * breathe, height * 0.34 * breathe, [
+    [0, palette.centerLift[0]],
+    [0.55, palette.centerLift[1]],
+    [1, 'rgba(0, 0, 0, 0)'],
+  ]);
+  paintGlow(context, width * 0.5, height * 0.5, width * 0.78, height * 0.72, [
+    [0, 'rgba(0, 0, 0, 0)'],
+    [0.58, 'rgba(0, 0, 0, 0)'],
+    [1, 'rgba(0, 0, 0, 0.62)'],
+  ]);
+
+  if (motion.animated && motion.palette === 'palette-ember') {
+    paintEmberParticles(context, width, height, motion);
+  }
+}
+
+function paintGrid(
+  context: CanvasRenderingContext2D,
+  width: number,
+  height: number,
+  style: string,
+): void {
   context.save();
-  context.strokeStyle = palette.grid;
+  context.strokeStyle = style;
   context.lineWidth = 1;
   context.beginPath();
   for (let x = 0; x <= width; x += GRID_CELL) {
@@ -623,7 +669,69 @@ function paintBackground(
   }
   context.stroke();
   context.restore();
+}
 
+function paintThemeGlowLayer(
+  context: CanvasRenderingContext2D,
+  width: number,
+  height: number,
+  palette: CardPalette,
+  motion: TasteCardMotion,
+): void {
+  const isEmber = motion.animated && motion.palette === 'palette-ember';
+  const flicker = isEmber ? 0.78 + 0.22 * loopNoise(0.5, motion.progress, 7) : 1;
+  const glowAlpha = (color: string): number | undefined =>
+    isEmber ? rampAlpha(color, flicker) : undefined;
+  paintGlow(
+    context,
+    width * 0.12 + harmonic(motion.progress, 46, 0.07),
+    height * -0.08 + harmonic(motion.progress, -30, 0.19),
+    900,
+    620,
+    [
+      [0, palette.glowPrimary],
+      [0.62, 'rgba(0, 0, 0, 0)'],
+    ],
+    glowAlpha(palette.glowPrimary),
+  );
+  paintGlow(
+    context,
+    width * 1.04 + harmonic(motion.progress, -38, 0.42),
+    height * 0.06 + harmonic(motion.progress, 24, 0.31),
+    760,
+    560,
+    [
+      [0, palette.glowSecondary],
+      [0.6, 'rgba(0, 0, 0, 0)'],
+    ],
+    glowAlpha(palette.glowSecondary),
+  );
+  paintGlow(
+    context,
+    width * 0.5 + harmonic(motion.progress, 20, 0.55),
+    height * 1.18 + harmonic(motion.progress, -14, 0.63),
+    1100,
+    900,
+    [
+      [0, palette.glowFloor],
+      [0.66, 'rgba(0, 0, 0, 0)'],
+    ],
+    glowAlpha(palette.glowFloor),
+  );
+}
+
+function rampAlpha(color: string, factor: number): number {
+  const match = color.match(/rgba\(\s*\d+\s*,\s*\d+\s*,\s*\d+\s*,\s*([\d.]+)\s*\)/);
+  return match === null ? 1 : Number(match[1]) * factor;
+}
+
+function paintThemeArcs(
+  context: CanvasRenderingContext2D,
+  width: number,
+  palette: CardPalette,
+  motion: TasteCardMotion,
+): void {
+  const progress = motion.progress;
   context.save();
   context.lineWidth = 2;
   context.strokeStyle = palette.arcPrimary;
@@ -646,18 +754,258 @@ function paintBackground(
     palette.arcSweep[1],
   );
   context.restore();
+}
 
-  const breathe = 1 + 0.05 * Math.sin(TAU * progress);
-  paintGlow(context, width * 0.5, avatarCenterY, width * 0.66 * breathe, height * 0.34 * breathe, [
-    [0, palette.centerLift[0]],
-    [0.55, palette.centerLift[1]],
-    [1, 'rgba(0, 0, 0, 0)'],
-  ]);
-  paintGlow(context, width * 0.5, height * 0.5, width * 0.78, height * 0.72, [
-    [0, 'rgba(0, 0, 0, 0)'],
-    [0.58, 'rgba(0, 0, 0, 0)'],
-    [1, 'rgba(0, 0, 0, 0.62)'],
-  ]);
+function paintMonoBackground(
+  context: CanvasRenderingContext2D,
+  width: number,
+  height: number,
+  motion: TasteCardMotion,
+): void {
+  context.fillStyle = '#050506';
+  context.fillRect(0, 0, width, height);
+
+  const breathe = 0.09 + 0.05 * (0.5 + 0.5 * Math.sin(TAU * motion.progress * 3));
+  context.save();
+  context.strokeStyle = `rgba(240, 240, 246, ${breathe})`;
+  context.lineWidth = 1;
+  context.beginPath();
+  for (let x = 0; x <= width; x += GRID_CELL) {
+    context.moveTo(x + 0.5, 0);
+    context.lineTo(x + 0.5, height);
+  }
+  for (let y = 0; y <= height; y += GRID_CELL) {
+    context.moveTo(0, y + 0.5);
+    context.lineTo(width, y + 0.5);
+  }
+  context.stroke();
+  context.restore();
+}
+
+function paintEmberGrid(
+  context: CanvasRenderingContext2D,
+  width: number,
+  height: number,
+  motion: TasteCardMotion,
+): void {
+  context.save();
+  context.lineWidth = 1;
+  for (let x = 0; x <= width; x += GRID_CELL) {
+    const flicker = 0.45 + 0.55 * loopNoise(x * 0.037, motion.progress, 11 + x);
+    context.strokeStyle = `rgba(255, ${Math.round(120 + 70 * flicker)}, 70, ${
+      (0.03 + 0.06 * flicker).toFixed(3)
+    })`;
+    context.beginPath();
+    context.moveTo(x + 0.5, 0);
+    context.lineTo(x + 0.5, height);
+    context.stroke();
+  }
+  for (let y = 0; y <= height; y += GRID_CELL) {
+    const flicker = 0.45 + 0.55 * loopNoise(y * 0.041, motion.progress, 29 + y);
+    context.strokeStyle = `rgba(255, ${Math.round(120 + 70 * flicker)}, 70, ${
+      (0.03 + 0.06 * flicker).toFixed(3)
+    })`;
+    context.beginPath();
+    context.moveTo(0, y + 0.5);
+    context.lineTo(width, y + 0.5);
+    context.stroke();
+  }
+  context.restore();
+}
+
+function paintAuroraRibbons(
+  context: CanvasRenderingContext2D,
+  width: number,
+  height: number,
+  motion: TasteCardMotion,
+): void {
+  const layers: readonly {
+    readonly seed: number;
+    readonly baseY: number;
+    readonly span: number;
+    readonly alpha: number;
+    readonly driftCycles: number;
+    readonly colors: readonly [string, string];
+  }[] = [
+    { seed: 11, baseY: 0.3, span: 0.17, alpha: 0.17, driftCycles: 3, colors: ['#3ddc97', '#59e0c0'] },
+    { seed: 23, baseY: 0.43, span: 0.24, alpha: 0.13, driftCycles: 2, colors: ['#59e0c0', '#8f7bff'] },
+    { seed: 37, baseY: 0.58, span: 0.19, alpha: 0.1, driftCycles: 2, colors: ['#8f7bff', '#ff8fd0'] },
+    { seed: 53, baseY: 0.22, span: 0.11, alpha: 0.09, driftCycles: 3, colors: ['#a7f3d0', '#6ee7f0'] },
+  ];
+
+  context.save();
+  context.globalCompositeOperation = 'lighter';
+  for (const layer of layers) {
+    const steps = 26;
+    const drift = 18 * Math.sin(TAU * motion.progress * layer.driftCycles + layer.seed);
+    const edgeTop: number[] = [];
+    const edgeBottom: number[] = [];
+    for (let step = 0; step <= steps; step += 1) {
+      const x = (step / steps) * (width + 80) - 40;
+      const undulation =
+        (loopNoise(x * 0.004, motion.progress, layer.seed) - 0.5) * height * 0.16;
+      const wave = 12 * Math.sin(x * 0.006 + TAU * motion.progress * layer.driftCycles + layer.seed);
+      const yTop = height * layer.baseY + drift + undulation + wave;
+      const thickness =
+        height * layer.span * (0.7 + 0.3 * loopNoise(x * 0.002 + layer.seed, motion.progress, layer.seed + 5));
+      edgeTop.push(yTop);
+      edgeBottom.push(yTop + thickness);
+    }
+
+    const yMin = Math.min(...edgeTop);
+    const yMax = Math.max(...edgeBottom);
+    const gradient = context.createLinearGradient(0, yMin, 0, yMax);
+    gradient.addColorStop(0, 'rgba(0, 0, 0, 0)');
+    gradient.addColorStop(0.55, `${layer.colors[0]}55`);
+    gradient.addColorStop(1, `${layer.colors[1]}00`);
+    context.globalAlpha = layer.alpha;
+    context.fillStyle = gradient;
+    context.beginPath();
+    edgeTop.forEach((y, index) => {
+      const x = (index / steps) * (width + 80) - 40;
+      if (index === 0) context.moveTo(x, y);
+      else context.lineTo(x, y);
+    });
+    for (let index = edgeBottom.length - 1; index >= 0; index -= 1) {
+      const x = (index / steps) * (width + 80) - 40;
+      context.lineTo(x, edgeBottom[index]);
+    }
+    context.closePath();
+    context.fill();
+  }
+  context.restore();
+}
+
+function paintTideRipples(
+  context: CanvasRenderingContext2D,
+  width: number,
+  height: number,
+  motion: TasteCardMotion,
+): void {
+  const paintDeco = (target: CanvasRenderingContext2D) => {
+    const streaks: readonly {
+      readonly baseY: number;
+      readonly span: number;
+      readonly color: string;
+      readonly driftCycles: number;
+    }[] = [
+      { baseY: 0.26, span: 0.1, color: 'rgba(110, 231, 240, 0.1)', driftCycles: 2 },
+      { baseY: 0.52, span: 0.14, color: 'rgba(86, 170, 200, 0.14)', driftCycles: 1 },
+      { baseY: 0.74, span: 0.11, color: 'rgba(134, 200, 197, 0.12)', driftCycles: 2 },
+    ];
+    target.save();
+    for (const streak of streaks) {
+      const gradient = target.createLinearGradient(0, height * streak.baseY, 0, height * (streak.baseY + streak.span));
+      gradient.addColorStop(0, 'rgba(0, 0, 0, 0)');
+      gradient.addColorStop(0.5, streak.color);
+      gradient.addColorStop(1, 'rgba(0, 0, 0, 0)');
+      target.fillStyle = gradient;
+      const steps = 24;
+      target.beginPath();
+      for (let step = 0; step <= steps; step += 1) {
+        const x = (step / steps) * width;
+        const y =
+          height * streak.baseY +
+          16 * Math.sin(x * 0.008 + TAU * motion.progress * streak.driftCycles) +
+          9 * Math.sin(x * 0.017 - TAU * motion.progress * streak.driftCycles * 2);
+        if (step === 0) target.moveTo(x, y);
+        else target.lineTo(x, y);
+      }
+      for (let step = steps; step >= 0; step -= 1) {
+        const x = (step / steps) * width;
+        const y =
+          height * (streak.baseY + streak.span) +
+          20 * Math.sin(x * 0.007 + TAU * motion.progress * streak.driftCycles + 1.3);
+        target.lineTo(x, y);
+      }
+      target.closePath();
+      target.fill();
+    }
+    target.restore();
+  };
+
+  const amplitude = 7;
+  const stripHeight = 6;
+  const snapshot = decoSnapshot(width, height, paintDeco);
+  if (snapshot === null) {
+    paintDeco(context);
+    return;
+  }
+  for (let y = 0; y < height; y += stripHeight) {
+    const offset =
+      amplitude * Math.sin(y / 95 + TAU * motion.progress) +
+      3 * Math.sin(y / 47 - TAU * motion.progress * 2);
+    context.drawImage(snapshot, 0, y, width, stripHeight, offset, y, width, stripHeight);
+  }
+}
+
+let decoBufferElement: HTMLCanvasElement | null = null;
+
+function decoSnapshot(
+  width: number,
+  height: number,
+  paintDeco: (target: CanvasRenderingContext2D) => void,
+): HTMLCanvasElement | null {
+  if (typeof document === 'undefined') return null;
+  if (decoBufferElement === null) {
+    try {
+      decoBufferElement = document.createElement('canvas');
+    } catch {
+      return null;
+    }
+  }
+  const buffer = decoBufferElement;
+  if (buffer.width !== width || buffer.height !== height) {
+    buffer.width = width;
+    buffer.height = height;
+  }
+  const bufferContext = buffer.getContext('2d');
+  if (bufferContext === null) return null;
+  bufferContext.setTransform(1, 0, 0, 1, 0, 0);
+  bufferContext.clearRect(0, 0, width, height);
+  bufferContext.save();
+  paintDeco(bufferContext);
+  bufferContext.restore();
+  return buffer;
+}
+
+function paintEmberParticles(
+  context: CanvasRenderingContext2D,
+  width: number,
+  height: number,
+  motion: TasteCardMotion,
+): void {
+  context.save();
+  context.globalCompositeOperation = 'lighter';
+  for (let index = 0; index < EMBER_PARTICLE_COUNT; index += 1) {
+    const seedX = hash01(index, 1);
+    const seedY = hash01(index, 2);
+    const seedSway = hash01(index, 3);
+    const seedSize = hash01(index, 4);
+    const seedHue = hash01(index, 5);
+    const riseCycles = 2 + Math.floor(seedY * 3);
+    const swayCycles = 1 + Math.floor(seedSway * 3);
+    const ascent = fract(motion.progress * riseCycles + seedY);
+    const y = height * (1.02 - ascent * 1.12);
+    const x =
+      seedX * width + (6 + 14 * seedSway) * Math.sin(TAU * (motion.progress * swayCycles + seedSway));
+    const fadeIn = Math.min(1, ascent * 8);
+    const fadeOut = Math.min(1, Math.max(0, (1 - ascent) * 2.4));
+    const flicker = 0.72 + 0.28 * Math.sin(TAU * motion.progress * (1 + Math.floor(seedSize * 2)) + seedHue * TAU);
+    const alpha = fadeIn * fadeOut * flicker * (0.35 + 0.4 * seedSize);
+    const radius = (1.6 + seedSize * 2.6) * (width / 1080);
+    const hue = Math.round(12 + seedHue * 26);
+    if (alpha <= 0.01 || y < -8) continue;
+    context.fillStyle = `hsl(${hue} 96% 62% / ${(alpha * 0.28).toFixed(3)})`;
+    context.beginPath();
+    context.arc(x, y, radius * 3.2, 0, Math.PI * 2);
+    context.fill();
+    context.fillStyle = `hsl(${hue} 96% ${Math.round(58 + seedSize * 14)}% / ${alpha.toFixed(3)})`;
+    context.beginPath();
+    context.arc(x, y, radius, 0, Math.PI * 2);
+    context.fill();
+  }
+  context.restore();
 }
 
 function paintGlow(
@@ -667,8 +1015,10 @@ function paintGlow(
   radiusX: number,
   radiusY: number,
   stops: readonly (readonly [number, string])[],
+  alpha: number = 1,
 ): void {
   context.save();
+  context.globalAlpha = alpha;
   context.translate(centerX, centerY);
   context.scale(1, radiusY / radiusX);
   const gradient = context.createRadialGradient(0, 0, 0, 0, 0, radiusX);
@@ -736,7 +1086,6 @@ function paintBrand(
   context.fillText('AnimeLens', left + size + 16, centerY);
   setLetterSpacing(context, '0px');
 
-  // Stated up front, since someone outside the extension has no other way to know which provider these stats came from.
   const provider = model.providerName;
   if (provider !== null && provider.length > 0) {
     const text = ellipsize(context, provider, width * 0.4);
@@ -767,18 +1116,17 @@ function paintIdentity(
   width: number,
   top: number,
   copy: AppCopy,
-  options: TasteCardRenderOptions,
-  progress: number = 0,
+  motion: TasteCardMotion,
 ): void {
   const centerX = width / 2;
   const size = metrics.avatar;
   const centerY = top + size / 2;
   const radius = size / 2;
-  const palette = paletteFor(options.cosmetics?.palette);
+  const mono = motion.palette === 'palette-mono';
+  const palette = paletteFor(motion.palette);
 
-  // Bloom goes down first so it sits behind the portrait.
   context.save();
-  context.shadowColor = 'rgba(152, 124, 244, 0.55)';
+  context.shadowColor = mono ? 'rgba(228, 228, 236, 0.4)' : 'rgba(152, 124, 244, 0.55)';
   context.shadowBlur = metrics.avatar * 0.28;
   context.fillStyle = palette.centerLift[0];
   context.beginPath();
@@ -823,8 +1171,7 @@ function paintIdentity(
     context.textAlign = 'left';
   }
 
-  // Stroked over the portrait edge, not under it.
-  paintAvatarFrame(context, centerX, centerY, radius, options.cosmetics?.frame, palette, progress);
+  paintAvatarFrame(context, centerX, centerY, radius, palette, motion);
 
   let y = top + size + metrics.gapIdentity;
   const eyebrowHeight = lineHeight(metrics.eyebrow, 1.35);
@@ -838,7 +1185,6 @@ function paintIdentity(
 
   const nameHeight = lineHeight(metrics.name, 1.05);
   const maxNameWidth = width - metrics.padX * 2;
-  // An empty name means the provider profile had no username to show.
   const displayName = model.displayName === '' ? copy.tasteCardDefaultName : model.displayName;
   const name = ellipsize(context, displayName, maxNameWidth);
   setFont(context, 800, fitFontSize(context, name, maxNameWidth, metrics.name, 40));
@@ -847,7 +1193,6 @@ function paintIdentity(
   context.textAlign = 'left';
 }
 
-// The tightest identity gap is the square format's, so a frame may never reach past it and touch the eyebrow. Exported so a test can assert every frame respects it.
 export const AVATAR_FRAME_LIMIT = 16;
 
 function paintAvatarFrame(
@@ -855,103 +1200,36 @@ function paintAvatarFrame(
   centerX: number,
   centerY: number,
   radius: number,
-  frame: FrameId | undefined,
   palette: CardPalette,
-  progress: number = 0,
+  motion: TasteCardMotion,
 ): void {
   const accent = palette.accent;
+  const progress = motion.progress;
+  const mono = motion.palette === 'palette-mono';
   context.save();
-  // Separates the portrait from the bloom in every variant.
   strokeRing(context, centerX, centerY, radius, 0, 4, 'rgba(11, 11, 14, 0.9)');
 
-  switch (frame ?? 'frame-classic') {
+  switch (motion.frame ?? 'frame-classic') {
     case 'frame-classic':
       strokeRing(context, centerX, centerY, radius, 4, 8, 'rgba(184, 165, 255, 0.55)');
-      paintDashRing(
-        context,
-        centerX,
-        centerY,
-        radius,
-        4,
-        8,
-        [10, 18],
-        3,
-        progress,
-        palette.accentBright,
-      );
-      break;
-    case 'frame-hairline':
-      strokeRing(context, centerX, centerY, radius, 7, 2, accent);
-      paintDashRing(
-        context,
-        centerX,
-        centerY,
-        radius,
-        7,
-        2,
-        [8, 26],
-        3,
-        progress,
-        palette.accentBright,
-      );
-      break;
-    case 'frame-double':
-      strokeRing(context, centerX, centerY, radius, 6, 3, accent);
-      strokeRing(context, centerX, centerY, radius, 14, 2, palette.accentSoft);
-      paintDashRing(
-        context,
-        centerX,
-        centerY,
-        radius,
-        6,
-        3,
-        [14, 12],
-        3,
-        progress,
-        palette.accentBright,
-      );
-      paintDashRing(
-        context,
-        centerX,
-        centerY,
-        radius,
-        14,
-        2,
-        [6, 10],
-        5,
-        progress,
-        palette.accentSoft,
-      );
-      break;
-    case 'frame-orbit':
-      strokeRing(context, centerX, centerY, radius, 5, 3, accent);
-      for (const degrees of [-90, 30, 150]) {
-        const angle = (degrees * Math.PI) / 180 + TAU * progress;
-        fillDot(
+      if (!mono) {
+        paintDashRing(
           context,
-          centerX + Math.cos(angle) * (radius + 12),
-          centerY + Math.sin(angle) * (radius + 12),
-          12,
+          centerX,
+          centerY,
+          radius,
           4,
-          accent,
+          8,
+          [10, 18],
+          3,
+          progress,
+          palette.accentBright,
         );
       }
       break;
-    case 'frame-prism':
-      if (typeof context.createConicGradient === 'function') {
-        const sweep = context.createConicGradient(-Math.PI / 2 + TAU * progress, centerX, centerY);
-        sweep.addColorStop(0, accent);
-        sweep.addColorStop(0.25, palette.accentSoft);
-        sweep.addColorStop(0.5, accent);
-        sweep.addColorStop(0.75, palette.accentSoft);
-        sweep.addColorStop(1, accent);
-        context.strokeStyle = sweep;
-        context.lineWidth = 5;
-        context.beginPath();
-        context.arc(centerX, centerY, radius + 9, 0, Math.PI * 2);
-        context.stroke();
-      } else {
-        strokeRing(context, centerX, centerY, radius, 7, 2, accent);
+    case 'frame-hairline':
+      strokeRing(context, centerX, centerY, radius, 7, 2, accent);
+      if (!mono) {
         paintDashRing(
           context,
           centerX,
@@ -966,6 +1244,208 @@ function paintAvatarFrame(
         );
       }
       break;
+    case 'frame-double':
+      strokeRing(context, centerX, centerY, radius, 6, 3, accent);
+      strokeRing(context, centerX, centerY, radius, 14, 2, palette.accentSoft);
+      if (!mono) {
+        paintDashRing(
+          context,
+          centerX,
+          centerY,
+          radius,
+          6,
+          3,
+          [14, 12],
+          3,
+          progress,
+          palette.accentBright,
+        );
+        paintDashRing(
+          context,
+          centerX,
+          centerY,
+          radius,
+          14,
+          2,
+          [6, 10],
+          5,
+          progress,
+          palette.accentSoft,
+        );
+      }
+      break;
+    case 'frame-orbit':
+      strokeRing(context, centerX, centerY, radius, 5, 3, accent);
+      if (!mono) {
+        for (const degrees of [-90, 30, 150]) {
+          const angle = (degrees * Math.PI) / 180 + TAU * progress;
+          fillDot(
+            context,
+            centerX + Math.cos(angle) * (radius + 12),
+            centerY + Math.sin(angle) * (radius + 12),
+            12,
+            4,
+            accent,
+          );
+        }
+      }
+      break;
+    case 'frame-prism':
+      if (!mono && typeof context.createConicGradient === 'function') {
+        const sweep = context.createConicGradient(-Math.PI / 2 + TAU * progress, centerX, centerY);
+        sweep.addColorStop(0, accent);
+        sweep.addColorStop(0.25, palette.accentSoft);
+        sweep.addColorStop(0.5, accent);
+        sweep.addColorStop(0.75, palette.accentSoft);
+        sweep.addColorStop(1, accent);
+        context.strokeStyle = sweep;
+        context.lineWidth = 5;
+        context.beginPath();
+        context.arc(centerX, centerY, radius + 9, 0, Math.PI * 2);
+        context.stroke();
+      } else {
+        strokeRing(context, centerX, centerY, radius, 7, 2, accent);
+        if (!mono) {
+          paintDashRing(
+            context,
+            centerX,
+            centerY,
+            radius,
+            7,
+            2,
+            [8, 26],
+            3,
+            progress,
+            palette.accentBright,
+          );
+        }
+      }
+      break;
+  }
+
+  if (mono || !motion.animated) {
+    context.restore();
+    return;
+  }
+  paintThemeRing(context, centerX, centerY, radius, palette, motion);
+  context.restore();
+}
+
+function paintThemeRing(
+  context: CanvasRenderingContext2D,
+  centerX: number,
+  centerY: number,
+  radius: number,
+  palette: CardPalette,
+  motion: TasteCardMotion,
+): void {
+  const pulse = 0.5 + 0.5 * Math.sin(TAU * motion.progress * AVATAR_PULSE_CYCLES[motion.palette]);
+  context.save();
+  context.globalCompositeOperation = 'lighter';
+  context.globalAlpha = 0.5 * pulse;
+  context.lineWidth = 2;
+  context.strokeStyle = palette.accentBright;
+  context.beginPath();
+  context.arc(centerX, centerY, radius + 3, 0, TAU);
+  context.stroke();
+  context.globalAlpha = 1;
+  if (motion.palette === 'palette-aurora') {
+    paintChromaticRing(context, centerX, centerY, radius, motion);
+  }
+  if (motion.palette === 'palette-tide') {
+    paintLiquidRing(context, centerX, centerY, radius, motion);
+  }
+  if (motion.palette === 'palette-ember') {
+    paintBurningEdge(context, centerX, centerY, radius, motion);
+  }
+  context.restore();
+}
+
+function paintChromaticRing(
+  context: CanvasRenderingContext2D,
+  centerX: number,
+  centerY: number,
+  radius: number,
+  motion: TasteCardMotion,
+): void {
+  const hue = (motion.progress * CHROMATIC_CYCLES[motion.palette] * 360) % 360;
+  context.save();
+  context.globalCompositeOperation = 'lighter';
+  context.lineWidth = 2.5;
+  context.shadowColor = `hsl(${hue} 90% 64% / 0.6)`;
+  context.shadowBlur = 24;
+  context.strokeStyle = `hsl(${hue} 90% 66% / 0.3)`;
+  context.beginPath();
+  context.arc(centerX, centerY, radius + 5, 0, TAU);
+  context.stroke();
+  context.lineWidth = 1.5;
+  context.shadowBlur = 12;
+  context.strokeStyle = `hsl(${(hue + 140) % 360} 90% 70% / 0.24)`;
+  context.beginPath();
+  context.arc(centerX, centerY, radius + 11, 0, TAU);
+  context.stroke();
+  context.restore();
+}
+
+function paintLiquidRing(
+  context: CanvasRenderingContext2D,
+  centerX: number,
+  centerY: number,
+  radius: number,
+  motion: TasteCardMotion,
+): void {
+  context.save();
+  context.globalCompositeOperation = 'lighter';
+  const segments = 40;
+  context.beginPath();
+  for (let segment = 0; segment <= segments; segment += 1) {
+    const angle = (segment / segments) * TAU;
+    const offset =
+      1.8 * Math.sin(3 * angle + TAU * motion.progress * 2) +
+      1.1 * Math.sin(5 * angle - TAU * motion.progress * 3);
+    const ringRadius = radius + 4 + offset;
+    const x = centerX + Math.cos(angle) * ringRadius;
+    const y = centerY + Math.sin(angle) * ringRadius;
+    if (segment === 0) context.moveTo(x, y);
+    else context.lineTo(x, y);
+  }
+  context.closePath();
+  context.strokeStyle = 'rgba(134, 214, 208, 0.42)';
+  context.lineWidth = 2.5;
+  context.stroke();
+  const shine = TAU * motion.progress;
+  context.strokeStyle = 'rgba(242, 255, 252, 0.4)';
+  context.lineWidth = 2;
+  context.beginPath();
+  context.arc(centerX, centerY, radius + 4, shine, shine + 0.9);
+  context.stroke();
+  context.beginPath();
+  context.arc(centerX, centerY, radius + 4, shine + Math.PI, shine + Math.PI + 0.55);
+  context.stroke();
+  context.restore();
+}
+
+function paintBurningEdge(
+  context: CanvasRenderingContext2D,
+  centerX: number,
+  centerY: number,
+  radius: number,
+  motion: TasteCardMotion,
+): void {
+  context.save();
+  context.globalCompositeOperation = 'lighter';
+  for (let layer = 0; layer < 3; layer += 1) {
+    const flicker = loopNoise(layer * 17, motion.progress, 40 + layer * 13);
+    const alpha = 0.08 + 0.34 * flicker;
+    const hue = 16 + layer * 14;
+    const lightness = 60 - layer * 9;
+    context.lineWidth = 4 - layer;
+    context.shadowColor = `hsl(${hue} 100% ${lightness}% / ${alpha})`;
+    context.shadowBlur = 16;
+    context.strokeStyle = `hsl(${hue} 100% ${lightness}% / ${alpha.toFixed(3)})`;
+    context.beginPath();
+    context.arc(centerX, centerY, radius + 5 + layer * 2.5, 0, TAU);
+    context.stroke();
   }
   context.restore();
 }
@@ -1046,7 +1526,6 @@ function paintTopPicks(
   paintPickList(context, model, metrics, images, width, bodyTop, geometry);
 }
 
-// A cell with no artwork stays a dim placeholder rather than being filled with something else, so a partial grid reads as incomplete instead of misleading.
 function paintPickGrid(
   context: CanvasRenderingContext2D,
   images: TasteCardImages,
@@ -1099,7 +1578,6 @@ function paintGridBrand(
   const margin = GRID_MARGIN + Math.round(size * 0.2);
   const baselineY = height - margin - size / 2;
   context.save();
-  // A soft scrim keeps the mark legible over a bright cover.
   const scrim = context.createLinearGradient(0, baselineY - size, 0, height);
   scrim.addColorStop(0, 'rgba(8, 8, 10, 0)');
   scrim.addColorStop(1, 'rgba(8, 8, 10, 0.72)');
@@ -1165,7 +1643,6 @@ function paintPickList(
   });
 }
 
-// Trades the titles for markedly bigger thumbnails, with rank and score overlaid on each cover so no vertical space is spent.
 function paintPickTriangle(
   context: CanvasRenderingContext2D,
   model: TasteCardModel,
@@ -1197,7 +1674,6 @@ function paintPickTriangle(
     const isWinner = index === 0;
     drawCover(context, images.picks[index] ?? null, metrics, slot.x, slot.y, slot.size, pick.title);
     if (isWinner) {
-      // The halo is what makes the winner read as the pick rather than just the biggest tile.
       context.save();
       context.lineWidth = Math.max(2, Math.round(slot.size * 0.035));
       context.strokeStyle = COLORS.accent;
@@ -1259,7 +1735,6 @@ function drawPickBadge(
   void metrics;
 }
 
-// Falls back to a muted tile when the provider had no art or the download failed, so a row never renders as a hole.
 function drawCover(
   context: CanvasRenderingContext2D,
   image: CanvasImageSource | null,
@@ -1267,7 +1742,6 @@ function drawCover(
   left: number,
   top: number,
   size: number,
-  /** Printed inside the tile when there's no artwork — the podium has nowhere else to show the title. */
   fallbackTitle?: string,
 ): void {
   const radius = Math.max(6, Math.round(size * 0.18));
@@ -1430,7 +1904,6 @@ function paintGenres(
   }
 }
 
-// The muted qualifier is what tells a viewer what the percentages actually measure.
 function drawSectionLabel(
   context: CanvasRenderingContext2D,
   label: string,
@@ -1485,7 +1958,6 @@ function paintFooter(
   const brand = copy.tasteCardFooter;
   context.fillText(brand, metrics.padX + dot + 12, centerY);
 
-  // No tagline simply leaves the right side empty rather than falling back to filler text.
   const brandEnd = metrics.padX + dot + 12 + context.measureText(brand).width;
   const available = width - metrics.padX - brandEnd - 24;
   if (model.headline !== null && available > 24) {
@@ -1624,7 +2096,6 @@ function wrapText(
   }
   if (current.length > 0 && lines.length < maxLines) lines.push(current);
   if (lines.length === 0) return [''];
-  // Anything left over means the title was truncated, so mark the last line.
   if (consumed < words.length) {
     const last = lines.length - 1;
     lines[last] = ellipsize(context, lines[last], maxWidth);

@@ -1,4 +1,5 @@
 import type { AppCopy } from '../locales';
+import type { PaletteId } from '../profile/cosmetics';
 import {
   DEFAULT_TASTE_CARD_RENDER_OPTIONS,
   TASTE_CARD_FORMATS,
@@ -10,18 +11,35 @@ import { paintTasteCard } from './taste-card-painter';
 import { GIFEncoder, applyPalette, quantize } from 'gifenc';
 
 const DEFAULT_TIMEOUT_MS = 12000;
-// Guards against inlining an unexpectedly huge asset.
 const MAX_ASSET_BYTES = 4 * 1024 * 1024;
 
-// 2x supersampling keeps the small type and rounded bar edges crisp when the PNG is zoomed or opened full-size; the cost is ~4x the encode work.
 export const TASTE_CARD_EXPORT_SCALE = 2;
 
-export const TASTE_CARD_GIF_FRAMES = 24;
-export const TASTE_CARD_GIF_DELAY_MS = 40;
-export const TASTE_CARD_GIF_WIDTH = 720;
-export const TASTE_CARD_GIF_SAMPLE_STRIDE = 3;
 export const TASTE_CARD_GIF_PREVIEW_DEBOUNCE_MS = 600;
-export const TASTE_CARD_GIF_DITHER_STRENGTH = 12;
+export const TASTE_CARD_GIF_DITHER_STRENGTH = 6;
+
+interface TasteCardGifTiming {
+  readonly frames: number;
+  readonly delayMs: number;
+}
+
+const TASTE_CARD_GIF_THEMES: Readonly<Record<PaletteId, TasteCardGifTiming>> = {
+  'palette-aurora': { frames: 80, delayMs: 125 },
+  'palette-tide': { frames: 48, delayMs: 125 },
+  'palette-ember': { frames: 40, delayMs: 100 },
+  'palette-mono': { frames: 48, delayMs: 125 },
+};
+
+const DEFAULT_TASTE_CARD_GIF_TIMING = TASTE_CARD_GIF_THEMES['palette-aurora'];
+
+export const TASTE_CARD_GIF_WIDTH = 900;
+export const TASTE_CARD_GIF_PREVIEW_WIDTH = 640;
+
+export function tasteCardGifPreviewTiming(palette: PaletteId | undefined): TasteCardGifTiming {
+  const timing =
+    TASTE_CARD_GIF_THEMES[palette ?? 'palette-aurora'] ?? DEFAULT_TASTE_CARD_GIF_TIMING;
+  return { frames: Math.ceil(timing.frames / 2), delayMs: timing.delayMs * 2 };
+}
 
 const BAYER_MATRIX = new Uint8Array([
   0, 32, 8, 40, 2, 34, 10, 42,
@@ -44,7 +62,6 @@ class TasteCardRenderError extends Error {
   }
 }
 
-// The provider CDNs serve avatars without CORS headers, so the bytes are fetched (allowed by host_permissions) and inlined as a data URL to keep the canvas same-origin. Any failure returns null so the card degrades to a monogram instead of failing the export.
 export async function fetchAssetAsDataUrl(
   url: string | null,
   timeoutMs: number = DEFAULT_TIMEOUT_MS,
@@ -76,17 +93,14 @@ export interface RenderTasteCardOptions {
   readonly model: TasteCardModel;
   readonly format: TasteCardFormat;
   readonly copy: AppCopy;
-  /** `null` falls back to the monogram. */
   readonly avatarDataUrl?: string | null;
   readonly brandDataUrl?: string | null;
-  /** Positionally aligned with `model.topPicks`. */
   readonly pickDataUrls?: readonly (string | null)[];
   readonly options?: TasteCardRenderOptions;
   readonly scale?: number;
   readonly timeoutMs?: number;
 }
 
-// Produces both the modal preview and the downloaded file, so the two can never disagree.
 export async function renderTasteCardPng(options: RenderTasteCardOptions): Promise<Blob> {
   const {
     model,
@@ -101,7 +115,6 @@ export async function renderTasteCardPng(options: RenderTasteCardOptions): Promi
   } = options;
   const spec = TASTE_CARD_FORMATS[format];
 
-  // Decode before painting so a broken asset can't abort the export, and skip hidden covers entirely rather than paying for CDN downloads nothing will draw.
   const drawsPicks = renderOptions.showPicks && model.topPicks.length > 0;
   const decoded = await Promise.all([
     decodeImage(avatarDataUrl, timeoutMs),
@@ -130,7 +143,6 @@ export async function renderTasteCardPng(options: RenderTasteCardOptions): Promi
     });
     return await canvasToPngBlob(canvas);
   } finally {
-    // Extension popups are memory constrained, so drop the backing store.
     canvas.width = 0;
     canvas.height = 0;
   }
@@ -159,11 +171,17 @@ export async function renderTasteCardGif(options: RenderTasteCardGifOptions): Pr
     brandDataUrl,
     pickDataUrls = [],
     options: renderOptions = DEFAULT_TASTE_CARD_RENDER_OPTIONS,
-    frames = TASTE_CARD_GIF_FRAMES,
-    delayMs = TASTE_CARD_GIF_DELAY_MS,
-    gifWidth = TASTE_CARD_GIF_WIDTH,
+    frames,
+    delayMs,
+    gifWidth,
     timeoutMs = DEFAULT_TIMEOUT_MS,
   } = options;
+  const timing =
+    frames !== undefined && delayMs !== undefined
+      ? { frames, delayMs }
+      : TASTE_CARD_GIF_THEMES[renderOptions.cosmetics?.palette ?? 'palette-aurora'] ??
+        DEFAULT_TASTE_CARD_GIF_TIMING;
+  const targetWidth = gifWidth ?? TASTE_CARD_GIF_WIDTH;
   const spec = TASTE_CARD_FORMATS[format];
 
   const drawsPicks = renderOptions.showPicks && model.topPicks.length > 0;
@@ -176,9 +194,9 @@ export async function renderTasteCardGif(options: RenderTasteCardGifOptions): Pr
   ]);
   const [avatar, brand, ...picks] = decoded;
 
-  const gifHeight = Math.round((spec.height / spec.width) * gifWidth);
+  const gifHeight = Math.round((spec.height / spec.width) * targetWidth);
   const canvas = document.createElement('canvas');
-  canvas.width = gifWidth;
+  canvas.width = targetWidth;
   canvas.height = gifHeight;
   try {
     const context = canvas.getContext('2d', { willReadFrequently: true });
@@ -186,33 +204,33 @@ export async function renderTasteCardGif(options: RenderTasteCardGifOptions): Pr
       throw new TasteCardRenderError('render', 'Canvas 2D context unavailable.');
     }
     const paintFrame = (progress: number): Uint8ClampedArray => {
-      context.clearRect(0, 0, gifWidth, gifHeight);
+      context.clearRect(0, 0, targetWidth, gifHeight);
       paintTasteCard(context, {
         model,
         format,
         copy,
-        scale: gifWidth / spec.width,
+        scale: targetWidth / spec.width,
         options: renderOptions,
         progress,
         images: { avatar, brand, picks },
       });
-      const rgba = context.getImageData(0, 0, gifWidth, gifHeight).data;
-      ditherFrame(rgba, gifWidth, gifHeight);
+      const rgba = context.getImageData(0, 0, targetWidth, gifHeight).data;
+      ditherFrame(rgba, targetWidth, gifHeight);
       return rgba;
     };
 
-    const sampleCount = Math.max(1, Math.ceil(frames / TASTE_CARD_GIF_SAMPLE_STRIDE));
-    const frameBytes = gifWidth * gifHeight * 4;
-    const joint = new Uint8Array(sampleCount * frameBytes);
-    for (let sample = 0; sample < sampleCount; sample += 1) {
-      joint.set(paintFrame(sample / sampleCount), sample * frameBytes);
-    }
-    const palette = quantize(joint, 256, { format: 'rgb565' });
-
     const encoder = GIFEncoder();
-    for (let frame = 0; frame < frames; frame += 1) {
-      const index = applyPalette(paintFrame(frame / frames), palette, 'rgb565');
-      encoder.writeFrame(index, gifWidth, gifHeight, { palette, delay: delayMs, repeat: 0 });
+    for (let frame = 0; frame < timing.frames; frame += 1) {
+      const progress = frame / timing.frames;
+      const rgba = paintFrame(progress);
+      const palette = quantize(rgba, 256, { format: 'rgb565' });
+      const index = applyPalette(rgba, palette, 'rgb565');
+      encoder.writeFrame(
+        index,
+        targetWidth,
+        gifHeight,
+        { palette, delay: timing.delayMs, repeat: 0 },
+      );
     }
     encoder.finish();
     return new Blob([new Uint8Array(encoder.bytes())], { type: 'image/gif' });
@@ -233,7 +251,6 @@ export function downloadPngBlob(blob: Blob, filename: string): void {
     anchor.click();
   } finally {
     anchor.remove();
-    // Chrome needs the URL to outlive the click by a tick to start the download.
     window.setTimeout(() => URL.revokeObjectURL(url), 4000);
   }
 }
@@ -248,7 +265,6 @@ export async function copyPngBlobToClipboard(blob: Blob): Promise<ClipboardOutco
     await navigator.clipboard.write([new ClipboardItem({ 'image/png': blob })]);
     return 'copied';
   } catch {
-    // Missing user gesture or a policy denial — both recoverable, the caller falls back to downloading.
     return 'denied';
   }
 }

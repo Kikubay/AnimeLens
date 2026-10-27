@@ -35,11 +35,20 @@ import {
   renderTasteCardGif,
   renderTasteCardPng,
   TASTE_CARD_GIF_PREVIEW_DEBOUNCE_MS,
+  TASTE_CARD_GIF_PREVIEW_WIDTH,
+  tasteCardGifPreviewTiming,
 } from '../taste-card-image';
 
 const DOWNLOAD_FILENAME = 'AnimeLens_TasteCard';
 
-// Past this scale the medium variant (~230px) would be visibly upscaled, so fetch the full-size image instead.
+function prefersReducedMotion(): boolean {
+  return (
+    typeof window !== 'undefined' &&
+    typeof window.matchMedia === 'function' &&
+    window.matchMedia('(prefers-reduced-motion: reduce)').matches
+  );
+}
+
 const LARGE_ART_THRESHOLD = 1.6;
 
 interface TasteCardModalProps {
@@ -49,7 +58,6 @@ interface TasteCardModalProps {
   readonly copy: AppCopy;
   readonly onClose: () => void;
   readonly onFeedback: (message: string) => void;
-  /** Only offered when a saved ranking exists, so the user isn't stuck with their first answer. */
   readonly onChangePicks?: () => void;
   readonly options: TasteCardRenderOptions;
   readonly onOptionsChange: (options: TasteCardRenderOptions) => void;
@@ -58,7 +66,6 @@ interface TasteCardModalProps {
   readonly onCosmeticsChange: (cosmetics: TasteCardCosmetics) => void;
   readonly exportFormat: TasteCardExportFormat;
   readonly onExportFormatChange: (format: TasteCardExportFormat) => void;
-  /** Hands straight over to the picker rather than showing an empty collage. */
   readonly onRequestGridPicker?: () => void;
 }
 
@@ -67,7 +74,6 @@ type ExportAction = 'download' | 'copy';
 interface TasteCardAssets {
   readonly avatar: string | null;
   readonly brand: string | null;
-  /** Positionally aligned with `model.topPicks`. */
   readonly picks: readonly (string | null)[];
 }
 
@@ -92,7 +98,6 @@ const SLOT_LABELS: Readonly<Record<CosmeticSlot, (copy: AppCopy) => string>> = {
   palette: (copy) => copy.cosmeticSlotPalette,
 };
 
-// The preview *is* the exported PNG, so there's no second DOM card to keep in sync and Download/Copy are instant once it exists.
 export function TasteCardModal({
   open,
   model,
@@ -118,6 +123,7 @@ export function TasteCardModal({
   const [isRendering, setRendering] = useState(false);
   const [busy, setBusy] = useState<ExportAction | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [reducedMotion, setReducedMotion] = useState<boolean>(prefersReducedMotion);
 
   useEffect(() => {
     mountedRef.current = true;
@@ -126,13 +132,18 @@ export function TasteCardModal({
     };
   }, []);
 
-  // Everything goes in as data URLs because a canvas can only paint same-origin bitmaps and both CDNs answer without CORS headers.
-  // Only the visibility flag gates the asset fetch — depending on all of `options` would re-fetch every cover each time the size slider moves.
+  useEffect(() => {
+    if (typeof window.matchMedia !== 'function') return undefined;
+    const query = window.matchMedia('(prefers-reduced-motion: reduce)');
+    const update = () => setReducedMotion(query.matches);
+    query.addEventListener('change', update);
+    return () => query.removeEventListener('change', update);
+  }, []);
+
   const { showPicks } = options;
   useEffect(() => {
     if (!open) return undefined;
     const avatarUrl = profile?.avatarUrl ?? null;
-    // Resolution follows the size actually drawn, otherwise a big cover looks soft.
     const useLarge =
       Math.min(options.coverScale, maxFittingCoverScale(model, format, options)) >=
       LARGE_ART_THRESHOLD;
@@ -160,8 +171,7 @@ export function TasteCardModal({
     const run = async () => {
       const assets = await assetsRef.current;
       if (disposed || !mountedRef.current) return;
-      const render = exportFormat === 'gif' ? renderTasteCardGif : renderTasteCardPng;
-      const blob = await render({
+      const shared = {
         model,
         format,
         copy,
@@ -169,7 +179,15 @@ export function TasteCardModal({
         brandDataUrl: assets.brand,
         pickDataUrls: assets.picks,
         options,
-      });
+      };
+      const animated = exportFormat === 'gif' && !reducedMotion;
+      const blob = animated
+        ? await renderTasteCardGif({
+            ...shared,
+            gifWidth: TASTE_CARD_GIF_PREVIEW_WIDTH,
+            ...tasteCardGifPreviewTiming(options.cosmetics.palette),
+          })
+        : await renderTasteCardPng(shared);
       if (disposed || !mountedRef.current) return;
       objectUrl = URL.createObjectURL(blob);
       pendingRef.current = Promise.resolve(blob);
@@ -194,7 +212,7 @@ export function TasteCardModal({
       window.clearTimeout(timer);
       if (objectUrl !== null) URL.revokeObjectURL(objectUrl);
     };
-  }, [open, model, format, copy, options, exportFormat]);
+  }, [open, model, format, copy, options, exportFormat, reducedMotion]);
 
   const spec = TASTE_CARD_FORMATS[format];
 
@@ -203,11 +221,11 @@ export function TasteCardModal({
       if (busy !== null) return;
       setBusy(action);
       try {
-        let blob = pendingRef.current === null ? null : await pendingRef.current;
+        const animated = exportFormat === 'gif' && !reducedMotion;
+        let blob = animated || pendingRef.current === null ? null : await pendingRef.current;
         if (blob === null) {
           const assets = await assetsRef.current;
-          const render = exportFormat === 'gif' ? renderTasteCardGif : renderTasteCardPng;
-          blob = await render({
+          const shared = {
             model,
             format,
             copy,
@@ -215,10 +233,11 @@ export function TasteCardModal({
             brandDataUrl: assets.brand,
             pickDataUrls: assets.picks,
             options,
-          });
+          };
+          blob = animated ? await renderTasteCardGif(shared) : await renderTasteCardPng(shared);
         }
         if (action === 'download') {
-          const extension = exportFormat === 'gif' ? 'gif' : 'png';
+          const extension = animated ? 'gif' : 'png';
           downloadPngBlob(blob, `${DOWNLOAD_FILENAME}.${extension}`);
           onFeedback(copy.tasteCardDownloaded);
           return;
@@ -254,12 +273,11 @@ export function TasteCardModal({
         if (mountedRef.current) setBusy(null);
       }
     },
-    [busy, copy, exportFormat, format, model, onFeedback, options],
+    [busy, copy, exportFormat, format, model, onFeedback, options, reducedMotion],
   );
 
   const isReady = previewUrl !== null && !isRendering;
 
-  // A half-filled grid would download as a collage of empty placeholders.
   const gridPicks = model.topPicks.length;
   const isGridIncomplete = options.picksLayout === 'grid' && gridPicks < GRID_SLOT_COUNT;
   const canExport = isReady && !isGridIncomplete && model.hasData;
@@ -269,7 +287,6 @@ export function TasteCardModal({
     if (option === 'grid' && onRequestGridPicker !== undefined) onRequestGridPicker();
   };
 
-  // The ceiling moves with format, layout and visible sections, so the slider grows instead of silently clipping the card.
   const coverCeiling = maxFittingCoverScale(model, format, options);
   const effectiveScale = Math.min(options.coverScale, coverCeiling);
 
@@ -293,7 +310,11 @@ export function TasteCardModal({
         ) : (
           <Skeleton className="taste-card-placeholder" />
         )}
-        {isRendering && previewUrl !== null && <span className="taste-card-busy" />}
+        {isRendering && (
+          <span className="taste-card-busy" role="status" aria-label={copy.tasteCardGenerating}>
+            <span className="taste-card-loader" />
+          </span>
+        )}
       </div>
       <div className="taste-card-controls">
         <RadioGroup<TasteCardFormat>
@@ -313,10 +334,13 @@ export function TasteCardModal({
           onChange={onExportFormatChange}
           options={[
             { value: 'png', label: copy.tasteCardExportPng },
-            { value: 'gif', label: copy.tasteCardExportGif },
+            { value: 'gif', label: copy.tasteCardExportGif, disabled: reducedMotion },
           ]}
         />
-        {exportFormat === 'gif' && <p className="taste-card-gif-note">{copy.tasteCardGifHint}</p>}
+        {exportFormat === 'gif' && !reducedMotion && (
+          <p className="taste-card-gif-note">{copy.tasteCardGifHint}</p>
+        )}
+        {reducedMotion && <p className="taste-card-gif-note">{copy.tasteCardReducedMotion}</p>}
         <fieldset className="taste-card-options">
           <legend>{copy.tasteCardOptionsTitle}</legend>
           <label className="setting-toggle-row taste-card-option">
@@ -372,7 +396,6 @@ export function TasteCardModal({
                 })
               }
             />
-            {/* Only reachable while a section is taking the space the covers want. */}
             {coverCeiling < COVER_SCALE_RANGE.max && (
               <small className="taste-card-slider-note">{copy.tasteCardCoverSizeCapped}</small>
             )}
@@ -428,7 +451,7 @@ export function TasteCardModal({
           >
             {busy === 'download'
               ? copy.tasteCardGenerating
-              : exportFormat === 'gif'
+              : exportFormat === 'gif' && !reducedMotion
                 ? copy.tasteCardDownloadGif
                 : copy.tasteCardDownload}
           </Button>

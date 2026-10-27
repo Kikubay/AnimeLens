@@ -133,7 +133,6 @@ button:focus-visible {
   max-width: var(--popup-content-width);
   min-height: 600px;
   margin: 0 auto;
-  /* Clips the page transition slides without becoming a scroll container: `overflow: hidden` would swallow the viewport scroll and leave `position: sticky` descendants stuck to this box instead of the screen. */
   overflow: clip;
   background: var(--bg);
 }
@@ -613,7 +612,6 @@ button:focus-visible {
 }
 .anime-search-more {
   position: sticky;
-  /* Clears the fixed bottom nav so loading another page never requires scrolling. */
   bottom: 40px;
   z-index: 5;
   display: flex;
@@ -622,7 +620,6 @@ button:focus-visible {
   padding: 10px 0 2px;
   background: linear-gradient(to bottom, transparent, var(--bg) 45%);
 }
-/* The bar is pinned above the nav, so it carries its backdrop down to the nav edge; without this the gap shows rows scrolling through. */
 .anime-search-more::after {
   position: absolute;
   top: 100%;
@@ -2732,6 +2729,11 @@ button:focus-visible {
     background-position: -200% 0;
   }
 }
+@keyframes taste-card-spin {
+  to {
+    transform: rotate(1turn);
+  }
+}
 @keyframes page-in {
   from {
     opacity: 0;
@@ -2911,7 +2913,18 @@ button:focus-visible {
 .taste-card-busy {
   position: absolute;
   inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   background: rgb(14 14 16 / 55%);
+}
+.taste-card-loader {
+  width: 36px;
+  height: 36px;
+  border: 3px solid rgb(255 255 255 / 20%);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: taste-card-spin 0.75s linear infinite;
 }
 .taste-card-controls {
   display: flex;

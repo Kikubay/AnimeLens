@@ -215,6 +215,7 @@ export interface AppCopy {
   readonly tasteCardExportGif: string;
   readonly tasteCardDownloadGif: string;
   readonly tasteCardGifHint: string;
+  readonly tasteCardReducedMotion: string;
   readonly tasteCardCopy: string;
   readonly tasteCardGenerating: string;
   readonly tasteCardDownloaded: string;

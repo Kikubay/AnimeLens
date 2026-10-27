@@ -111,7 +111,6 @@ describe('buildTasteCardModel', () => {
   it('falls back gracefully when no account is connected', () => {
     const model = buildTasteCardModel(summary(), null);
 
-    // The name stays empty so the painter can substitute a localized one; the monogram is a glyph and must not follow that substitution.
     expect(model.displayName).toBe('');
     expect(getCopy('en').tasteCardDefaultName).toBe('Anime fan');
     expect(model.monogram).toBe('A');
@@ -140,7 +139,6 @@ describe('buildTasteCardModel', () => {
 
 describe('taste card layout after dismissing the card', () => {
   it('falls back to the list when the grid is dismissed', () => {
-    // A grid is never persisted, so leaving the mode on would reopen onto an empty collage.
     expect(
       layoutAfterCardClose({ ...DEFAULT_TASTE_CARD_RENDER_OPTIONS, picksLayout: 'grid' }),
     ).toBe('list');
@@ -171,7 +169,6 @@ describe('taste card formats', () => {
       const spec = TASTE_CARD_FORMATS[format];
       return `${spec.width / (spec.height / 3)}`;
     };
-    // 3:4, 4:5, and 1:1 expressed as width : (height / 3).
     expect(ratio('tall')).toBeCloseTo(2.25, 2);
     expect(ratio('portrait')).toBeCloseTo(2.4, 2);
     expect(TASTE_CARD_FORMATS.square.width).toBe(TASTE_CARD_FORMATS.square.height);
@@ -188,7 +185,6 @@ describe('monogramFor', () => {
 });
 
 describe('taste card painter', () => {
-  // The painter only needs gradients, paths and text metrics, so a stub is enough to assert the geometry that reaches the exported pixels.
   function recordingContext() {
     const texts: { text: string; x: number; y: number }[] = [];
     const rects: { x: number; y: number; width: number; height: number }[] = [];
@@ -359,7 +355,6 @@ describe('taste card painter', () => {
     expect(rendered).toContain('Cowboy Bebop');
     expect(rendered).toContain('Fullmetal Alchemist: Brotherhood');
     expect(rendered).toContain('Steins;Gate');
-    // Rank badges, then the scores right-aligned in order.
     expect(rendered).toContain('1');
     expect(rendered).toContain('2');
     expect(rendered).toContain('3');
@@ -384,19 +379,15 @@ describe('taste card painter', () => {
   it('paints a square cover thumbnail for every pick that has art', () => {
     const recorded = recordingContext();
     paint(recorded, {}, 'portrait', { picks: [cover, null, cover] });
-    // Cover scale means the image is drawn at least as tall as the thumbnail edge.
     const covers = recorded.drawn.filter(
       (image) => Math.round(image.width) === 56 && image.height >= 56,
     );
 
-    // Two of the three picks have a cover URL; the middle one falls back.
     expect(covers).toHaveLength(2);
     for (const image of covers) {
-      // Centred on the thumbnail box, never overflowing the card.
       expect(image.x).toBeGreaterThanOrEqual(0);
       expect(image.x + image.width).toBeLessThanOrEqual(TASTE_CARD_FORMATS.portrait.width);
     }
-    // The covers are stacked in reading order.
     expect(covers[0]?.y).toBeLessThan(covers[1]?.y ?? 0);
   });
 
@@ -406,7 +397,6 @@ describe('taste card painter', () => {
     paint(withCovers, {}, 'portrait', { picks: [cover, cover, cover] });
     paint(withoutCovers, {}, 'portrait', { picks: [null, null, null] });
 
-    // Identical geometry either way: the row never collapses or shifts.
     expect(withoutCovers.drawn).toHaveLength(0);
     const placeholders = withoutCovers.rects.filter(
       (rect) => Math.round(rect.width) === 56 && Math.round(rect.height) === 56,
@@ -432,7 +422,6 @@ describe('taste card painter', () => {
     const title = recorded.texts.find((entry) => entry.text === 'Cowboy Bebop');
     const score = recorded.texts.find((entry) => entry.text === '10');
 
-    // The stub measures 20px per character, so the ellipsized title ends here.
     expect((title?.x ?? 0) + 'Cowboy Bebop'.length * 20).toBeLessThan(score?.x ?? 0);
     expect(title?.x ?? 0).toBeLessThan(spec.width);
   });
@@ -453,7 +442,6 @@ describe('taste card painter', () => {
     paint(recorded, { headline: null });
     const rendered = recorded.texts.map((entry) => entry.text);
 
-    // No filler text: the brand line simply stands alone.
     expect(rendered).toContain('Made with AnimeLens');
     expect(rendered).not.toContain('Aggregate stats only');
     expect(rendered).not.toContain('Taste for rich worlds');
@@ -465,7 +453,6 @@ describe('taste card painter', () => {
     const chip = recorded.texts.find((entry) => entry.text === 'MyAnimeList');
 
     expect(chip).toBeDefined();
-    // The chip is right-aligned on the brand row, where the old tag sat.
     expect(chip?.x).toBeGreaterThan(TASTE_CARD_FORMATS.portrait.width / 2);
   });
 
@@ -507,7 +494,6 @@ describe('taste card painter', () => {
     expect(rendered).toContain('% affinity');
     const label = recorded.texts.find((entry) => entry.text === 'TOP GENRES');
     const qualifier = recorded.texts.find((entry) => entry.text === '% affinity');
-    // The qualifier sits after the label, before the fading rule.
     expect(qualifier?.x ?? 0).toBeGreaterThan(label?.x ?? 0);
   });
 
@@ -515,13 +501,11 @@ describe('taste card painter', () => {
     const recorded = recordingContext();
     paint(recorded);
 
-    // The grid is stroked with a faint but non-zero white.
     const grid = recorded.strokes.find((style) => style.includes('rgba(255, 255, 255'));
     expect(grid).toBeDefined();
     const alpha = Number(grid?.match(/([\d.]+)\)$/)?.[1] ?? '0');
     expect(alpha).toBeGreaterThan(0.04);
 
-    // The avatar bloom is filled while a drop shadow is active.
     const glows = recorded.fills.filter((fill) => fill.shadowBlur > 0);
     expect(glows.length).toBeGreaterThan(0);
     expect(glows[0]?.shadowColor).toContain('152, 124, 244');
@@ -534,7 +518,6 @@ describe('taste card painter', () => {
     const portraitIndex = withAvatar.drawn.length - 1;
 
     expect(bloomIndex).toBeGreaterThanOrEqual(0);
-    // Every drawImage happens after the glow was painted.
     expect(portraitIndex).toBeGreaterThanOrEqual(0);
     expect(withAvatar.drawn.length).toBe(1);
   });
@@ -549,9 +532,7 @@ describe('taste card painter', () => {
       scale: 2,
     });
 
-    // The first scale() is the export multiplier; the rest are glow ellipses.
     expect(recorded.scales[0]).toEqual({ x: 2, y: 2 });
-    // Raster assets are magnified at 2x, so high-quality resampling is required.
     expect(recorded.context.imageSmoothingEnabled).toBe(true);
     expect(recorded.context.imageSmoothingQuality).toBe('high');
   });
@@ -561,7 +542,6 @@ describe('taste card painter', () => {
   });
 
   it('insets the brand row to the same content padding as everything else', () => {
-    // The mark used to be painted at x = 0, shoving the top row 72px left of the content column.
     const padX: Record<TasteCardFormat, number> = { tall: 72, portrait: 72, square: 64 };
     for (const format of TASTE_CARD_FORMAT_ORDER) {
       const recorded = recordingContext();
@@ -569,20 +549,16 @@ describe('taste card painter', () => {
       const spec = TASTE_CARD_FORMATS[format];
       const content = contentRects(recorded, spec.width);
 
-      // The brand mark is the first square content box painted.
       const mark = content.find((rect) => rect.width === rect.height);
       expect(mark?.x).toBe(padX[format]);
-      // The wordmark follows the mark, never the card edge.
       const wordmark = recorded.texts.find((entry) => entry.text === 'AnimeLens');
       expect(wordmark?.x ?? 0).toBeGreaterThan(padX[format]);
-      // The provider chip terminates on the right content edge.
       const rightEdges = new Set(content.map((rect) => Math.round(rect.x + rect.width)));
       expect([...rightEdges]).toContain(spec.width - padX[format]);
     }
   });
 
   it('starts every primary element on one shared content line', () => {
-    // Section labels, genre names, covers and stat tiles all hang off the same inset, so the column reads as one grid.
     for (const format of TASTE_CARD_FORMAT_ORDER) {
       const recorded = recordingContext();
       paint(recorded, {}, format, { picks: [cover, cover, cover] });
@@ -593,7 +569,6 @@ describe('taste card painter', () => {
         expect(entry, `${label} missing in ${format}`).toBeDefined();
         insets.add(entry?.x ?? -1);
       }
-      // Covers are the first square content box, like the brand mark.
       const coverBox = contentRects(recorded, TASTE_CARD_FORMATS[format].width).find(
         (rect) => rect.width === rect.height,
       );
@@ -613,7 +588,6 @@ describe('taste card painter', () => {
         expect(rect.x).toBeGreaterThanOrEqual(padX);
         expect(Math.round(rect.x + rect.width)).toBeLessThanOrEqual(spec.width - padX);
       }
-      // Right-aligned text is anchored on the content edge, so its origin is the rightmost point.
       for (const entry of recorded.texts) {
         expect(entry.x).toBeGreaterThanOrEqual(padX);
         expect(entry.x).toBeLessThanOrEqual(spec.width - padX);
@@ -631,7 +605,6 @@ describe('taste card painter', () => {
   });
 
   it('fits every format, layout, and cover size without clipping the footer', () => {
-    // Worst case: three genres, three picks, a tagline and a long name. Every reachable combination is checked, so a new layout or a wider slider can't quietly overflow.
     const worst: TasteCardModel = {
       ...model,
       displayName: 'A_very_long_anime_lovers_handle_2026',
@@ -651,7 +624,6 @@ describe('taste card painter', () => {
           });
           const where = `${format}/${picksLayout}@${coverScale}`;
           expect(layout.content, `overflows in ${where}`).toBeLessThanOrEqual(layout.available);
-          // A zero gap means blocks are touching; below 6 they read as cramped.
           expect(layout.gap, `too tight in ${where}`).toBeGreaterThanOrEqual(6);
         }
       }
@@ -681,7 +653,6 @@ describe('taste card painter', () => {
     const [firstTriangle] = [coverEdge('triangle', 0)];
 
     expect(firstList).toBe(56);
-    // The podium roughly doubles the artwork and makes the winner larger.
     expect(firstTriangle).toBeGreaterThan(firstList);
     expect(firstTriangle).toBe(Math.round(56 * 2.0));
   });
@@ -699,11 +670,9 @@ describe('taste card painter', () => {
     expect(drawn).toHaveLength(3);
 
     const centreX = (image: { x: number; width: number }): number => image.x + image.width / 2;
-    // #1 is centred on the content column; #2 and #3 sit symmetrically below.
     expect(centreX(drawn[0]!)).toBeCloseTo(72 + (1080 - 144) / 2, 0);
     expect(centreX(drawn[1]!)).toBeLessThan(centreX(drawn[0]!));
     expect(centreX(drawn[2]!)).toBeGreaterThan(centreX(drawn[0]!));
-    // The base row shares a top edge, the winner sits above it.
     expect(drawn[1]!.y).toBe(drawn[2]!.y);
     expect(drawn[0]!.y).toBeLessThan(drawn[1]!.y);
     expect(drawn[1]!.width).toBe(drawn[2]!.width);
@@ -721,7 +690,6 @@ describe('taste card painter', () => {
     const rendered = recorded.texts.map((entry) => entry.text);
 
     expect(rendered).not.toContain('Cowboy Bebop');
-    // The section label and the rank/score badges remain.
     expect(rendered).toContain('TOP RATED');
     expect(rendered).toContain('1');
     expect(rendered).toContain('10');
@@ -738,7 +706,6 @@ describe('taste card painter', () => {
     });
     const rendered = recorded.texts.map((entry) => entry.text);
 
-    // Without this the podium would degrade to three anonymous squares.
     expect(rendered.some((text) => text.includes('Cowboy'))).toBe(true);
   });
 
@@ -761,7 +728,6 @@ describe('taste card painter', () => {
     });
     const rendered = recorded.texts.map((entry) => entry.text);
 
-    // Nine covers, and none of the stats-card furniture.
     expect(recorded.drawn).toHaveLength(9);
     expect(rendered).toContain('AnimeLens');
     expect(rendered).not.toContain('TOP RATED');
@@ -782,7 +748,6 @@ describe('taste card painter', () => {
         images: { avatar: null, brand: null, picks: Array.from({ length: 9 }, () => cover) },
         options: { ...DEFAULT_TASTE_CARD_RENDER_OPTIONS, picksLayout: 'grid' },
       });
-      // The cell boxes are the rounded rects used as clip paths; the images are deliberately painted larger to crop like `cover`.
       const cells = contentRects(recorded, spec.width).filter(
         (rect) => Math.round(rect.width) === Math.round(rect.height),
       );
@@ -819,7 +784,6 @@ describe('taste card painter', () => {
       showGenres: false,
     });
 
-    // Nothing but the grid and the brand mark, whatever the toggles say.
     expect(layout.blocks).toEqual(['grid', 'brand']);
     expect(layout.content).toBeLessThanOrEqual(layout.available);
   });
@@ -841,20 +805,16 @@ describe('taste card painter', () => {
       const cell = Math.round(cells[0]?.width ?? 0);
       const left = cells[0]?.x ?? 0;
       const top = cells[0]?.y ?? 0;
-      // Cells run left-to-right, top-to-bottom, so index 8 ends the last column and index 6 the last row.
       const rightGap = spec.width - (cells[8]!.x + cell);
       const bottomGap = spec.height - (cells[6]!.y + cell);
 
-      // Columns are balanced within a pixel.
       expect(Math.abs(left - rightGap)).toBeLessThanOrEqual(1);
-      // Rows balance too: a tall card has unavoidable vertical slack and it has to be split.
       expect(Math.abs(top - bottomGap)).toBeLessThanOrEqual(2);
       expect(top).toBeGreaterThan(0);
     }
   });
 
   it('still fits at the largest cover size the slider allows', () => {
-    // The slider max is only safe while the layout holds there; if this breaks, tighten TASTE_CARD_COVER_SCALE_RANGE rather than let the card clip.
     const worst: TasteCardModel = {
       ...model,
       displayName: 'A_very_long_anime_lovers_handle_2026',
@@ -889,7 +849,6 @@ describe('taste card painter', () => {
     expect(full.blocks).toEqual(['brand', 'identity', 'stats', 'genres', 'picks', 'footer']);
     expect(noGenres.blocks).toEqual(['brand', 'identity', 'stats', 'picks', 'footer']);
     expect(noPicks.blocks).toEqual(['brand', 'identity', 'stats', 'genres', 'footer']);
-    // Removing a block frees height, so the gaps grow rather than collapsing.
     expect(noGenres.gap).toBeGreaterThan(full.gap);
     expect(noPicks.gap).toBeGreaterThan(full.gap);
   });
@@ -907,7 +866,6 @@ describe('taste card painter', () => {
 
     expect(rendered).not.toContain('TOP GENRES');
     expect(rendered).not.toContain('TOP RATED');
-    // Stats, identity, and the footer are unaffected.
     expect(rendered).toContain('412');
     expect(rendered).toContain('Made with AnimeLens');
   });
@@ -926,11 +884,9 @@ describe('taste card painter', () => {
     };
     const ceiling = maxFittingCoverScale(model, 'portrait');
 
-    // Monotonic up to the ceiling...
     expect(coverEdge(1)).toBe(56);
     expect(coverEdge((1 + ceiling) / 2)).toBeGreaterThan(56);
     expect(coverEdge(ceiling)).toBe(Math.round(56 * ceiling));
-    // ...and asking for more than fits is capped, never drawn at full size.
     expect(coverEdge(COVER_SCALE_RANGE.max)).toBe(Math.round(56 * ceiling));
     expect(coverEdge(COVER_SCALE_RANGE.max)).toBeLessThan(56 * COVER_SCALE_RANGE.max);
   });
@@ -965,7 +921,6 @@ describe('taste card painter', () => {
       showGenres: false,
     });
 
-    // Freeing the genre bars buys the bigger artwork, so the slider visibly grows when that section is off.
     expect(noGenres).toBeGreaterThan(all);
     expect(all).toBeLessThanOrEqual(COVER_SCALE_RANGE.max);
   });
@@ -988,7 +943,6 @@ describe('taste card painter', () => {
   });
 
   it('fits every block in both formats without clipping the footer', () => {
-    // Worst case: three genres, three picks, a tagline, and a long name.
     const worst: TasteCardModel = {
       ...model,
       displayName: 'A_very_long_anime_lovers_handle_2026',
@@ -1001,7 +955,6 @@ describe('taste card painter', () => {
     for (const format of TASTE_CARD_FORMAT_ORDER) {
       const layout = measureTasteCardLayout(worst, format);
       expect(layout.content).toBeLessThanOrEqual(layout.available);
-      // A zero gap means the blocks are touching or the footer is clipped.
       expect(layout.gap).toBeGreaterThanOrEqual(14);
       expect(layout.blocks).toEqual(['brand', 'identity', 'stats', 'genres', 'picks', 'footer']);
     }
@@ -1031,7 +984,6 @@ describe('taste card painter', () => {
     paint(portrait);
     paint(square, {}, 'square');
 
-    // Taller cards push the footer down; the 1:1 card is the most compact.
     expect(footerY(tall)).toBeGreaterThan(footerY(portrait));
     expect(footerY(portrait)).toBeGreaterThan(footerY(square));
     expect(footerY(square)).toBeGreaterThan(0);
@@ -1058,12 +1010,10 @@ describe('taste card painter', () => {
     expect(rendered).not.toContain('Taste for rich worlds');
   });
 
-  // Genre tracks and fills are the only short, wide rounded rects.
   function genreBars(recorded: ReturnType<typeof recordingContext>) {
     return recorded.rects.filter((rect) => rect.height > 8 && rect.height < 24 && rect.width > 100);
   }
 
-  // Rounded boxes inside the content column, excluding the full-bleed base fill painted first.
   function contentRects(recorded: ReturnType<typeof recordingContext>, cardWidth: number) {
     return recorded.rects.filter((rect) => Math.round(rect.width) < cardWidth);
   }
@@ -1086,7 +1036,6 @@ describe('taste card painter', () => {
     const trackWidth = TASTE_CARD_FORMATS.portrait.width - 72 * 2;
     const widths = genreBars(recorded).map((rect) => Math.round((rect.width / trackWidth) * 100));
 
-    // Tracks are painted at full width, fills at the genre percentage.
     expect(widths).toContain(92);
     expect(widths).toContain(84);
     expect(widths).toContain(61);
@@ -1115,7 +1064,6 @@ describe('taste card painter', () => {
         const slot = cosmetic.slot;
         const recorded = recordingContext();
         expect(() => paint(recorded, {}, format, {}, { [slot]: cosmetic.id })).not.toThrow();
-        // A frame or a palette must never cost a label or push the footer.
         expect(measureTasteCardLayout({ ...model }, format)).toEqual(baseline.get(format));
         expect(recorded.texts.map((entry) => entry.text)).toContain('Sakamoto');
       }
@@ -1123,7 +1071,6 @@ describe('taste card painter', () => {
   });
 
   it('keeps every avatar frame clear of the eyebrow below it', () => {
-    // Square has the tightest identity gap, so it is the format that would clip first.
     const format: TasteCardFormat = 'square';
     const centerX = TASTE_CARD_FORMATS[format].width / 2;
     const eyebrow = 'ANIME TASTE PROFILE';
@@ -1142,7 +1089,6 @@ describe('taste card painter', () => {
         expect(arc.y + arc.radius).toBeLessThanOrEqual(eyebrowY);
       }
 
-      // The painter's own cap, so a future frame cannot quietly widen the ring.
       const rings = identity.filter((arc) => arc.radius >= 20).map((arc) => arc.radius);
       expect(Math.max(...rings) - Math.min(...rings)).toBeLessThanOrEqual(AVATAR_FRAME_LIMIT);
     }
@@ -1200,22 +1146,25 @@ describe('taste card painter', () => {
     );
   }
 
-  it('paints the resting animation phase exactly like the static card', () => {
-    const rested = recordingContext();
-    const explicit = recordingContext();
-    paint(rested);
-    paint(explicit, {}, 'portrait', {}, undefined, 0);
+  it('keeps animation-only decoration out of the static card', () => {
+    for (const palette of ['palette-aurora', 'palette-ember'] as PaletteId[]) {
+      const still = recordingContext();
+      const animated = recordingContext();
+      paint(still, {}, 'portrait', {}, { palette });
+      paint(animated, {}, 'portrait', {}, { palette }, 0);
 
-    expect(snapshot(explicit)).toEqual(snapshot(rested));
+      expect(still.arcs.length).toBeLessThan(animated.arcs.length);
+      expect(still.strokes.length).toBeLessThan(animated.strokes.length);
+    }
   });
 
-  it('returns to the resting phase after a full loop', () => {
-    const rested = recordingContext();
+  it('returns to the starting phase after a full loop', () => {
+    const started = recordingContext();
     const wrapped = recordingContext();
-    paint(rested);
+    paint(started, {}, 'portrait', {}, undefined, 0);
     paint(wrapped, {}, 'portrait', {}, undefined, 1);
 
-    expect(snapshot(wrapped)).toEqual(snapshot(rested));
+    expect(snapshot(wrapped)).toEqual(snapshot(started));
   });
 
   it('moves every avatar frame between phases without clipping the layout', () => {
