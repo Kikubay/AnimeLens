@@ -1,5 +1,3 @@
-/* Hallmark · check · built: the project · surface: demo stage for the popup shell (inherits the popup theme block) */
-/* crit: P4 H5 E5 S4 R5 — the shell floats over the stage as one object: elevation by shadow carries the separation, the shell's own edge carries the border */
 body {
   min-width: 0;
   background: var(--bg);

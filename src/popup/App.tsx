@@ -181,7 +181,6 @@ export function App() {
   const [downloadingUpdate, setDownloadingUpdate] = useState(false);
   const [language, setLanguage] = useState<Language>('en');
   const [preferences, setPreferences] = useState<UserPreferences>(DEFAULT_USER_PREFERENCES);
-  // The usage streak is written back, so it must not start until the stored streak has been read.
   const [preferencesLoaded, setPreferencesLoaded] = useState(false);
   const [activeProviderName, setActiveProviderName] = useState('MyAnimeList');
   const copy = getCopy(language);
@@ -276,8 +275,6 @@ export function App() {
         if (disposed) return;
         setAuth(snapshot);
         if (snapshot.status !== 'authenticated') return;
-        // Opening the popup is the only automatic trigger, and the sync reuses the cached list
-        // whenever it is still fresh, so this costs nothing until the list actually goes stale.
         void requestSync('initial')
           .then((next) => {
             if (!disposed) applySyncSnapshot(next);
@@ -396,8 +393,6 @@ export function App() {
     }
   };
 
-  // The outgoing page stays mounted and in normal flow while it slides out, so the swap is
-  // invisible at the moment both pages are fully transparent and the document height can change.
   const beginTransition = (nextPage: PageId) => {
     if (exitTimer.current !== null) window.clearTimeout(exitTimer.current);
     const direction = transitionDirection(page, nextPage, NAV_PAGE_ORDER);
@@ -430,7 +425,6 @@ export function App() {
   };
   const showToast = useCallback((message: string) => setToast(message), []);
 
-  // Only the day boundary and the warm-up towards it need a write, so an ordinary session is silent.
   const recordUsageEvent = (event: UsageEvent) => {
     const now = Date.now();
     if (!event.countedDay && !isUsagePending(event.streak, now)) return;

@@ -1,7 +1,3 @@
-/* Hallmark · check · built: the project · redesign: full · genre: modern-minimal · theme: console (local colourway, lavender kept by request) · scope: app screen (extension popup) */
-/* crit: P4 H5 E5 S4 R5 — the seams panel, the mono readings and the quiet cards carry the instrument; the poster fallback art and the cosmetic swatches are the two gradients left, both as data */
-/* Hallmark · waive 64 · the span is a % reading (item.score) · the mono voice is the theme's own measured-instrument face, figures carry it */
-/* Hallmark · waive 39b · button.anime-card sits 246-255px tall · whole anime cards are the tap targets themselves, their height is card content, not a control stand-in */
 @keyframes shimmer {
   from {
     transform: translateX(-100%);

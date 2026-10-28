@@ -1,4 +1,4 @@
-import { useEffect, useId, useRef, useState } from 'react';
+import { useCallback, useEffect, useId, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import type { ButtonHTMLAttributes, HTMLAttributes, ReactNode } from 'react';
 import type { AppCopy } from '../../locales';
@@ -39,8 +39,6 @@ interface IconProps {
   readonly className?: string;
 }
 
-// Module scope, because the table is static: building it inside the component rebuilt all 26 entries on
-// every render while a dashboard render mounts several hundred icons.
 const ICON_PATHS: Record<IconName, ReactNode> = {
   'arrow-down': (
     <>
@@ -270,8 +268,6 @@ interface ModalProps {
   readonly className?: string;
 }
 
-// One lock for every dialog, because the grid picker opens on top of the taste card dialog and the
-// page may only be released once the last one closes.
 const pageLock = createPageLock(() => ({
   body: document.body,
   html: document.documentElement,
@@ -290,7 +286,6 @@ export function Modal({ open, title, onClose, children, closeLabel, className = 
     if (!open) return undefined;
     previouslyFocused.current =
       document.activeElement instanceof HTMLElement ? document.activeElement : null;
-    // Captured here, because React detaches the ref before the cleanup runs on unmount.
     const dialog = dialogRef.current;
     pageLock.engage(dialog);
     const focusable = dialog?.querySelector<HTMLElement>(
@@ -322,8 +317,6 @@ export function Modal({ open, title, onClose, children, closeLabel, className = 
     document.addEventListener('keydown', onKeyDown);
     return () => {
       document.removeEventListener('keydown', onKeyDown);
-      // Released before the focus goes back, because the element that had it sits in the part of the
-      // page the lock just made inert.
       pageLock.release(dialog);
       previouslyFocused.current?.focus();
       previouslyFocused.current = null;
@@ -331,7 +324,6 @@ export function Modal({ open, title, onClose, children, closeLabel, className = 
   }, [open]);
 
   if (!open) return null;
-  // Portalled to <body> because a `fill-mode: both` animation sitting at translateY(0) makes its ancestor the containing block for fixed positioning, which pushed this dialog off-centre.
   return createPortal(
     <div className="modal-backdrop" role="presentation" onMouseDown={onClose}>
       <section
@@ -371,26 +363,26 @@ interface ToastProps {
   readonly message: string;
   readonly onClose: () => void;
   readonly dismissLabel: string;
-  /** `0` disables auto-dismiss. */
   readonly autoDismissMs?: number;
 }
 
 const TOAST_EXIT_ANIMATION_MS = 260;
 
 export function Toast({ message, onClose, dismissLabel, autoDismissMs = 2000 }: ToastProps) {
-  // Stays mounted through the exit animation; the parent unmounts only once `onClose` fires.
   const [closing, setClosing] = useState(false);
   const closeTimer = useRef<number | null>(null);
   const exitTimer = useRef<number | null>(null);
+  const onCloseRef = useRef(onClose);
+  onCloseRef.current = onClose;
 
-  const beginExit = () => {
+  const beginExit = useCallback(() => {
     if (exitTimer.current !== null) return;
     setClosing(true);
     exitTimer.current = window.setTimeout(() => {
       exitTimer.current = null;
-      onClose();
+      onCloseRef.current();
     }, TOAST_EXIT_ANIMATION_MS);
-  };
+  }, []);
 
   useEffect(() => {
     if (autoDismissMs <= 0) return undefined;
@@ -401,11 +393,8 @@ export function Toast({ message, onClose, dismissLabel, autoDismissMs = 2000 }: 
         closeTimer.current = null;
       }
     };
-    // beginExit is stable enough for this component's lifetime.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [autoDismissMs]);
+  }, [autoDismissMs, beginExit]);
 
-  // A reused toast with a new message needs a fresh exit timer.
   useEffect(() => {
     setClosing(false);
     if (exitTimer.current !== null) {

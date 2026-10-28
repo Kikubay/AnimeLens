@@ -139,7 +139,6 @@ function reasonHeadline(reason: RecommendationReason | undefined): string | null
     : `${reason.label} ${detail}`;
 }
 
-// Module scope so the memoized derivations below can depend on it without rebuilding it each render.
 function toCardData(recommendation: Recommendation, copy: AppCopy): AnimeCardData {
   return {
     ...recommendation.anime,
@@ -209,8 +208,6 @@ export function DashboardPage({
   const loadRecommendations = useCallback(() => {
     const sequence = requestSequence.current + 1;
     requestSequence.current = sequence;
-    // A refresh that runs while a dashboard is on screen swaps the content in place, so the reader
-    // keeps their place instead of watching the page empty out and refill.
     if (decideDashboardRefresh('start', dashboardVisible.current).outcome === 'loading') {
       setSnapshot((current) => ({ ...current, status: 'loading', errorMessage: null }));
     }
@@ -248,8 +245,6 @@ export function DashboardPage({
     }
   }, [sync.metadata.status, sync.metadata.lastSyncedAt, loadRecommendations]);
 
-  // Both derivations are keyed on `copy`, whose identity is stable because getCopy is module-cached,
-  // so an unrelated re-render no longer hands 96 cards freshly allocated props.
   const daily = useMemo(
     () => (snapshot.daily === null ? null : toCardData(snapshot.daily, copy)),
     [snapshot.daily, copy],
@@ -1066,7 +1061,6 @@ function ProfileSummary({
       if (onPreferencesChange === undefined) return;
       setSessionLayout(next.picksLayout);
 
-      // The stored cosmetics are left as chosen; anything no longer unlocked is dropped when the card renders.
       const tasteCard = {
         ...next,
         picksLayout: persistableTasteCardPicksLayout(next.picksLayout),
@@ -1565,7 +1559,6 @@ export function SettingsPage({
   const [anilistClientId, setAnilistClientId] = useState('');
   const [isSavingAnilistClientId, setIsSavingAnilistClientId] = useState(false);
   const [providerActionInFlight, setProviderActionInFlight] = useState<ProviderId | null>(null);
-  // Only whether a token is waiting, never the token itself: it stays in the worker.
   const [pinTokenAvailable, setPinTokenAvailable] = useState(false);
   const [pinFlowState, setPinFlowState] = useState<AnilistPinFlowState>('idle');
 

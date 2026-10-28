@@ -29,7 +29,6 @@ export interface ProviderStatusView {
 
 export type TasteCardPicksLayout = 'list' | 'triangle' | 'grid';
 
-// A grid is assembled by hand and never persisted, so storing the *mode* would only restore an empty collage next visit.
 export type PersistedTasteCardPicksLayout = 'list' | 'triangle';
 
 export function persistableTasteCardPicksLayout(
@@ -41,10 +40,8 @@ export function persistableTasteCardPicksLayout(
 export interface TasteCardPreferences {
   readonly showGenres: boolean;
   readonly showPicks: boolean;
-  /** Bounded by TASTE_CARD_COVER_SCALE_RANGE, whose max a layout test proves still fits every format. */
   readonly coverScale: number;
   readonly picksLayout: PersistedTasteCardPicksLayout;
-  /** Stored as chosen; an item the user no longer qualifies for is dropped when the card is rendered. */
   readonly cosmetics: TasteCardCosmetics;
   readonly exportFormat: TasteCardExportFormat;
 }
@@ -69,7 +66,6 @@ export interface UserPreferences {
   readonly minimumCompatibilityScore: number;
   readonly showCompletedAnime: boolean;
   readonly tasteCard: TasteCardPreferences;
-  /** Accumulated, never derived: the taste level is recomputed on every read. */
   readonly usageStreak: UsageStreak;
 }
 
@@ -87,7 +83,6 @@ export interface SettingsSnapshot {
   readonly anilistRedirectUri: string;
 }
 
-// The max is an absolute ceiling (three 5x covers alone are taller than the card); how much of it is reachable depends on what else is shown, so the effective limit comes from `maxFittingCoverScale`.
 export const TASTE_CARD_COVER_SCALE_RANGE: { readonly min: number; readonly max: number } = {
   min: 1,
   max: 5,
@@ -108,7 +103,6 @@ const DEFAULT_TASTE_CARD_PREFERENCES: TasteCardPreferences = {
 export function clampTasteCardCoverScale(value: unknown): number {
   const { min, max } = TASTE_CARD_COVER_SCALE_RANGE;
   if (typeof value !== 'number' || !Number.isFinite(value)) return DEFAULT_TASTE_CARD_COVER_SCALE;
-  // Rounded so dragging the slider can't accumulate float noise in storage.
   return Math.min(max, Math.max(min, Math.round(value * 100) / 100));
 }
 

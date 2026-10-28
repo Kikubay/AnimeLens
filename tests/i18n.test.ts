@@ -4,7 +4,6 @@ import { getCopy, LANGUAGES, normalizeLanguage, type Language } from '../src/loc
 
 const LANGUAGES_EXCEPT_EN: readonly Language[] = LANGUAGES.filter((language) => language !== 'en');
 
-// Values that are legitimately identical for a given pair: brand names, format acronyms and each language's own name.
 const PAIRWISE_IDENTICAL: Readonly<
   ReadonlyArray<readonly [Language, Language, readonly string[]]>
 > = [
@@ -432,7 +431,6 @@ function strings(language: Language): Record<string, string> {
 }
 
 const ENGLISH_WORDS = /\b(the|and|your|with|choose|is filled|not saved)\b/i;
-// Accents that only French uses; Spanish has its own distinct set (á é í ó ú ñ).
 const FRENCH_ONLY = /[èêëùûœç]/i;
 
 describe('taste card copy', () => {
