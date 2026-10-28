@@ -51,6 +51,7 @@ export interface TasteCardPreferences {
 
 export interface UserPreferences {
   readonly theme: ThemePreference;
+  readonly accentTheme: AccentTheme;
   readonly language: Language;
   readonly contentRating: ContentRatingPreference;
   readonly recommendationMode: RecommendationMode;
@@ -73,6 +74,7 @@ export interface UserPreferences {
 }
 
 export type ThemePreference = 'dark' | 'light' | 'system';
+export type AccentTheme = 'purple' | 'red' | 'blue' | 'green';
 export type ContentRatingPreference = 'safe' | 'questionable' | 'explicit';
 
 export interface SettingsSnapshot {
@@ -136,6 +138,7 @@ function isPersistedTasteCardPicksLayout(value: unknown): value is PersistedTast
 
 export const DEFAULT_USER_PREFERENCES: UserPreferences = {
   theme: 'dark',
+  accentTheme: 'purple',
   language: 'en',
   contentRating: 'safe',
   recommendationMode: 'personalized',
@@ -191,6 +194,9 @@ export function normalizeUserPreferences(value: unknown): UserPreferences {
   return {
     ...DEFAULT_USER_PREFERENCES,
     theme: isTheme(value.theme) ? value.theme : DEFAULT_USER_PREFERENCES.theme,
+    accentTheme: isAccentTheme(value.accentTheme)
+      ? value.accentTheme
+      : DEFAULT_USER_PREFERENCES.accentTheme,
     language: normalizeLanguage(value.language),
     contentRating: isContentRating(value.contentRating)
       ? value.contentRating
@@ -245,6 +251,9 @@ function stringArray(value: unknown): readonly string[] {
 }
 function isTheme(value: unknown): value is ThemePreference {
   return value === 'dark' || value === 'light' || value === 'system';
+}
+function isAccentTheme(value: unknown): value is AccentTheme {
+  return value === 'purple' || value === 'red' || value === 'blue' || value === 'green';
 }
 function isContentRating(value: unknown): value is ContentRatingPreference {
   return value === 'safe' || value === 'questionable' || value === 'explicit';

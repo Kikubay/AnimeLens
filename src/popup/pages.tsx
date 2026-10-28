@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react';
 import { isDesktopHost } from '../platform/desktop-bridge';
 import type { AuthSnapshot } from '../auth/auth-types';
 import type { UserProfile } from '../domain/user-profile';
@@ -32,15 +32,8 @@ import type { ProfileSnapshot, UserProfileSummary } from '../profile/profile-typ
 import { computeTasteLevel, type TasteLevel } from '../profile/taste-level';
 import { computeProfileStrength } from '../profile/profile-strength';
 import {
-  COSMETIC_CATALOG,
-  cosmeticRequirementLabel,
-  cosmeticRequirementProgress,
-  cosmeticsForSlot,
   cosmeticUnlockContextFrom,
   unlockedCosmetics,
-  type CosmeticId,
-  type CosmeticSlot,
-  type CosmeticUnlockContext,
   type TasteCardCosmetics,
 } from '../profile/cosmetics';
 import type { WeeklyRecap } from '../profile/weekly-recap';
@@ -86,9 +79,10 @@ import {
   type RecommendationMode,
   type TasteCardExportFormat,
   type ThemePreference,
+  type AccentTheme,
   type UserPreferences,
 } from '../settings/settings-types';
-import { applyThemePreference } from '../settings/theme';
+import { applyAccentTheme, applyThemePreference } from '../settings/theme';
 import { categoryLabel, type AppCopy, type Language } from '../locales';
 import { MAL_GENRE_NAMES, MAL_THEME_NAMES } from '../api/mal-taxonomy';
 import type { AnimeCardData } from './components/anime';
@@ -276,60 +270,57 @@ export function DashboardPage({
 
   return (
     <div className="page-content dashboard-page">
-      <section className="welcome-block dashboard-hero" aria-labelledby="dashboard-title">
-        <p className="eyebrow">{copy.dashboardEyebrow}</p>
-        <h2 id="dashboard-title">
-          {copy.hello} <span aria-hidden="true">👋</span>
-        </h2>
-        <p>{copy.dashboardIntro}</p>
-        <div className="auth-strip" aria-live="polite">
-          {auth.status === 'authenticated' && auth.profile !== null ? (
-            <span className="auth-strip-status">
-              <span className="status-dot is-online" aria-hidden="true" />
-              {auth.profile.username} · {copy.providerListConnected(activeProviderName)}
-            </span>
-          ) : auth.status === 'authorizing' || auth.status === 'exchanging' ? (
-            <span className="auth-strip-status is-progress">
-              <span className="status-dot is-online" aria-hidden="true" />
-              {auth.status === 'authorizing'
-                ? copy.providerAuthenticating(activeProviderName)
-                : copy.finalizingAccount}
-            </span>
-          ) : (
-            <>
-              <span className="auth-strip-copy">
-                {copy.providerConnectSignals(activeProviderName)}
-              </span>
-              <Button variant="secondary" size="sm" onClick={() => onAuthAction('connect')}>
-                {copy.providerConnectAction(activeProviderName)}
-              </Button>
-            </>
-          )}
-        </div>
-        {auth.errorMessage !== null && (
-          <p className="auth-error" role="alert">
-            {copy.authErrorMessage(auth.errorCode, auth.errorMessage)}
-          </p>
-        )}
-        {auth.phase === 'token_exchange' && (
-          <p className="auth-hint" role="status">
-            {copy.authHint}
-          </p>
-        )}
-        <SyncStatusPanel
-          sync={sync}
-          onSync={onSync ?? (() => undefined)}
-          isAuthenticated={isAuthenticated}
-          providerName={activeProviderName}
-          copy={copy}
-        />
-        <div className="anime-search">
-          <AnimeSearchField query={query} onQueryChange={setQuery} copy={copy} />
-          {query.trim().length > 0 && !searchIsActive ? (
-            <p className="anime-search-hint">{copy.searchMinChars(ANIME_SEARCH_MIN_LENGTH)}</p>
-          ) : (
-            <p className="anime-search-hint">{copy.searchTagHint}</p>
-          )}
+      <section className="hud dashboard-hero">
+        <div className="hud-stack" aria-live="polite">
+          <div className="hud-instruments">
+            <div className="auth-strip">
+              {auth.status === 'authenticated' && auth.profile !== null ? (
+                <span className="auth-strip-status">
+                  {auth.profile.username} · {copy.providerListConnected(activeProviderName)}
+                </span>
+              ) : auth.status === 'authorizing' || auth.status === 'exchanging' ? (
+                <span className="auth-strip-status is-progress">
+                  {auth.status === 'authorizing'
+                    ? copy.providerAuthenticating(activeProviderName)
+                    : copy.finalizingAccount}
+                </span>
+              ) : (
+                <>
+                  <span className="auth-strip-copy">
+                    {copy.providerConnectSignals(activeProviderName)}
+                  </span>
+                  <Button variant="secondary" size="sm" onClick={() => onAuthAction('connect')}>
+                    {copy.providerConnectAction(activeProviderName)}
+                  </Button>
+                </>
+              )}
+            </div>
+            {auth.errorMessage !== null && (
+              <p className="auth-error" role="alert">
+                {copy.authErrorMessage(auth.errorCode, auth.errorMessage)}
+              </p>
+            )}
+            {auth.phase === 'token_exchange' && (
+              <p className="auth-hint" role="status">
+                {copy.authHint}
+              </p>
+            )}
+            <SyncStatusPanel
+              sync={sync}
+              onSync={onSync ?? (() => undefined)}
+              isAuthenticated={isAuthenticated}
+              providerName={activeProviderName}
+              copy={copy}
+            />
+            <div className="anime-search">
+              <AnimeSearchField query={query} onQueryChange={setQuery} copy={copy} />
+              {query.trim().length > 0 && !searchIsActive ? (
+                <p className="anime-search-hint">{copy.searchMinChars(ANIME_SEARCH_MIN_LENGTH)} </p>
+              ) : (
+                <p className="anime-search-hint">{copy.searchTagHint}</p>
+              )}
+            </div>
+          </div>
         </div>
       </section>
 
@@ -378,16 +369,15 @@ export function DashboardPage({
         <>
           {displayStatus === 'offline' && (
             <div className="offline-banner" role="status">
-              <span className="status-dot is-offline" aria-hidden="true" />
               {copy.offlineRecommendations}
             </div>
           )}
           <section className="dashboard-daily" aria-labelledby="daily-title">
             <div className="section-heading">
               <div>
-                <p className="eyebrow">{copy.todayPick}</p>
                 <h2 id="daily-title">{copy.recommendationOfTheDay}</h2>
               </div>
+
               {snapshot.analyzedCount > 0 && (
                 <Badge tone="success">{copy.analyzed(snapshot.analyzedCount)}</Badge>
               )}
@@ -472,7 +462,6 @@ function RecommendationSectionView({
     <section className="recommendation-section" aria-labelledby={`section-${title}`}>
       <div className="section-heading">
         <div>
-          <p className="eyebrow">{copy.curatedSignal}</p>
           <h2 id={`section-${title}`}>{title}</h2>
         </div>
         <span className="section-count">{copy.titles(recommendations.length)}</span>
@@ -506,7 +495,7 @@ function RecommendationSectionView({
               aria-label={copy.previousTitles(title)}
               onClick={() => scrollByPage(-1)}
             >
-              &lt;
+              <Icon name="chevron-left" size={16} />
             </button>
           )}
           {hasOverflow && scrollState.canScrollRight && hoveredEdge === 'right' && (
@@ -516,7 +505,7 @@ function RecommendationSectionView({
               aria-label={copy.nextTitles(title)}
               onClick={() => scrollByPage(1)}
             >
-              &gt;
+              <Icon name="chevron-right" size={16} />
             </button>
           )}
         </div>
@@ -567,10 +556,6 @@ function SyncStatusPanel({
   return (
     <div className="sync-panel" aria-live="polite">
       <div className="sync-panel-copy">
-        <span
-          className={`status-dot ${isSyncing ? 'is-online is-pulsing' : ''}`}
-          aria-hidden="true"
-        />
         <div>
           <strong>
             {isSyncing
@@ -694,7 +679,11 @@ export function DetailPage({
       <div className="detail-hero">
         <div
           className="detail-poster poster"
-          style={{ '--poster-accent': anime.accent ?? '#8a7ecf' } as React.CSSProperties}
+          style={
+            anime.accent === null || anime.accent === undefined
+              ? undefined
+              : ({ '--poster-accent': anime.accent } as React.CSSProperties)
+          }
         >
           {imageUrl !== null && imageUrl !== undefined ? (
             <img
@@ -736,7 +725,7 @@ export function DetailPage({
               </>
             )}
             <span>•</span>
-            <span>{anime.type.toUpperCase()}</span>
+            <span>{anime.type}</span>
           </div>
         </div>
       </div>
@@ -772,7 +761,6 @@ export function DetailPage({
               <Icon name="sparkles" size={17} />
             </span>
             <div>
-              <p className="eyebrow">{copy.recommendationWhy}</p>
               <h3>{copy.whyThisAnime}</h3>
             </div>
           </div>
@@ -824,7 +812,6 @@ export function DetailPage({
         <div className="detail-score-row">
           <CompatibilityScore value={anime.compatibility} copy={copy} />
           <div>
-            <p className="eyebrow">{copy.compatibility}</p>
             <h3>{anime.compatibility >= 80 ? copy.greatMatch : copy.exploreLead}</h3>
             <p>{copy.calculatedScore}</p>
           </div>
@@ -972,7 +959,6 @@ export function ProfilePage({
     return (
       <div className="page-content profile-page">
         <div className="page-title">
-          <p className="eyebrow">{copy.profileEyebrow}</p>
           <h2>{copy.animeProfile}</h2>
           <p>{copy.profileIntro}</p>
         </div>
@@ -1044,6 +1030,10 @@ function ProfileSummary({
   const strength = useMemo(
     () => computeProfileStrength(summary, preferences.language),
     [summary, preferences.language],
+  );
+  const understoodSignals = useMemo(
+    () => strength.signals.filter((signal) => signal.unlocked),
+    [strength],
   );
   const unlockContext = useMemo(
     () => cosmeticUnlockContextFrom(summary, tasteLevel),
@@ -1193,11 +1183,12 @@ function ProfileSummary({
       .catch(() => undefined);
   };
 
+  const detected = useCollapsePanel();
+
   return (
     <div className="page-content profile-page">
       <div className="profile-header">
         <div className="page-title">
-          <p className="eyebrow">{copy.profileEyebrow}</p>
           <h2>{copy.animeProfile}</h2>
           <p>{copy.profileIntro}</p>
         </div>
@@ -1211,16 +1202,10 @@ function ProfileSummary({
           {copy.tasteCardShare}
         </Button>
       </div>
-      <WeeklyRecapCard recap={recap} copy={copy} />
-      <TasteLevelCard level={tasteLevel} copy={copy} />
-      <CollectionCard
-        equipped={cardOptions.cosmetics}
-        context={unlockContext}
-        unlocked={unlocked}
-        canEquip={onPreferencesChange !== undefined}
-        onEquip={saveCosmetics}
-        copy={copy}
-      />
+      <div className="hud-instruments profile-instruments">
+        <WeeklyRecapCard recap={recap} copy={copy} />
+        <TasteLevelCard level={tasteLevel} copy={copy} />
+      </div>
       <div className="taste-stat-grid profile-stat-grid">
         <div>
           <strong>{summary.averageScore === null ? '—' : summary.averageScore.toFixed(1)}</strong>
@@ -1239,53 +1224,53 @@ function ProfileSummary({
       <PreferenceSection title={copy.favoriteThemes} items={summary.favoriteThemes} copy={copy} />
       <PreferenceSection title={copy.favoriteStudios} items={summary.favoriteStudios} copy={copy} />
       <Card className="detected-card">
-        <div className="section-heading">
-          <div>
-            <p className="eyebrow">{copy.profileStrengthEyebrow}</p>
-            <h2>{copy.profileStrengthTitle}</h2>
+        <CollapsibleCardHeading
+          title={copy.profileStrengthTitle}
+          panelId={detected.panelId}
+          collapsed={detected.collapsed}
+          onToggle={detected.toggle}
+          trailing={
+            <Badge tone="success">
+              {copy.profileStrengthCount(strength.unlocked, strength.total)}
+            </Badge>
+          }
+        />
+        <div id={detected.panelId} hidden={detected.collapsed}>
+          <Progress value={strength.strength} />
+          <div className="detected-list">
+            {understoodSignals.length === 0 ? (
+              <p className="profile-muted">{copy.noSignals}</p>
+            ) : (
+              understoodSignals.map((signal) => {
+                const detail = detectedDetail(summary.detectedPreferences, signal.key);
+                return (
+                  <div className="detected-item" key={signal.key}>
+                    <span className="feedback-positive">
+                      <Icon name="sparkles" size={14} />
+                    </span>
+                    <div>
+                      <strong>{signal.label}</strong>
+                      <p>{detail ?? copy.profileStrengthUnlocked}</p>
+                    </div>
+                    <span className="detected-score">{copy.profileStrengthUnlocked}</span>
+                  </div>
+                );
+              })
+            )}
           </div>
-          <Badge tone="success">
-            {copy.profileStrengthCount(strength.unlocked, strength.total)}
-          </Badge>
+          {strength.nextSignal !== null && (
+            <p className="profile-muted strength-next">
+              {copy.profileStrengthNext}: {strength.nextSignal.label} (
+              {strength.nextSignal.progress}%)
+            </p>
+          )}
         </div>
-        <Progress value={strength.strength} />
-        <div className="detected-list">
-          {strength.signals.map((signal) => {
-            const detail = detectedDetail(summary.detectedPreferences, signal.key);
-            return (
-              <div
-                className={`detected-item${signal.unlocked ? '' : ' is-locked'}`}
-                key={signal.key}
-              >
-                <span className="feedback-positive">
-                  <Icon name={signal.unlocked ? 'sparkles' : 'lock'} size={14} />
-                </span>
-                <div>
-                  <strong>{signal.label}</strong>
-                  <p>
-                    {signal.unlocked
-                      ? (detail ?? copy.profileStrengthUnlocked)
-                      : signal.requirement}
-                  </p>
-                </div>
-                <span className="detected-score">
-                  {signal.unlocked ? copy.profileStrengthUnlocked : `${signal.progress}%`}
-                </span>
-              </div>
-            );
-          })}
-        </div>
-        {strength.nextSignal !== null && (
-          <p className="profile-muted strength-next">
-            {copy.profileStrengthNext}: {strength.nextSignal.label} ({strength.nextSignal.progress}
-            %)
-          </p>
-        )}
       </Card>
       <PreferenceSection
         title={copy.lessLikedGenres}
         items={summary.lessLikedGenres}
         negative
+        collapsible
         copy={copy}
       />
       <div className="profile-refresh-row">
@@ -1387,7 +1372,6 @@ function WeeklyRecapCard({
     <Card className="recap-card">
       <div className="section-heading">
         <div>
-          <p className="eyebrow">{copy.weeklyRecapEyebrow}</p>
           <h2>{copy.weeklyRecapTitle}</h2>
         </div>
         <Badge tone="accent">{copy.weeklyRecapWeek(recap.weekNumber)}</Badge>
@@ -1430,126 +1414,44 @@ function WeeklyRecapCard({
 }
 
 function TasteLevelCard({ level, copy }: { readonly level: TasteLevel; readonly copy: AppCopy }) {
+  const collapse = useCollapsePanel();
   return (
     <Card className="taste-level-card">
-      <div className="section-heading">
-        <div>
-          <p className="eyebrow">{copy.tasteLevelEyebrow}</p>
-          <h2>{copy.tasteLevelTitle}</h2>
+      <CollapsibleCardHeading
+        title={copy.tasteLevelTitle}
+        panelId={collapse.panelId}
+        collapsed={collapse.collapsed}
+        onToggle={collapse.toggle}
+        trailing={<Badge tone="accent">{copy.tasteLevelBadge(level.level)}</Badge>}
+      />
+      <div id={collapse.panelId} hidden={collapse.collapsed}>
+        <div className="taste-level-hero">
+          <strong>{level.title}</strong>
+          <span>
+            {level.isMaxLevel
+              ? copy.tasteLevelMaxLevel
+              : copy.tasteLevelProgress(level.xpIntoLevel, level.xpForNextLevel)}
+          </span>
         </div>
-        <Badge tone="accent">{copy.tasteLevelBadge(level.level)}</Badge>
-      </div>
-      <div className="taste-level-hero">
-        <strong>{level.title}</strong>
-        <span>
-          {level.isMaxLevel
-            ? copy.tasteLevelMaxLevel
-            : copy.tasteLevelProgress(level.xpIntoLevel, level.xpForNextLevel)}
-        </span>
-      </div>
-      <Progress value={level.progress} />
-      {level.nextTitle !== null && level.nextTitleLevel !== null && (
-        <p className="taste-level-next">
-          {copy.tasteLevelNextTitle(level.nextTitle)}
-          <span>{copy.tasteLevelBadge(level.nextTitleLevel)}</span>
-        </p>
-      )}
-      {level.sources.length > 0 && (
-        <div className="taste-level-sources">
-          <p className="profile-muted">{copy.tasteLevelSources}</p>
-          {level.sources.map((source) => (
-            <div className="taste-level-source" key={source.key}>
-              <span>{source.label}</span>
-              <strong>+{source.xp}</strong>
-            </div>
-          ))}
-        </div>
-      )}
-    </Card>
-  );
-}
-
-const COSMETIC_SLOTS: readonly CosmeticSlot[] = ['frame', 'palette'];
-
-function CollectionCard({
-  equipped,
-  context,
-  unlocked,
-  canEquip,
-  onEquip,
-  copy,
-}: {
-  readonly equipped: TasteCardCosmetics;
-  readonly context: CosmeticUnlockContext;
-  readonly unlocked: ReadonlySet<CosmeticId>;
-  readonly canEquip: boolean;
-  readonly onEquip: (cosmetics: TasteCardCosmetics) => void;
-  readonly copy: AppCopy;
-}) {
-  const unlockedCount = COSMETIC_CATALOG.filter((cosmetic) => unlocked.has(cosmetic.id)).length;
-
-  return (
-    <Card className="collection-card">
-      <div className="section-heading">
-        <div>
-          <p className="eyebrow">{copy.collectionEyebrow}</p>
-          <h2>{copy.collectionTitle}</h2>
-        </div>
-        <Badge tone={unlockedCount === COSMETIC_CATALOG.length ? 'success' : 'accent'}>
-          {copy.collectionCount(unlockedCount, COSMETIC_CATALOG.length)}
-        </Badge>
-      </div>
-      <p className="profile-muted">{copy.collectionHint}</p>
-      {COSMETIC_SLOTS.map((slot) => (
-        <div className="collection-slot" key={slot}>
-          <p className="collection-slot-label">
-            {slot === 'frame' ? copy.cosmeticSlotFrame : copy.cosmeticSlotPalette}
+        <Progress value={level.progress} />
+        {level.nextTitle !== null && level.nextTitleLevel !== null && (
+          <p className="taste-level-next">
+            {copy.tasteLevelNextTitle(level.nextTitle)}
+            <span>{copy.tasteLevelBadge(level.nextTitleLevel)}</span>
           </p>
-          <div className="collection-items">
-            {cosmeticsForSlot(slot).map((cosmetic) => {
-              const isUnlocked = unlocked.has(cosmetic.id);
-              const isEquipped = equipped[slot] === cosmetic.id;
-              const progress = cosmeticRequirementProgress(cosmetic, context);
-              return (
-                <button
-                  className={`collection-item${isEquipped ? ' is-equipped' : ''}${
-                    isUnlocked ? '' : ' is-locked'
-                  }`}
-                  key={cosmetic.id}
-                  type="button"
-                  disabled={!isUnlocked || !canEquip || isEquipped}
-                  aria-pressed={isEquipped}
-                  title={
-                    isUnlocked
-                      ? cosmetic.label(copy)
-                      : `${cosmeticRequirementLabel(cosmetic, copy)}${
-                          progress === null
-                            ? ''
-                            : ` · ${copy.cosmeticProgress(progress.current, progress.target)}`
-                        }`
-                  }
-                  onClick={() => onEquip({ ...equipped, [slot]: cosmetic.id })}
-                >
-                  <span className="collection-item-name">{cosmetic.label(copy)}</span>
-                  <span className="collection-item-state">
-                    <Icon
-                      name={isUnlocked ? (isEquipped ? 'check' : 'sparkles') : 'lock'}
-                      size={12}
-                    />
-                    {isEquipped
-                      ? copy.collectionEquipped
-                      : isUnlocked
-                        ? null
-                        : progress === null
-                          ? copy.collectionLocked
-                          : copy.cosmeticProgress(progress.current, progress.target)}
-                  </span>
-                </button>
-              );
-            })}
+        )}
+        {level.sources.length > 0 && (
+          <div className="taste-level-sources">
+            <p className="profile-muted">{copy.tasteLevelSources}</p>
+            {level.sources.map((source) => (
+              <div className="taste-level-source" key={source.key}>
+                <span>{source.label}</span>
+                <strong>+{source.xp}</strong>
+              </div>
+            ))}
           </div>
-        </div>
-      ))}
+        )}
+      </div>
     </Card>
   );
 }
@@ -1558,21 +1460,18 @@ function PreferenceSection({
   title,
   items,
   negative = false,
+  collapsible = false,
   copy,
 }: {
   readonly title: string;
   readonly items: readonly { readonly name: string; readonly score: number }[];
   readonly negative?: boolean;
+  readonly collapsible?: boolean;
   readonly copy: AppCopy;
 }) {
-  return (
-    <Card className={`preference-card${negative ? ' preference-card-negative' : ''}`}>
-      <div className="section-heading">
-        <div>
-          <p className="eyebrow">{negative ? copy.negativeSignal : copy.positiveSignal}</p>
-          <h2>{title}</h2>
-        </div>
-      </div>
+  const collapse = useCollapsePanel();
+  const body = (
+    <>
       {items.length === 0 ? (
         <p className="profile-muted">{copy.noSignals}</p>
       ) : (
@@ -1588,6 +1487,32 @@ function PreferenceSection({
           ))}
         </div>
       )}
+    </>
+  );
+  return (
+    <Card className={`preference-card${negative ? ' preference-card-negative' : ''}`}>
+      {collapsible ? (
+        <>
+          <CollapsibleCardHeading
+            title={title}
+            panelId={collapse.panelId}
+            collapsed={collapse.collapsed}
+            onToggle={collapse.toggle}
+          />
+          <div id={collapse.panelId} hidden={collapse.collapsed}>
+            {body}
+          </div>
+        </>
+      ) : (
+        <>
+          <div className="section-heading">
+            <div>
+              <h2>{title}</h2>
+            </div>
+          </div>
+          {body}
+        </>
+      )}
     </Card>
   );
 }
@@ -1595,9 +1520,9 @@ function PreferenceSection({
 function ProfileLoadingPage() {
   return (
     <div className="page-content loading-page profile-page">
-      <Skeleton className="skeleton-eyebrow" />
       <Skeleton className="skeleton-title" />
       <Skeleton className="skeleton-copy" />
+
       <Skeleton className="skeleton-featured" />
       <Skeleton className="skeleton-line" />
       <Skeleton className="skeleton-line" />
@@ -1608,7 +1533,6 @@ function ProfileLoadingPage() {
 
 export function SettingsPage({
   onFeedback,
-  onSync,
   onAuthSnapshot,
   onPreferencesChanged,
   onProvidersChanged,
@@ -1704,6 +1628,10 @@ export function SettingsPage({
   }, [loadSettings]);
 
   useEffect(() => applyThemePreference(snapshot.preferences.theme), [snapshot.preferences.theme]);
+  useEffect(
+    () => applyAccentTheme(snapshot.preferences.accentTheme),
+    [snapshot.preferences.accentTheme],
+  );
 
   useEffect(() => {
     if (anilistSignedIn || !canAutoDetectPinToken) {
@@ -2010,18 +1938,13 @@ export function SettingsPage({
   return (
     <div className="page-content settings-page">
       <div className="settings-header">
-        <div className="settings-header-icon" aria-hidden="true">
-          <Icon name="settings" size={22} />
-        </div>
         <div className="page-title">
-          <p className="eyebrow">{copy.settingsEyebrow}</p>
           <h2>{copy.settingsTitle}</h2>
           <p>{copy.settingsIntro}</p>
         </div>
       </div>
       <div className="settings-overview" aria-label={copy.accountSummary}>
         <div className="settings-overview-main">
-          <span className={`status-dot ${isAuthenticated ? 'is-online' : ''}`} aria-hidden="true" />
           <div>
             <strong>{isAuthenticated ? auth.profile?.username : copy.accountNotConnected}</strong>
             <span>
@@ -2044,7 +1967,7 @@ export function SettingsPage({
           </strong>
         </div>
       </div>
-      <SettingsSection title={copy.language} eyebrow={copy.languageEyebrow}>
+      <SettingsSection title={copy.language}>
         <div className="mode-setting">
           <div>
             <strong>{copy.language}</strong>
@@ -2063,7 +1986,7 @@ export function SettingsPage({
           />
         </div>
       </SettingsSection>
-      <SettingsSection title={copy.providers} eyebrow={copy.providersEyebrow}>
+      <SettingsSection title={copy.providers}>
         {providers.map((provider) => (
           <SettingRow
             key={provider.id}
@@ -2156,7 +2079,7 @@ export function SettingsPage({
           )}
         <p className="settings-note">{copy.providersIntro}</p>
       </SettingsSection>
-      <SettingsSection title={copy.oauthConfig} eyebrow={copy.oauthEyebrow}>
+      <SettingsSection title={copy.oauthConfig}>
         <div className="mal-config-panel">
           <div>
             <strong>{copy.malClientId}</strong>
@@ -2217,7 +2140,7 @@ export function SettingsPage({
           </Button>
         </div>
       </SettingsSection>
-      <SettingsSection title={copy.recommendations} eyebrow={copy.discovery}>
+      <SettingsSection title={copy.recommendations} collapsible>
         <div className="mode-setting">
           <div>
             <strong>{copy.contentRating}</strong>
@@ -2288,14 +2211,19 @@ export function SettingsPage({
           copy={copy}
         />
       </SettingsSection>
-      <SettingsSection title={copy.appearance} eyebrow={copy.interfaceLabel}>
+      <SettingsSection title={copy.appearance} collapsible>
         <ThemeSelector
           value={preferences.theme}
           onChange={(theme) => save({ theme }, copy.preferenceUpdated)}
           copy={copy}
         />
+        <AccentThemeSelector
+          value={preferences.accentTheme}
+          onChange={(accentTheme) => save({ accentTheme }, copy.preferenceUpdated)}
+          copy={copy}
+        />
       </SettingsSection>
-      <SettingsSection title={copy.notifications} eyebrow={copy.reminders}>
+      <SettingsSection title={copy.notifications} collapsible>
         <SettingToggle
           title={copy.dailyRecommendation}
           description={copy.dailyRecommendationDescription}
@@ -2309,25 +2237,7 @@ export function SettingsPage({
         />
         <p className="settings-note">{copy.notificationsDescription}</p>
       </SettingsSection>
-      <SettingsSection title={copy.data} eyebrow={copy.localStorage}>
-        <SettingActionRow
-          icon="download"
-          title={copy.synchronize}
-          description={copy.importLatestList}
-          action={
-            <Button
-              size="sm"
-              variant="secondary"
-              disabled={auth?.status !== 'authenticated'}
-              onClick={() => {
-                onSync?.();
-                onFeedback(copy.synchronize);
-              }}
-            >
-              {copy.synchronize}
-            </Button>
-          }
-        />
+      <SettingsSection title={copy.data} collapsible>
         <SettingActionRow
           icon="download"
           title={copy.dataExport}
@@ -2421,22 +2331,89 @@ type SettingsSnapshotState = {
 
 type DestructiveAction = 'cache' | 'data' | 'import';
 
+function DisclosureChevron({ collapsed }: { readonly collapsed: boolean }) {
+  return (
+    <span className={`disclosure-chevron${collapsed ? ' is-collapsed' : ''}`} aria-hidden="true">
+      <Icon name="chevron-down" size={14} />
+    </span>
+  );
+}
+
+function useCollapsePanel() {
+  const [collapsed, setCollapsed] = useState(true);
+  const panelId = useId();
+  return {
+    collapsed,
+    panelId,
+    toggle: () => setCollapsed((value) => !value),
+  };
+}
+
+function CollapsibleCardHeading({
+  title,
+  panelId,
+  collapsed,
+  onToggle,
+  trailing,
+}: {
+  readonly title: string;
+  readonly panelId: string;
+  readonly collapsed: boolean;
+  readonly onToggle: () => void;
+  readonly trailing?: React.ReactNode;
+}) {
+  return (
+    <h2 className="section-heading">
+      <button
+        type="button"
+        className="card-disclosure"
+        aria-expanded={!collapsed}
+        aria-controls={panelId}
+        onClick={onToggle}
+      >
+        <span className="card-disclosure-title">{title}</span>
+        {trailing}
+        <DisclosureChevron collapsed={collapsed} />
+      </button>
+    </h2>
+  );
+}
+
 function SettingsSection({
   title,
-  eyebrow,
+  collapsible = false,
   children,
 }: {
   readonly title: string;
-  readonly eyebrow: string;
+  readonly collapsible?: boolean;
   readonly children: React.ReactNode;
 }) {
+  const [collapsed, setCollapsed] = useState(collapsible);
+  const panelId = useId();
   return (
     <section className="settings-section" aria-labelledby={`settings-${title}`}>
       <div className="settings-section-heading">
-        <p className="eyebrow">{eyebrow}</p>
-        <h3 id={`settings-${title}`}>{title}</h3>
+        {collapsible ? (
+          <h3 id={`settings-${title}`}>
+            <button
+              type="button"
+              className="settings-disclosure"
+              aria-expanded={!collapsed}
+              aria-controls={panelId}
+              onClick={() => setCollapsed((value) => !value)}
+            >
+              <span className="settings-disclosure-title">{title}</span>
+              <DisclosureChevron collapsed={collapsed} />
+            </button>
+          </h3>
+        ) : (
+          <h3 id={`settings-${title}`}>{title}</h3>
+        )}
       </div>
-      <Card className="settings-list">{children}</Card>
+
+      <div id={panelId} hidden={collapsed}>
+        <Card className="settings-list">{children}</Card>
+      </div>
     </section>
   );
 }
@@ -2580,6 +2557,32 @@ function ThemeSelector({
     <RadioGroup<ThemePreference>
       className="theme-options"
       ariaLabel={copy.appearance}
+      value={value}
+      onChange={onChange}
+      options={options}
+    />
+  );
+}
+
+function AccentThemeSelector({
+  value,
+  onChange,
+  copy,
+}: {
+  readonly value: AccentTheme;
+  readonly onChange: (value: AccentTheme) => void;
+  readonly copy: AppCopy;
+}) {
+  const options: readonly { value: AccentTheme; label: string }[] = [
+    { value: 'purple', label: copy.accentPurple },
+    { value: 'red', label: copy.accentRed },
+    { value: 'blue', label: copy.accentBlue },
+    { value: 'green', label: copy.accentGreen },
+  ];
+  return (
+    <RadioGroup<AccentTheme>
+      className="theme-options accent-theme-options"
+      ariaLabel={copy.accentTheme}
       value={value}
       onChange={onChange}
       options={options}
@@ -2771,10 +2774,10 @@ function SettingRow({
 function SettingsLoadingPage() {
   return (
     <div className="page-content loading-page settings-page">
-      <Skeleton className="skeleton-eyebrow" />
       <Skeleton className="skeleton-title" />
       <Skeleton className="skeleton-copy" />
       <Skeleton className="skeleton-line" />
+
       <Skeleton className="skeleton-featured" />
       <Skeleton className="skeleton-line" />
     </div>
@@ -2784,8 +2787,8 @@ function SettingsLoadingPage() {
 export function LoadingPage() {
   return (
     <div className="page-content loading-page">
-      <Skeleton className="skeleton-eyebrow" />
       <Skeleton className="skeleton-title" />
+
       <Skeleton className="skeleton-copy" />
       <Skeleton className="skeleton-featured" />
       <Skeleton className="skeleton-line" />

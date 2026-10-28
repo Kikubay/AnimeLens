@@ -29,7 +29,6 @@ const PAIRWISE_IDENTICAL: Readonly<
       'oauthEyebrow',
       'searchFormatTv',
       'tasteCardStyleTitle',
-      'collectionEyebrow',
       'cosmeticPaletteMono',
       'cosmeticSlotPalette',
     ],
@@ -153,21 +152,21 @@ describe('localization', () => {
     const french = getCopy('fr');
     expect(french.connectMal).toBe('Connecter MAL');
     expect(french.hiddenGems).toBe('Pépites');
-    expect(french.settingsEyebrow).toBe('PERSONNALISATION');
-    expect(french.reminders).toBe('RAPPELS');
-    expect(french.discovery).toBe('DÉCOUVERTE');
-    expect(french.localStorage).toBe('STOCKAGE LOCAL');
-    expect(french.todayPick).toBe('SÉLECTION DU JOUR');
+    expect(french.settingsEyebrow).toBe('Personnalisation');
+    expect(french.reminders).toBe('Rappels');
+    expect(french.discovery).toBe('Découverte');
+    expect(french.localStorage).toBe('Stockage local');
+    expect(french.todayPick).toBe('Sélection du jour');
   });
 
   it('keeps the section eyebrows Spanish', () => {
     const spanish = getCopy('es');
-    expect(spanish.settingsEyebrow).toBe('PERSONALIZACIÓN');
-    expect(spanish.reminders).toBe('RECORDATORIOS');
-    expect(spanish.discovery).toBe('DESCUBRIMIENTO');
-    expect(spanish.localStorage).toBe('ALMACENAMIENTO LOCAL');
-    expect(spanish.todayPick).toBe('SELECCIÓN DEL DÍA');
-    expect(spanish.languageEyebrow).toBe('IDIOMA');
+    expect(spanish.settingsEyebrow).toBe('Personalización');
+    expect(spanish.reminders).toBe('Recordatorios');
+    expect(spanish.discovery).toBe('Descubrimiento');
+    expect(spanish.localStorage).toBe('Almacenamiento local');
+    expect(spanish.todayPick).toBe('Selección del día');
+    expect(spanish.languageEyebrow).toBe('Idioma');
   });
 
   it('localizes theme labels, section titles, and a11y strings', () => {
@@ -177,13 +176,22 @@ describe('localization', () => {
     expect(getCopy('fr').themeDark).toBe('Sombre');
     expect(getCopy('es').themeLight).toBe('Claro');
     expect(getCopy('es').themeDark).toBe('Oscuro');
+    expect(getCopy('en').accentTheme).toBe('Accent color');
+    expect(getCopy('fr').accentTheme).toBe("Couleur d'accent");
+    expect(getCopy('es').accentTheme).toBe('Color de acento');
+    expect(getCopy('en').accentPurple).toBe('Purple');
+    expect(getCopy('fr').accentPurple).toBe('Violet');
+    expect(getCopy('es').accentPurple).toBe('Púrpura');
+    expect(getCopy('en').accentRed).toBe('Red');
+    expect(getCopy('fr').accentRed).toBe('Rouge');
+    expect(getCopy('es').accentRed).toBe('Rojo');
     expect(getCopy('en').sectionHighlyCompatible).toBe('Highly Compatible');
     expect(getCopy('fr').sectionHighlyCompatible).toBe('Très compatibles');
     expect(getCopy('es').sectionHighlyCompatible).toBe('Muy compatibles');
     expect(getCopy('en').matchCaption).toBe('match');
     expect(getCopy('fr').matchCaption).toBe('compatibilité');
     expect(getCopy('es').matchCaption).toBe('coincidencia');
-    expect(getCopy('fr').languageEyebrow).toBe('LANGUE');
+    expect(getCopy('fr').languageEyebrow).toBe('Langue');
   });
 
   it('maps auth error codes to localized messages', () => {

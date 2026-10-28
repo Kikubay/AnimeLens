@@ -124,7 +124,7 @@ describe('radio group usage', () => {
       resolve(__dirname, '../src/popup/components/taste-card-modal.tsx'),
       'utf8',
     );
-    expect(pages.split('<RadioGroup').length - 1).toBe(5);
+    expect(pages.split('<RadioGroup').length - 1).toBe(6);
     expect(tasteCard.split('<RadioGroup').length - 1).toBe(4);
   });
 });

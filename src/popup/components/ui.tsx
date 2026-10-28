@@ -11,6 +11,7 @@ export type IconName =
   | 'check'
   | 'chevron-down'
   | 'chevron-left'
+  | 'chevron-right'
   | 'close'
   | 'download'
   | 'filter'
@@ -62,6 +63,7 @@ const ICON_PATHS: Record<IconName, ReactNode> = {
   check: <path d="m5 12 4 4L19 6" />,
   'chevron-down': <path d="m6 9 6 6 6-6" />,
   'chevron-left': <path d="m15 18-6-6 6-6" />,
+  'chevron-right': <path d="m9 18 6-6-6-6" />,
   close: (
     <>
       <path d="M6 6l12 12" />
@@ -182,7 +184,7 @@ export function Icon({ name, size = 18, strokeWidth = 1.8, className }: IconProp
   };
 
   return (
-    <svg {...common} className={className}>
+    <svg {...common} aria-hidden="true" className={className}>
       {ICON_PATHS[name]}
     </svg>
   );
@@ -421,9 +423,7 @@ export function Toast({ message, onClose, dismissLabel, autoDismissMs = 2000 }: 
 
   return (
     <div className={`toast${closing ? ' is-closing' : ''}`} role="status">
-      <span className="toast-icon">
-        <Icon name="check" size={14} />
-      </span>
+      <Icon name="check" size={14} />
       <span>{message}</span>
       <IconButton icon="close" label={dismissLabel} size="sm" onClick={beginExit} />
       {autoDismissMs > 0 && !closing && (
@@ -450,7 +450,10 @@ export function Progress({ value, label }: { readonly value: number; readonly la
         aria-valuemax={100}
         aria-label={label}
       >
-        <span className="progress-value" style={{ width: `${safeValue}%` }} />
+        <span
+          className="progress-value"
+          style={{ '--progress': safeValue } as React.CSSProperties}
+        />
       </div>
     </div>
   );
@@ -474,23 +477,18 @@ export function Rating({
 
 export function CompatibilityScore({
   value,
-  compact = false,
   copy,
 }: {
   readonly value: number;
-  readonly compact?: boolean;
   readonly copy: AppCopy;
 }) {
   return (
-    <div
-      className={`compatibility-score${compact ? ' is-compact' : ''}`}
-      aria-label={copy.compatibilityAria(value)}
-    >
+    <div className="compatibility-score" aria-label={copy.compatibilityAria(value)}>
       <div className="score-ring" style={{ '--score': `${value * 3.6}deg` } as React.CSSProperties}>
         <span>{value}</span>
         <small>%</small>
       </div>
-      {!compact && <span className="score-caption">{copy.matchCaption}</span>}
+      <span className="score-caption">{copy.matchCaption}</span>
     </div>
   );
 }

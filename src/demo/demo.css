@@ -1,11 +1,14 @@
-/*
- * Demo-only chrome. The extension popup is sized for a 700x600 window, so the page host has to
- * undo those assumptions and add the banner without touching the shipped stylesheet.
- */
-
+/* Hallmark · check · built: the project · surface: demo stage for the popup shell (inherits the popup theme block) */
+/* crit: P4 H5 E5 S4 R5 — the shell floats over the stage as one object: elevation by shadow carries the separation, the shell's own edge carries the border */
 body {
   min-width: 0;
-  background: #0b0d12;
+  background: var(--bg);
+}
+
+@media (max-width: 639px) {
+  html body {
+    min-width: 0;
+  }
 }
 
 @media (min-width: 760px) {
@@ -14,13 +17,12 @@ body {
   }
 
   .app-shell {
-    box-shadow: 0 24px 70px rgb(0 0 0 / 45%);
-    border-inline: 1px solid rgb(255 255 255 / 6%);
+    box-shadow: 0 24px 70px var(--ink-drop);
   }
 }
 
 :root[data-theme='light'] body {
-  background: #eef1f6;
+  background: var(--bg);
 }
 
 .demo-banner {
@@ -31,15 +33,11 @@ body {
   align-items: center;
   justify-content: center;
   padding: 12px 20px;
-  background: linear-gradient(90deg, #1b2a4a, #2a1c46 55%, #101827);
-  border-bottom: 1px solid rgb(255 255 255 / 10%);
-  color: #e8ecf6;
-  font-family:
-    system-ui,
-    -apple-system,
-    'Segoe UI',
-    sans-serif;
-  font-size: 13px;
+  background: var(--surface);
+  border-bottom: 1px solid var(--line);
+  color: var(--text);
+  font-family: inherit;
+  font-size: var(--font-sm);
   line-height: 1.5;
 }
 
@@ -51,12 +49,12 @@ body {
 }
 
 .demo-banner-copy strong {
-  font-size: 14px;
-  letter-spacing: 0.01em;
+  font-size: var(--font-md);
+  letter-spacing: -0.01em;
 }
 
 .demo-banner-copy span {
-  color: #b6c2dc;
+  color: var(--muted);
 }
 
 .demo-banner-actions {
@@ -69,37 +67,67 @@ body {
 .demo-button {
   display: inline-flex;
   align-items: center;
-  padding: 6px 14px;
-  border: 1px solid rgb(255 255 255 / 22%);
-  border-radius: 999px;
+  min-height: 32px;
+  padding: 0 12px;
+  border: 1px solid var(--line-strong);
+  border-radius: 8px;
   background: transparent;
-  color: #e8ecf6;
+  color: var(--text);
   font: inherit;
+  font-size: var(--font-sm);
   font-weight: 600;
   text-decoration: none;
   cursor: pointer;
+  transition:
+    background 120ms ease,
+    border-color 120ms ease,
+    color 120ms ease;
 }
 
 .demo-button:hover {
-  background: rgb(255 255 255 / 10%);
+  background: var(--raised-hover);
+  border-color: var(--muted);
+}
+
+.demo-button:active {
+  background: var(--option-hover);
 }
 
 .demo-button.is-primary {
   border-color: transparent;
-  background: #6c8cff;
-  color: #0b1020;
+  background: var(--accent);
+  color: var(--on-accent);
+}
+
+.demo-button.is-primary:hover {
+  background: var(--accent-hover);
+}
+
+.demo-button.is-primary:active {
+  background: var(--accent-press);
 }
 
 .demo-banner-close {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
   border: 0;
+  border-radius: 8px;
   background: transparent;
-  color: #93a1c2;
+  color: var(--muted);
   font-size: 20px;
   line-height: 1;
   cursor: pointer;
 }
 
+.demo-banner-close:hover {
+  color: var(--text);
+  background: var(--wash-soft);
+}
+
 .demo-banner-version {
-  color: #7d8bab;
+  color: var(--dim);
   font-variant-numeric: tabular-nums;
 }

@@ -8,7 +8,7 @@ import { requestSync, requestSyncSnapshot } from '../sync/sync-messages';
 import type { SyncSnapshot } from '../sync/sync-messages';
 import { syncSnapshotsMatch } from '../sync/sync-snapshot-match';
 import { Icon, Modal, Button, Toast } from './components/ui';
-import { applyThemePreference } from '../settings/theme';
+import { applyAccentTheme, applyThemePreference } from '../settings/theme';
 import { DEFAULT_USER_PREFERENCES, type UserPreferences } from '../settings/settings-types';
 import { isUsagePending, type UsageEvent } from '../profile/usage-streak';
 import { useUsageSession } from './usage-session';
@@ -250,6 +250,7 @@ export function App() {
   }, [applySyncSnapshot]);
 
   useEffect(() => {
+    applyAccentTheme(DEFAULT_USER_PREFERENCES.accentTheme);
     let cleanupTheme = applyThemePreference(DEFAULT_USER_PREFERENCES.theme);
     let disposed = false;
     void requestSettingsSnapshot()
@@ -257,6 +258,7 @@ export function App() {
         if (disposed) return;
         cleanupTheme();
         cleanupTheme = applyThemePreference(snapshot.preferences.theme);
+        applyAccentTheme(snapshot.preferences.accentTheme);
         setLanguage(normalizeLanguage(snapshot.preferences.language));
         setPreferences(snapshot.preferences);
         setPreferencesLoaded(true);
@@ -631,7 +633,6 @@ export function App() {
                 }
                 setRecommendationsRevision((current) => current + 1);
               }}
-              onSync={syncNow}
               copy={copy}
             />
           ) : (

@@ -1,4 +1,8 @@
-import type { ThemePreference } from './settings-types';
+import type { AccentTheme, ThemePreference } from './settings-types';
+
+export function applyAccentTheme(preference: AccentTheme): void {
+  document.documentElement.dataset.scheme = preference;
+}
 
 export function applyThemePreference(preference: ThemePreference): () => void {
   const root = document.documentElement;

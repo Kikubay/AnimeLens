@@ -181,7 +181,7 @@ export function AnimeSearchField({
 
 function resultMeta(anime: Anime, copy: AppCopy): string {
   return [
-    anime.type.toUpperCase(),
+    anime.type,
     anime.year === null ? null : String(anime.year),
     anime.score === null ? null : `${anime.score.toFixed(1)} / 10`,
     anime.episodeCount === null ? null : `${anime.episodeCount} ${copy.episodesShort}`,
@@ -198,10 +198,12 @@ function SearchResultRow({
   anime,
   onSelect,
   copy,
+  eager = false,
 }: {
   readonly anime: Anime;
   readonly onSelect: (anime: AnimeCardData) => void;
   readonly copy: AppCopy;
+  readonly eager?: boolean;
 }) {
   const imageUrl = anime.image?.medium ?? anime.image?.large;
   return (
@@ -216,7 +218,13 @@ function SearchResultRow({
           {imageUrl === null || imageUrl === undefined ? (
             <span className="anime-search-result-cover-label">{anime.title.default}</span>
           ) : (
-            <img src={imageUrl} alt="" loading="lazy" decoding="async" />
+            <img
+              src={imageUrl}
+              alt=""
+              loading={eager ? 'eager' : 'lazy'}
+              fetchPriority={eager ? 'high' : 'low'}
+              decoding="async"
+            />
           )}
         </span>
 
@@ -483,8 +491,6 @@ export function AnimeSearchPanel({
   const heading = (
     <div className="section-heading">
       <div>
-        <p className="eyebrow">{copy.searchEyebrow}</p>
-
         <h2 id="anime-search-title">{headingTitle}</h2>
       </div>
 
@@ -568,12 +574,13 @@ export function AnimeSearchPanel({
       ) : (
         <>
           <ul className="anime-search-results">
-            {sortedResults.map((anime) => (
+            {sortedResults.map((anime, index) => (
               <SearchResultRow
                 key={`${anime.provider ?? providerName}-${anime.id}`}
                 anime={anime}
                 onSelect={onSelect}
                 copy={copy}
+                eager={index === 0}
               />
             ))}
           </ul>

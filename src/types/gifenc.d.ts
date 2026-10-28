@@ -10,12 +10,7 @@ declare module 'gifenc' {
   }
 
   export interface GifEncoderInstance {
-    writeFrame(
-      index: Uint8Array,
-      width: number,
-      height: number,
-      options?: GifFrameOptions,
-    ): void;
+    writeFrame(index: Uint8Array, width: number, height: number, options?: GifFrameOptions): void;
     finish(): void;
     bytes(): Uint8Array;
     bytesView(): Uint8Array;

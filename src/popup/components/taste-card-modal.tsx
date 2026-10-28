@@ -32,11 +32,10 @@ import {
   downloadPngBlob,
   fetchAssetAsDataUrl,
   fetchBrandAssetAsDataUrl,
+  prepareTasteCardPreview,
   renderTasteCardGif,
   renderTasteCardPng,
-  TASTE_CARD_GIF_PREVIEW_DEBOUNCE_MS,
-  TASTE_CARD_GIF_PREVIEW_WIDTH,
-  tasteCardGifPreviewTiming,
+  type TasteCardPreviewPlan,
 } from '../taste-card-image';
 
 const DOWNLOAD_FILENAME = 'AnimeLens_TasteCard';
@@ -117,10 +116,12 @@ export function TasteCardModal({
 }: TasteCardModalProps) {
   const mountedRef = useRef(true);
   const assetsRef = useRef<Promise<TasteCardAssets>>(Promise.resolve(EMPTY_ASSETS));
-  const pendingRef = useRef<Promise<Blob> | null>(null);
+  const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  const planRef = useRef<TasteCardPreviewPlan | null>(null);
+  const frameRef = useRef<number | null>(null);
+  const startRef = useRef<number | null>(null);
   const [format, setFormat] = useState<TasteCardFormat>('portrait');
-  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
-  const [isRendering, setRendering] = useState(false);
+  const [pending, setPending] = useState<'preparing' | 'ready' | 'failed'>('preparing');
   const [busy, setBusy] = useState<ExportAction | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [reducedMotion, setReducedMotion] = useState<boolean>(prefersReducedMotion);
@@ -161,58 +162,60 @@ export function TasteCardModal({
   }, [open, profile?.avatarUrl, model, showPicks, options, format]);
 
   useEffect(() => {
-    if (!open) return undefined;
+    if (!open) {
+      startRef.current = null;
+      setPending('preparing');
+      return undefined;
+    }
     let disposed = false;
-    let objectUrl: string | null = null;
-    setRendering(true);
     setErrorMessage(null);
-    pendingRef.current = null;
 
-    const run = async () => {
+    const prepare = async () => {
       const assets = await assetsRef.current;
       if (disposed || !mountedRef.current) return;
-      const shared = {
-        model,
-        format,
-        copy,
-        avatarDataUrl: assets.avatar,
-        brandDataUrl: assets.brand,
-        pickDataUrls: assets.picks,
-        options,
-      };
-      const animated = exportFormat === 'gif' && !reducedMotion;
-      const blob = animated
-        ? await renderTasteCardGif({
-            ...shared,
-            gifWidth: TASTE_CARD_GIF_PREVIEW_WIDTH,
-            ...tasteCardGifPreviewTiming(options.cosmetics.palette),
-          })
-        : await renderTasteCardPng(shared);
+      const canvas = canvasRef.current;
+      if (canvas === null) return;
+      const plan = await prepareTasteCardPreview(
+        canvas,
+        { model, format, copy, options },
+        { avatarDataUrl: assets.avatar, brandDataUrl: assets.brand, pickDataUrls: assets.picks },
+        exportFormat === 'gif' && !reducedMotion,
+      );
       if (disposed || !mountedRef.current) return;
-      objectUrl = URL.createObjectURL(blob);
-      pendingRef.current = Promise.resolve(blob);
-      setPreviewUrl(objectUrl);
+      planRef.current = plan;
+      plan.paint(0);
+      setPending('ready');
+      if (plan.loopMs > 0) {
+        if (startRef.current === null) startRef.current = performance.now();
+        const step = (now: number) => {
+          const active = planRef.current;
+          const anchor = startRef.current;
+          if (active === null || active.loopMs <= 0) return;
+          if (anchor !== null) {
+            active.paint(((now - anchor) % active.loopMs) / active.loopMs);
+          }
+          frameRef.current = window.requestAnimationFrame(step);
+        };
+        frameRef.current = window.requestAnimationFrame(step);
+      }
     };
 
-    const timer = window.setTimeout(() => {
-      void run()
-        .catch((error: unknown) => {
-          if (disposed || !mountedRef.current) return;
-          setPreviewUrl(null);
-          setErrorMessage(describeFailure(error, copy));
-          console.error('[AnimeLens] taste card render failed', error);
-        })
-        .finally(() => {
-          if (!disposed && mountedRef.current) setRendering(false);
-        });
-    }, TASTE_CARD_GIF_PREVIEW_DEBOUNCE_MS);
+    void prepare().catch((error: unknown) => {
+      if (disposed || !mountedRef.current) return;
+      setPending('failed');
+      setErrorMessage(describeFailure(error, copy));
+      console.error('[AnimeLens] taste card render failed', error);
+    });
 
     return () => {
       disposed = true;
-      window.clearTimeout(timer);
-      if (objectUrl !== null) URL.revokeObjectURL(objectUrl);
+      if (frameRef.current !== null) {
+        window.cancelAnimationFrame(frameRef.current);
+        frameRef.current = null;
+      }
+      planRef.current = null;
     };
-  }, [open, model, format, copy, options, exportFormat, reducedMotion]);
+  }, [open, profile?.avatarUrl, model, format, copy, options, exportFormat, reducedMotion]);
 
   const spec = TASTE_CARD_FORMATS[format];
 
@@ -221,21 +224,18 @@ export function TasteCardModal({
       if (busy !== null) return;
       setBusy(action);
       try {
+        const assets = await assetsRef.current;
+        const shared = {
+          model,
+          format,
+          copy,
+          avatarDataUrl: assets.avatar,
+          brandDataUrl: assets.brand,
+          pickDataUrls: assets.picks,
+          options,
+        };
         const animated = exportFormat === 'gif' && !reducedMotion;
-        let blob = animated || pendingRef.current === null ? null : await pendingRef.current;
-        if (blob === null) {
-          const assets = await assetsRef.current;
-          const shared = {
-            model,
-            format,
-            copy,
-            avatarDataUrl: assets.avatar,
-            brandDataUrl: assets.brand,
-            pickDataUrls: assets.picks,
-            options,
-          };
-          blob = animated ? await renderTasteCardGif(shared) : await renderTasteCardPng(shared);
-        }
+        const blob = animated ? await renderTasteCardGif(shared) : await renderTasteCardPng(shared);
         if (action === 'download') {
           const extension = animated ? 'gif' : 'png';
           downloadPngBlob(blob, `${DOWNLOAD_FILENAME}.${extension}`);
@@ -244,16 +244,7 @@ export function TasteCardModal({
         }
         let copyBlob = blob.type === 'image/png' ? blob : null;
         if (copyBlob === null) {
-          const assets = await assetsRef.current;
-          copyBlob = await renderTasteCardPng({
-            model,
-            format,
-            copy,
-            avatarDataUrl: assets.avatar,
-            brandDataUrl: assets.brand,
-            pickDataUrls: assets.picks,
-            options,
-          });
+          copyBlob = await renderTasteCardPng(shared);
         }
         const outcome = await copyPngBlobToClipboard(copyBlob);
         if (outcome === 'copied') {
@@ -276,7 +267,7 @@ export function TasteCardModal({
     [busy, copy, exportFormat, format, model, onFeedback, options, reducedMotion],
   );
 
-  const isReady = previewUrl !== null && !isRendering;
+  const isReady = pending === 'ready';
 
   const gridPicks = model.topPicks.length;
   const isGridIncomplete = options.picksLayout === 'grid' && gridPicks < GRID_SLOT_COUNT;
@@ -302,15 +293,12 @@ export function TasteCardModal({
       <div
         className="taste-card-stage"
         style={{ aspectRatio: `${spec.width} / ${spec.height}` }}
-        aria-busy={isRendering}
+        aria-busy={pending === 'preparing'}
         aria-label={copy.tasteCardPreviewLabel}
       >
-        {previewUrl !== null ? (
-          <img className="taste-card-preview" src={previewUrl} alt={copy.tasteCardPreviewLabel} />
-        ) : (
-          <Skeleton className="taste-card-placeholder" />
-        )}
-        {isRendering && (
+        <canvas ref={canvasRef} className="taste-card-preview" aria-hidden="true" />
+        {pending !== 'ready' && <Skeleton className="taste-card-placeholder" />}
+        {pending === 'preparing' && (
           <span className="taste-card-busy" role="status" aria-label={copy.tasteCardGenerating}>
             <span className="taste-card-loader" />
           </span>

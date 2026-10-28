@@ -30,10 +30,7 @@ interface AnimeCardProps {
 function animeSubtitle(anime: AnimeCardData): string {
   return (
     anime.subtitle ??
-    [
-      anime.type.toUpperCase(),
-      ...anime.genres.slice(0, 2).map((genre) => genre.name.toUpperCase()),
-    ].join(' · ')
+    [anime.type, ...anime.genres.slice(0, 2).map((genre) => genre.name)].join(' · ')
   );
 }
 
@@ -42,9 +39,8 @@ function posterLabel(anime: AnimeCardData): string {
 }
 
 function posterStyle(anime: AnimeCardData): React.CSSProperties {
-  return {
-    '--poster-accent': anime.accent ?? '#8a7ecf',
-  } as React.CSSProperties;
+  if (anime.accent === null || anime.accent === undefined) return {};
+  return { '--poster-accent': anime.accent } as React.CSSProperties;
 }
 
 function Poster({
@@ -74,9 +70,6 @@ function Poster({
           <span className="poster-label">{posterLabel(anime)}</span>
           <span className="poster-noise" />
         </>
-      )}
-      {!featured && anime.compatibility !== undefined && (
-        <CompatibilityScore value={anime.compatibility} compact copy={copy} />
       )}
       {anime.isNew && (
         <Badge tone="accent" className="poster-badge">
@@ -116,6 +109,9 @@ function AnimeCard({
             <span>
               {anime.episodeCount ?? '—'} {copy.episodesShort}
             </span>
+            {anime.compatibility !== undefined && (
+              <span className="anime-score">{anime.compatibility}%</span>
+            )}
           </div>
           {anime.recommendation !== undefined && (
             <div className="anime-reason" aria-label={copy.recommendationWhy}>
@@ -214,6 +210,16 @@ export function AnimeGrid({
   );
 }
 
+const FEATURED_SYNOPSIS_LENGTH = 160;
+
+function featuredSynopsis(anime: AnimeCardData): string {
+  const synopsis = anime.synopsis ?? anime.recommendation ?? '';
+  if (synopsis.length <= FEATURED_SYNOPSIS_LENGTH) return synopsis;
+  const cut = synopsis.slice(0, FEATURED_SYNOPSIS_LENGTH);
+  const bound = cut.lastIndexOf(' ');
+  return `${synopsis.slice(0, bound > 0 ? bound : FEATURED_SYNOPSIS_LENGTH).trimEnd()}…`;
+}
+
 export function FeaturedAnime({ anime, onSelect, onRecommendationFeedback, copy }: AnimeCardProps) {
   return (
     <Card className="featured-recommendation">
@@ -229,7 +235,7 @@ export function FeaturedAnime({ anime, onSelect, onRecommendationFeedback, copy 
         <p className="featured-subtitle">
           {animeSubtitle(anime)} <span>•</span> {anime.episodeCount ?? '—'} {copy.episodesShort}
         </p>
-        <p className="featured-description">{anime.synopsis ?? anime.recommendation ?? ''}</p>
+        <p className="featured-description">{featuredSynopsis(anime)}</p>
         <div className="featured-footer">
           <CompatibilityScore value={anime.compatibility ?? 0} copy={copy} />
           <div className="featured-actions">

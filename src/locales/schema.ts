@@ -43,9 +43,6 @@ export interface AppCopy {
   readonly malConnected: string;
   readonly malDisconnected: string;
   readonly authUnavailable: string;
-  readonly dashboardEyebrow: string;
-  readonly hello: string;
-  readonly dashboardIntro: string;
   readonly connectedList: string;
   readonly connectSignals: string;
   readonly connectMal: string;
@@ -263,12 +260,6 @@ export interface AppCopy {
   readonly tasteCardOptionsSaved: string;
   readonly tasteCardAssetFailed: string;
   readonly tasteCardStyleTitle: string;
-  readonly collectionEyebrow: string;
-  readonly collectionTitle: string;
-  readonly collectionCount: (unlocked: number, total: number) => string;
-  readonly collectionHint: string;
-  readonly collectionEquipped: string;
-  readonly collectionLocked: string;
   readonly cosmeticSlotFrame: string;
   readonly cosmeticSlotPalette: string;
   readonly cosmeticFrameClassic: string;
@@ -299,7 +290,6 @@ export interface AppCopy {
   readonly connectedAs: (username: string) => string;
   readonly noAccount: string;
   readonly connectAccountDescription: string;
-  readonly importLatestList: string;
   readonly removeAccount: string;
   readonly disconnect: string;
   readonly oauthConfig: string;
@@ -397,6 +387,11 @@ export interface AppCopy {
   readonly sectionExplore: string;
   readonly themeLight: string;
   readonly themeDark: string;
+  readonly accentTheme: string;
+  readonly accentPurple: string;
+  readonly accentRed: string;
+  readonly accentBlue: string;
+  readonly accentGreen: string;
   readonly closeLabel: string;
   readonly dismissNotificationLabel: string;
   readonly ratingAria: (value: number, outOf: number) => string;
@@ -546,7 +541,6 @@ const MESSAGE_PARAMS = {
   tasteCardGridSlot: ['position'],
   tasteCardGridActive: ['slot'],
   tasteCardCoverSizeValue: ['scale'],
-  collectionCount: ['unlocked', 'total'],
   cosmeticNeedLevel: ['level'],
   cosmeticNeedRated: ['count'],
   cosmeticNeedFeedback: ['count'],

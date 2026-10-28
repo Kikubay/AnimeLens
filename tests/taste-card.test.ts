@@ -351,7 +351,7 @@ describe('taste card painter', () => {
     paint(recorded);
     const rendered = recorded.texts.map((entry) => entry.text);
 
-    expect(rendered).toContain('TOP RATED');
+    expect(rendered).toContain('Top rated');
     expect(rendered).toContain('Cowboy Bebop');
     expect(rendered).toContain('Fullmetal Alchemist: Brotherhood');
     expect(rendered).toContain('Steins;Gate');
@@ -431,7 +431,7 @@ describe('taste card painter', () => {
     paint(recorded, { topPicks: [] });
     const rendered = recorded.texts.map((entry) => entry.text);
 
-    expect(rendered).not.toContain('TOP RATED');
+    expect(rendered).not.toContain('Top rated');
     expect(measureTasteCardLayout({ ...model, topPicks: [] }, 'portrait').blocks).not.toContain(
       'picks',
     );
@@ -490,9 +490,9 @@ describe('taste card painter', () => {
     paint(recorded);
     const rendered = recorded.texts.map((entry) => entry.text);
 
-    expect(rendered).toContain('TOP GENRES');
+    expect(rendered).toContain('Top genres');
     expect(rendered).toContain('% affinity');
-    const label = recorded.texts.find((entry) => entry.text === 'TOP GENRES');
+    const label = recorded.texts.find((entry) => entry.text === 'Top genres');
     const qualifier = recorded.texts.find((entry) => entry.text === '% affinity');
     expect(qualifier?.x ?? 0).toBeGreaterThan(label?.x ?? 0);
   });
@@ -564,7 +564,7 @@ describe('taste card painter', () => {
       paint(recorded, {}, format, { picks: [cover, cover, cover] });
       const padX = format === 'square' ? 64 : 72;
       const insets = new Set<number>();
-      for (const label of ['TOP GENRES', 'Action', 'Sci-Fi', 'TOP RATED']) {
+      for (const label of ['Top genres', 'Action', 'Sci-Fi', 'Top rated']) {
         const entry = recorded.texts.find((candidate) => candidate.text === label);
         expect(entry, `${label} missing in ${format}`).toBeDefined();
         insets.add(entry?.x ?? -1);
@@ -690,7 +690,7 @@ describe('taste card painter', () => {
     const rendered = recorded.texts.map((entry) => entry.text);
 
     expect(rendered).not.toContain('Cowboy Bebop');
-    expect(rendered).toContain('TOP RATED');
+    expect(rendered).toContain('Top rated');
     expect(rendered).toContain('1');
     expect(rendered).toContain('10');
   });
@@ -730,8 +730,8 @@ describe('taste card painter', () => {
 
     expect(recorded.drawn).toHaveLength(9);
     expect(rendered).toContain('AnimeLens');
-    expect(rendered).not.toContain('TOP RATED');
-    expect(rendered).not.toContain('TOP GENRES');
+    expect(rendered).not.toContain('Top rated');
+    expect(rendered).not.toContain('Top genres');
     expect(rendered).not.toContain('Made with AnimeLens');
     expect(rendered).not.toContain('Sakamoto');
     expect(rendered).not.toContain('412');
@@ -864,8 +864,8 @@ describe('taste card painter', () => {
     });
     const rendered = recorded.texts.map((entry) => entry.text);
 
-    expect(rendered).not.toContain('TOP GENRES');
-    expect(rendered).not.toContain('TOP RATED');
+    expect(rendered).not.toContain('Top genres');
+    expect(rendered).not.toContain('Top rated');
     expect(rendered).toContain('412');
     expect(rendered).toContain('Made with AnimeLens');
   });
@@ -1073,7 +1073,7 @@ describe('taste card painter', () => {
   it('keeps every avatar frame clear of the eyebrow below it', () => {
     const format: TasteCardFormat = 'square';
     const centerX = TASTE_CARD_FORMATS[format].width / 2;
-    const eyebrow = 'ANIME TASTE PROFILE';
+    const eyebrow = 'Anime taste profile';
 
     for (const cosmetic of COSMETIC_CATALOG.filter((item) => item.slot === 'frame')) {
       const recorded = recordingContext();
@@ -1140,9 +1140,7 @@ describe('taste card painter', () => {
         conicStarts: recorded.conicStarts.map((angle) => Math.round(normAngle(angle) * 1e6) / 1e6),
       },
       (_key, value) =>
-        typeof value === 'number' && Number.isFinite(value)
-          ? Math.round(value * 1e6) / 1e6
-          : value,
+        typeof value === 'number' && Number.isFinite(value) ? Math.round(value * 1e6) / 1e6 : value,
     );
   }
 

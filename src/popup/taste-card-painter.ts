@@ -176,32 +176,32 @@ interface CardPalette {
 
 const PALETTES: Readonly<Record<PaletteId, CardPalette>> = {
   'palette-aurora': {
-    base: ['#17141f', '#0c0c10', '#08080a'],
-    glowPrimary: 'rgba(152, 124, 244, 0.42)',
-    glowSecondary: 'rgba(134, 200, 197, 0.26)',
-    glowFloor: 'rgba(152, 124, 244, 0.22)',
+    base: ['#1c1333', '#0d0b16', '#060608'],
+    glowPrimary: 'rgba(152, 124, 244, 0.5)',
+    glowSecondary: 'rgba(110, 216, 200, 0.3)',
+    glowFloor: 'rgba(190, 130, 255, 0.2)',
     grid: GRID_COLOR,
-    arcPrimary: 'rgba(184, 165, 255, 0.18)',
-    arcSecondary: 'rgba(134, 200, 197, 0.14)',
-    centerLift: ['rgba(184, 165, 255, 0.20)', 'rgba(152, 124, 244, 0.07)'],
+    arcPrimary: 'rgba(184, 165, 255, 0.22)',
+    arcSecondary: 'rgba(110, 216, 200, 0.16)',
+    centerLift: ['rgba(184, 165, 255, 0.24)', 'rgba(152, 124, 244, 0.09)'],
     accent: '#b8a5ff',
     accentSoft: 'rgba(152, 124, 244, 0.55)',
     accentBright: '#d6c9ff',
-    arcSweep: ['rgba(184, 165, 255, 0.34)', 'rgba(134, 200, 197, 0.30)'],
+    arcSweep: ['rgba(196, 165, 255, 0.4)', 'rgba(110, 216, 200, 0.34)'],
   },
   'palette-tide': {
-    base: ['#0f1c22', '#08111a', '#05090f'],
-    glowPrimary: 'rgba(134, 200, 197, 0.40)',
-    glowSecondary: 'rgba(112, 168, 224, 0.26)',
-    glowFloor: 'rgba(86, 200, 197, 0.20)',
-    grid: 'rgba(134, 200, 197, 0.06)',
-    arcPrimary: 'rgba(134, 200, 197, 0.20)',
-    arcSecondary: 'rgba(112, 168, 224, 0.16)',
-    centerLift: ['rgba(134, 200, 197, 0.20)', 'rgba(86, 170, 200, 0.08)'],
-    accent: '#86c8c5',
+    base: ['#0d2430', '#071320', '#04070c'],
+    glowPrimary: 'rgba(96, 208, 200, 0.46)',
+    glowSecondary: 'rgba(120, 186, 255, 0.3)',
+    glowFloor: 'rgba(60, 160, 190, 0.24)',
+    grid: 'rgba(134, 200, 197, 0.07)',
+    arcPrimary: 'rgba(134, 200, 197, 0.22)',
+    arcSecondary: 'rgba(120, 186, 255, 0.18)',
+    centerLift: ['rgba(134, 200, 197, 0.24)', 'rgba(86, 170, 200, 0.1)'],
+    accent: '#86d8d2',
     accentSoft: 'rgba(86, 170, 200, 0.55)',
-    accentBright: '#bdeeeb',
-    arcSweep: ['rgba(134, 200, 197, 0.36)', 'rgba(112, 168, 224, 0.30)'],
+    accentBright: '#c2f2ee',
+    arcSweep: ['rgba(134, 200, 197, 0.42)', 'rgba(120, 186, 255, 0.34)'],
   },
   'palette-ember': {
     base: ['#201419', '#11090c', '#0a0608'],
@@ -603,7 +603,7 @@ function paintBackground(
   motion: TasteCardMotion,
 ): void {
   const progress = motion.progress;
-  if (motion.animated && motion.palette === 'palette-mono') {
+  if (motion.palette === 'palette-mono') {
     paintMonoBackground(context, width, height, motion);
     return;
   }
@@ -762,10 +762,10 @@ function paintMonoBackground(
   height: number,
   motion: TasteCardMotion,
 ): void {
-  context.fillStyle = '#050506';
+  context.fillStyle = '#040405';
   context.fillRect(0, 0, width, height);
 
-  const breathe = 0.09 + 0.05 * (0.5 + 0.5 * Math.sin(TAU * motion.progress * 3));
+  const breathe = 0.08 + 0.06 * (0.5 + 0.5 * Math.sin(TAU * motion.progress));
   context.save();
   context.strokeStyle = `rgba(240, 240, 246, ${breathe})`;
   context.lineWidth = 1;
@@ -792,9 +792,10 @@ function paintEmberGrid(
   context.lineWidth = 1;
   for (let x = 0; x <= width; x += GRID_CELL) {
     const flicker = 0.45 + 0.55 * loopNoise(x * 0.037, motion.progress, 11 + x);
-    context.strokeStyle = `rgba(255, ${Math.round(120 + 70 * flicker)}, 70, ${
-      (0.03 + 0.06 * flicker).toFixed(3)
-    })`;
+    context.strokeStyle = `rgba(255, ${Math.round(120 + 70 * flicker)}, 70, ${(
+      0.03 +
+      0.06 * flicker
+    ).toFixed(3)})`;
     context.beginPath();
     context.moveTo(x + 0.5, 0);
     context.lineTo(x + 0.5, height);
@@ -802,9 +803,10 @@ function paintEmberGrid(
   }
   for (let y = 0; y <= height; y += GRID_CELL) {
     const flicker = 0.45 + 0.55 * loopNoise(y * 0.041, motion.progress, 29 + y);
-    context.strokeStyle = `rgba(255, ${Math.round(120 + 70 * flicker)}, 70, ${
-      (0.03 + 0.06 * flicker).toFixed(3)
-    })`;
+    context.strokeStyle = `rgba(255, ${Math.round(120 + 70 * flicker)}, 70, ${(
+      0.03 +
+      0.06 * flicker
+    ).toFixed(3)})`;
     context.beginPath();
     context.moveTo(0, y + 0.5);
     context.lineTo(width, y + 0.5);
@@ -827,10 +829,54 @@ function paintAuroraRibbons(
     readonly driftCycles: number;
     readonly colors: readonly [string, string];
   }[] = [
-    { seed: 11, baseY: 0.3, span: 0.17, alpha: 0.17, driftCycles: 3, colors: ['#3ddc97', '#59e0c0'] },
-    { seed: 23, baseY: 0.43, span: 0.24, alpha: 0.13, driftCycles: 2, colors: ['#59e0c0', '#8f7bff'] },
-    { seed: 37, baseY: 0.58, span: 0.19, alpha: 0.1, driftCycles: 2, colors: ['#8f7bff', '#ff8fd0'] },
-    { seed: 53, baseY: 0.22, span: 0.11, alpha: 0.09, driftCycles: 3, colors: ['#a7f3d0', '#6ee7f0'] },
+    {
+      seed: 11,
+      baseY: 0.12,
+      span: 0.13,
+      alpha: 0.18,
+      driftCycles: 3,
+      colors: ['#3ddc97', '#59e0c0'],
+    },
+    {
+      seed: 23,
+      baseY: 0.2,
+      span: 0.12,
+      alpha: 0.14,
+      driftCycles: 2,
+      colors: ['#59e0c0', '#8f7bff'],
+    },
+    {
+      seed: 37,
+      baseY: 0.28,
+      span: 0.1,
+      alpha: 0.11,
+      driftCycles: 2,
+      colors: ['#8f7bff', '#ff8fd0'],
+    },
+    {
+      seed: 53,
+      baseY: 0.07,
+      span: 0.08,
+      alpha: 0.1,
+      driftCycles: 3,
+      colors: ['#a7f3d0', '#6ee7f0'],
+    },
+    {
+      seed: 71,
+      baseY: 0.33,
+      span: 0.08,
+      alpha: 0.09,
+      driftCycles: 2,
+      colors: ['#f6a4ff', '#8f7bff'],
+    },
+    {
+      seed: 89,
+      baseY: 0.16,
+      span: 0.05,
+      alpha: 0.16,
+      driftCycles: 4,
+      colors: ['#d9fff2', '#7ef0d4'],
+    },
   ];
 
   context.save();
@@ -842,12 +888,14 @@ function paintAuroraRibbons(
     const edgeBottom: number[] = [];
     for (let step = 0; step <= steps; step += 1) {
       const x = (step / steps) * (width + 80) - 40;
-      const undulation =
-        (loopNoise(x * 0.004, motion.progress, layer.seed) - 0.5) * height * 0.16;
-      const wave = 12 * Math.sin(x * 0.006 + TAU * motion.progress * layer.driftCycles + layer.seed);
+      const undulation = (loopNoise(x * 0.004, motion.progress, layer.seed) - 0.5) * height * 0.16;
+      const wave =
+        12 * Math.sin(x * 0.006 + TAU * motion.progress * layer.driftCycles + layer.seed);
       const yTop = height * layer.baseY + drift + undulation + wave;
       const thickness =
-        height * layer.span * (0.7 + 0.3 * loopNoise(x * 0.002 + layer.seed, motion.progress, layer.seed + 5));
+        height *
+        layer.span *
+        (0.7 + 0.3 * loopNoise(x * 0.002 + layer.seed, motion.progress, layer.seed + 5));
       edgeTop.push(yTop);
       edgeBottom.push(yTop + thickness);
     }
@@ -872,8 +920,39 @@ function paintAuroraRibbons(
     }
     context.closePath();
     context.fill();
+
+    context.globalAlpha = layer.alpha * 0.75;
+    context.strokeStyle = `${layer.colors[0]}88`;
+    context.lineWidth = 1.4;
+    edgeTop.forEach((y, index) => {
+      if (index === 0) {
+        context.beginPath();
+        context.moveTo((index / steps) * (width + 80) - 40, y);
+        return;
+      }
+      context.lineTo((index / steps) * (width + 80) - 40, y);
+    });
+    context.stroke();
+
+    context.strokeStyle = `${layer.colors[0]}44`;
+    for (let step = 1; step < steps; step += 1) {
+      const x = (step / steps) * (width + 80) - 40;
+      const strand =
+        layer.alpha * 0.65 * (0.45 + 0.55 * loopNoise(x * 0.05, motion.progress, layer.seed + 13));
+      context.globalAlpha = strand;
+      context.beginPath();
+      context.moveTo(x, edgeTop[step]);
+      context.lineTo(x, edgeTop[step] + (edgeBottom[step] - edgeTop[step]) * 0.85);
+      context.stroke();
+    }
   }
   context.restore();
+
+  const fade = context.createLinearGradient(0, height * 0.28, 0, height * 0.4);
+  fade.addColorStop(0, 'rgba(13, 11, 22, 0)');
+  fade.addColorStop(1, 'rgba(13, 11, 22, 0.85)');
+  context.fillStyle = fade;
+  context.fillRect(0, height * 0.28, width, height * 0.72);
 }
 
 function paintTideRipples(
@@ -883,41 +962,39 @@ function paintTideRipples(
   motion: TasteCardMotion,
 ): void {
   const paintDeco = (target: CanvasRenderingContext2D) => {
-    const streaks: readonly {
-      readonly baseY: number;
-      readonly span: number;
-      readonly color: string;
-      readonly driftCycles: number;
-    }[] = [
-      { baseY: 0.26, span: 0.1, color: 'rgba(110, 231, 240, 0.1)', driftCycles: 2 },
-      { baseY: 0.52, span: 0.14, color: 'rgba(86, 170, 200, 0.14)', driftCycles: 1 },
-      { baseY: 0.74, span: 0.11, color: 'rgba(134, 200, 197, 0.12)', driftCycles: 2 },
-    ];
     target.save();
-    for (const streak of streaks) {
-      const gradient = target.createLinearGradient(0, height * streak.baseY, 0, height * (streak.baseY + streak.span));
-      gradient.addColorStop(0, 'rgba(0, 0, 0, 0)');
-      gradient.addColorStop(0.5, streak.color);
-      gradient.addColorStop(1, 'rgba(0, 0, 0, 0)');
+    const beams: readonly {
+      readonly x: number;
+      readonly width: number;
+      readonly tilt: number;
+      readonly alpha: number;
+      readonly driftCycles: number;
+      readonly phase: number;
+    }[] = [
+      { x: 0.18, width: 0.14, tilt: -0.12, alpha: 0.07, driftCycles: 1, phase: 0.2 },
+      { x: 0.52, width: 0.1, tilt: 0.18, alpha: 0.05, driftCycles: 1, phase: 0.62 },
+      { x: 0.78, width: 0.16, tilt: 0.08, alpha: 0.06, driftCycles: 2, phase: 0.38 },
+    ];
+    for (const beam of beams) {
+      const breathe =
+        0.7 + 0.3 * Math.sin(TAU * motion.progress * beam.driftCycles + TAU * beam.phase);
+      const top = height * 0.02;
+      const symmetric = width * beam.width;
+      const gradient = target.createLinearGradient(
+        width * beam.x,
+        0,
+        width * (beam.x + beam.width),
+        0,
+      );
+      gradient.addColorStop(0, 'rgba(140, 220, 210, 0)');
+      gradient.addColorStop(0.5, `rgba(140, 220, 210, ${(beam.alpha * breathe).toFixed(3)})`);
+      gradient.addColorStop(1, 'rgba(140, 220, 210, 0)');
       target.fillStyle = gradient;
-      const steps = 24;
       target.beginPath();
-      for (let step = 0; step <= steps; step += 1) {
-        const x = (step / steps) * width;
-        const y =
-          height * streak.baseY +
-          16 * Math.sin(x * 0.008 + TAU * motion.progress * streak.driftCycles) +
-          9 * Math.sin(x * 0.017 - TAU * motion.progress * streak.driftCycles * 2);
-        if (step === 0) target.moveTo(x, y);
-        else target.lineTo(x, y);
-      }
-      for (let step = steps; step >= 0; step -= 1) {
-        const x = (step / steps) * width;
-        const y =
-          height * (streak.baseY + streak.span) +
-          20 * Math.sin(x * 0.007 + TAU * motion.progress * streak.driftCycles + 1.3);
-        target.lineTo(x, y);
-      }
+      target.moveTo(width * beam.x - symmetric * 0.5, top);
+      target.lineTo(width * beam.x + symmetric * 0.5, top);
+      target.lineTo(width * (beam.x + beam.tilt) + symmetric * 0.5, height);
+      target.lineTo(width * (beam.x + beam.tilt) - symmetric * 0.5, height);
       target.closePath();
       target.fill();
     }
@@ -988,10 +1065,13 @@ function paintEmberParticles(
     const ascent = fract(motion.progress * riseCycles + seedY);
     const y = height * (1.02 - ascent * 1.12);
     const x =
-      seedX * width + (6 + 14 * seedSway) * Math.sin(TAU * (motion.progress * swayCycles + seedSway));
+      seedX * width +
+      (6 + 14 * seedSway) * Math.sin(TAU * (motion.progress * swayCycles + seedSway));
     const fadeIn = Math.min(1, ascent * 8);
     const fadeOut = Math.min(1, Math.max(0, (1 - ascent) * 2.4));
-    const flicker = 0.72 + 0.28 * Math.sin(TAU * motion.progress * (1 + Math.floor(seedSize * 2)) + seedHue * TAU);
+    const flicker =
+      0.72 +
+      0.28 * Math.sin(TAU * motion.progress * (1 + Math.floor(seedSize * 2)) + seedHue * TAU);
     const alpha = fadeIn * fadeOut * flicker * (0.35 + 0.4 * seedSize);
     const radius = (1.6 + seedSize * 2.6) * (width / 1080);
     const hue = Math.round(12 + seedHue * 26);
@@ -1090,7 +1170,6 @@ function paintBrand(
   if (provider !== null && provider.length > 0) {
     const text = ellipsize(context, provider, width * 0.4);
     setFont(context, 600, metrics.brandTag);
-    setLetterSpacing(context, '0.12em');
     const chipWidth = context.measureText(text).width + 36;
     const chipHeight = Math.round(metrics.brandTag * 2);
     const chipX = width - metrics.padX - chipWidth;
@@ -1175,12 +1254,10 @@ function paintIdentity(
 
   let y = top + size + metrics.gapIdentity;
   const eyebrowHeight = lineHeight(metrics.eyebrow, 1.35);
-  setFont(context, 700, metrics.eyebrow);
-  setLetterSpacing(context, '0.22em');
-  context.fillStyle = COLORS.cyan;
+  setFont(context, 600, metrics.eyebrow);
+  context.fillStyle = COLORS.muted;
   context.textAlign = 'center';
-  context.fillText(copy.tasteCardSubtitle.toLocaleUpperCase(), centerX, y + eyebrowHeight / 2);
-  setLetterSpacing(context, '0px');
+  context.fillText(copy.tasteCardSubtitle, centerX, y + eyebrowHeight / 2);
   y += eyebrowHeight + metrics.gapText;
 
   const nameHeight = lineHeight(metrics.name, 1.05);
@@ -1189,8 +1266,21 @@ function paintIdentity(
   const name = ellipsize(context, displayName, maxNameWidth);
   setFont(context, 800, fitFontSize(context, name, maxNameWidth, metrics.name, 40));
   context.fillStyle = COLORS.text;
-  context.fillText(name, centerX, y + nameHeight / 2);
+  context.fillText(
+    name,
+    centerX + (mono && motion.animated ? monoNameGlitch(motion.progress) : 0),
+    y + nameHeight / 2,
+  );
   context.textAlign = 'left';
+}
+
+function monoNameGlitch(progress: number): number {
+  for (const start of [0.41, 0.77]) {
+    const local = (progress - start + 1) % 1;
+    if (local < 0.025) return 1;
+    if (local < 0.05) return -1;
+  }
+  return 0;
 }
 
 export const AVATAR_FRAME_LIMIT = 16;
@@ -1211,87 +1301,87 @@ function paintAvatarFrame(
 
   switch (motion.frame ?? 'frame-classic') {
     case 'frame-classic':
-      strokeRing(context, centerX, centerY, radius, 4, 8, 'rgba(184, 165, 255, 0.55)');
-      if (!mono) {
-        paintDashRing(
-          context,
-          centerX,
-          centerY,
-          radius,
-          4,
-          8,
-          [10, 18],
-          3,
-          progress,
-          palette.accentBright,
-        );
-      }
+      strokeRing(
+        context,
+        centerX,
+        centerY,
+        radius,
+        4,
+        8,
+        mono ? accent : 'rgba(184, 165, 255, 0.55)',
+      );
+      paintDashRing(
+        context,
+        centerX,
+        centerY,
+        radius,
+        4,
+        8,
+        [10, 18],
+        3,
+        progress,
+        palette.accentBright,
+      );
       break;
     case 'frame-hairline':
       strokeRing(context, centerX, centerY, radius, 7, 2, accent);
-      if (!mono) {
-        paintDashRing(
-          context,
-          centerX,
-          centerY,
-          radius,
-          7,
-          2,
-          [8, 26],
-          3,
-          progress,
-          palette.accentBright,
-        );
-      }
+      paintDashRing(
+        context,
+        centerX,
+        centerY,
+        radius,
+        7,
+        2,
+        [8, 26],
+        3,
+        progress,
+        palette.accentBright,
+      );
       break;
     case 'frame-double':
       strokeRing(context, centerX, centerY, radius, 6, 3, accent);
       strokeRing(context, centerX, centerY, radius, 14, 2, palette.accentSoft);
-      if (!mono) {
-        paintDashRing(
-          context,
-          centerX,
-          centerY,
-          radius,
-          6,
-          3,
-          [14, 12],
-          3,
-          progress,
-          palette.accentBright,
-        );
-        paintDashRing(
-          context,
-          centerX,
-          centerY,
-          radius,
-          14,
-          2,
-          [6, 10],
-          5,
-          progress,
-          palette.accentSoft,
-        );
-      }
+      paintDashRing(
+        context,
+        centerX,
+        centerY,
+        radius,
+        6,
+        3,
+        [14, 12],
+        3,
+        progress,
+        palette.accentBright,
+      );
+      paintDashRing(
+        context,
+        centerX,
+        centerY,
+        radius,
+        14,
+        2,
+        [6, 10],
+        5,
+        progress,
+        palette.accentSoft,
+      );
       break;
     case 'frame-orbit':
       strokeRing(context, centerX, centerY, radius, 5, 3, accent);
-      if (!mono) {
-        for (const degrees of [-90, 30, 150]) {
-          const angle = (degrees * Math.PI) / 180 + TAU * progress;
-          fillDot(
-            context,
-            centerX + Math.cos(angle) * (radius + 12),
-            centerY + Math.sin(angle) * (radius + 12),
-            12,
-            4,
-            accent,
-          );
-        }
+      for (const degrees of [-90, 30, 150]) {
+        const angle = (degrees * Math.PI) / 180 + TAU * progress;
+        fillDot(
+          context,
+          centerX + Math.cos(angle) * (radius + 12),
+          centerY + Math.sin(angle) * (radius + 12),
+          12,
+          4,
+          accent,
+        );
       }
       break;
     case 'frame-prism':
-      if (!mono && typeof context.createConicGradient === 'function') {
+      if (typeof context.createConicGradient === 'function') {
         const sweep = context.createConicGradient(-Math.PI / 2 + TAU * progress, centerX, centerY);
         sweep.addColorStop(0, accent);
         sweep.addColorStop(0.25, palette.accentSoft);
@@ -1305,20 +1395,18 @@ function paintAvatarFrame(
         context.stroke();
       } else {
         strokeRing(context, centerX, centerY, radius, 7, 2, accent);
-        if (!mono) {
-          paintDashRing(
-            context,
-            centerX,
-            centerY,
-            radius,
-            7,
-            2,
-            [8, 26],
-            3,
-            progress,
-            palette.accentBright,
-          );
-        }
+        paintDashRing(
+          context,
+          centerX,
+          centerY,
+          radius,
+          7,
+          2,
+          [8, 26],
+          3,
+          progress,
+          palette.accentBright,
+        );
       }
       break;
   }
@@ -1914,13 +2002,10 @@ function drawSectionLabel(
   qualifier?: { readonly text: string; readonly size: number },
 ): void {
   const centerY = top + labelHeight / 2;
-  const text = label.toLocaleUpperCase();
-  setFont(context, 700, metrics.sectionLabel);
-  setLetterSpacing(context, '0.18em');
+  setFont(context, 600, metrics.sectionLabel);
   context.fillStyle = COLORS.muted;
-  context.fillText(text, metrics.padX, centerY);
-  let ruleStart = metrics.padX + context.measureText(text).width + 18;
-  setLetterSpacing(context, '0px');
+  context.fillText(label, metrics.padX, centerY);
+  let ruleStart = metrics.padX + context.measureText(label).width + 18;
 
   if (qualifier !== undefined) {
     setFont(context, 500, qualifier.size);
